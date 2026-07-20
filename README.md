@@ -16,8 +16,8 @@ Trois différences avec les SaaS type Zenbooker / BookingKoala :
 |---|---|---|
 | **1** | Architecture + schéma SQL + seed | ✅ Livrée |
 | **1b** | Noyau micro-MVC maison (routeur, requête, PDO, session, CSRF, vues) | ✅ Livré |
-| 2 | Back-office catalogue + simulateur de prix | ⏳ À venir |
-| 3 | Moteur de tarification & durée + tests | ⏳ |
+| **2** | Back-office catalogue + simulateur de prix ([doc](docs/03-back-office-catalogue.md)) | ✅ Socle livré |
+| 3 | Moteur de tarification & durée + tests | ⏳ Calculateur de ligne déjà en place |
 | 4 | Moteur de disponibilité (domicile/atelier) + tests | ⏳ |
 | 5 | API REST + panier + découpage en jobs | ⏳ |
 | 6 | Widget public & tunnel | ⏳ |

@@ -60,18 +60,19 @@ INSERT INTO skills (id, code, label) VALUES
 (6, 'ozone',         'Désinfection ozone');
 
 -- -----------------------------------------------------------------------------
---  Utilisateurs back-office & app technicien (mots de passe = hash Argon2id
---  du mot de passe « keepnew » — à changer à la première connexion)
+--  Utilisateurs back-office & app technicien.
+--  Mot de passe de démonstration commun : « keepnew-demo » (hash Argon2id).
+--  À CHANGER impérativement en production, à la première connexion.
 -- -----------------------------------------------------------------------------
 INSERT INTO users (id, email, password_hash, first_name, last_name, phone, role, is_active) VALUES
-(1, 'antoine@keepnew.be', '$argon2id$v=19$m=65536,t=4,p=1$c2VlZHNhbHRrZWVwbmV3MDE$0000000000000000000000000000000000000000000', 'Antoine', 'Keepnew', '+32 470 00 00 01', 'admin', 1),
-(2, 'dispatch@keepnew.be', '$argon2id$v=19$m=65536,t=4,p=1$c2VlZHNhbHRrZWVwbmV3MDI$0000000000000000000000000000000000000000000', 'Dispatch', 'Keepnew', '+32 470 00 00 02', 'dispatcher', 1),
-(3, 'compta@keepnew.be',  '$argon2id$v=19$m=65536,t=4,p=1$c2VlZHNhbHRrZWVwbmV3MDM$0000000000000000000000000000000000000000000', 'Compta', 'Keepnew', NULL, 'accountant', 1),
-(4, 'tech.karim@keepnew.be', '$argon2id$v=19$m=65536,t=4,p=1$c2VlZHNhbHRrZWVwbmV3MDQ$0000000000000000000000000000000000000000000', 'Karim', 'B.', '+32 471 00 00 04', 'technician', 1),
-(5, 'tech.lucas@keepnew.be', '$argon2id$v=19$m=65536,t=4,p=1$c2VlZHNhbHRrZWVwbmV3MDU$0000000000000000000000000000000000000000000', 'Lucas', 'D.', '+32 471 00 00 05', 'technician', 1),
-(6, 'tech.sofia@keepnew.be', '$argon2id$v=19$m=65536,t=4,p=1$c2VlZHNhbHRrZWVwbmV3MDY$0000000000000000000000000000000000000000000', 'Sofia', 'M.', '+32 471 00 00 06', 'technician', 1),
-(7, 'tech.mehdi@keepnew.be', '$argon2id$v=19$m=65536,t=4,p=1$c2VlZHNhbHRrZWVwbmV3MDc$0000000000000000000000000000000000000000000', 'Mehdi', 'R.', '+32 471 00 00 07', 'technician', 1),
-(8, 'tech.elena@keepnew.be', '$argon2id$v=19$m=65536,t=4,p=1$c2VlZHNhbHRrZWVwbmV3MDg$0000000000000000000000000000000000000000000', 'Elena', 'V.', '+32 471 00 00 08', 'technician', 1);
+(1, 'antoine@keepnew.be', '$argon2id$v=19$m=65536,t=4,p=1$UW9raXVSbk5vQlZPSnkySg$M/1YTiF96nCbmOhPcKre3xIhNhuQzwxS7LRCGoiE/J4', 'Antoine', 'Keepnew', '+32 470 00 00 01', 'admin', 1),
+(2, 'dispatch@keepnew.be', '$argon2id$v=19$m=65536,t=4,p=1$UW9raXVSbk5vQlZPSnkySg$M/1YTiF96nCbmOhPcKre3xIhNhuQzwxS7LRCGoiE/J4', 'Dispatch', 'Keepnew', '+32 470 00 00 02', 'dispatcher', 1),
+(3, 'compta@keepnew.be',  '$argon2id$v=19$m=65536,t=4,p=1$UW9raXVSbk5vQlZPSnkySg$M/1YTiF96nCbmOhPcKre3xIhNhuQzwxS7LRCGoiE/J4', 'Compta', 'Keepnew', NULL, 'accountant', 1),
+(4, 'tech.karim@keepnew.be', '$argon2id$v=19$m=65536,t=4,p=1$UW9raXVSbk5vQlZPSnkySg$M/1YTiF96nCbmOhPcKre3xIhNhuQzwxS7LRCGoiE/J4', 'Karim', 'B.', '+32 471 00 00 04', 'technician', 1),
+(5, 'tech.lucas@keepnew.be', '$argon2id$v=19$m=65536,t=4,p=1$UW9raXVSbk5vQlZPSnkySg$M/1YTiF96nCbmOhPcKre3xIhNhuQzwxS7LRCGoiE/J4', 'Lucas', 'D.', '+32 471 00 00 05', 'technician', 1),
+(6, 'tech.sofia@keepnew.be', '$argon2id$v=19$m=65536,t=4,p=1$UW9raXVSbk5vQlZPSnkySg$M/1YTiF96nCbmOhPcKre3xIhNhuQzwxS7LRCGoiE/J4', 'Sofia', 'M.', '+32 471 00 00 06', 'technician', 1),
+(7, 'tech.mehdi@keepnew.be', '$argon2id$v=19$m=65536,t=4,p=1$UW9raXVSbk5vQlZPSnkySg$M/1YTiF96nCbmOhPcKre3xIhNhuQzwxS7LRCGoiE/J4', 'Mehdi', 'R.', '+32 471 00 00 07', 'technician', 1),
+(8, 'tech.elena@keepnew.be', '$argon2id$v=19$m=65536,t=4,p=1$UW9raXVSbk5vQlZPSnkySg$M/1YTiF96nCbmOhPcKre3xIhNhuQzwxS7LRCGoiE/J4', 'Elena', 'V.', '+32 471 00 00 08', 'technician', 1);
 
 INSERT INTO permissions (id, code, description) VALUES
 (1, 'catalog.edit',      'Éditer le catalogue (catégories, services, extras)'),

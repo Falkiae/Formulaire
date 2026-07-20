@@ -1,0 +1,69 @@
+/* =============================================================================
+   Keepnew — design tokens
+   Mode clair d'abord, mode sombre optionnel. Un seul accent, jamais deux.
+   Référence : direction UX/UI du cahier des charges (§11).
+   ============================================================================= */
+
+:root {
+    /* Couleur — un accent unique */
+    --kn-accent: #586FF3;       /* action primaire, sélection, focus */
+    --kn-accent-ink: #3A4BC0;   /* texte accentué sur fond clair, hover */
+    --kn-blush: #F7D7E2;        /* surface et badges UNIQUEMENT, jamais sous du texte */
+    --kn-ink: #141A2E;          /* texte principal (encre bleutée, pas de noir pur) */
+    --kn-muted: #5C6479;        /* texte secondaire, contraste >= 4.5:1 vérifié */
+    --kn-paper: #FBFBFD;        /* fond de page, blanc légèrement froid */
+    --kn-surface: #FFFFFF;      /* cartes */
+    --kn-line: #E4E6EF;         /* filets 1 px */
+    --kn-success: #1D7A54;      /* confirmation, remise obtenue */
+    --kn-alert: #B4322D;        /* erreur */
+
+    /* Typographie */
+    --kn-font-body: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --kn-font-display: "Familjen Grotesk", var(--kn-font-body);
+
+    /* Échelle : 32 / 24 / 18 / 16 / 14 — corps >= 16, jamais < 14 */
+    --kn-fs-1: 2rem;      /* 32 */
+    --kn-fs-2: 1.5rem;    /* 24 */
+    --kn-fs-3: 1.125rem;  /* 18 */
+    --kn-fs-body: 1rem;   /* 16 */
+    --kn-fs-small: 0.875rem; /* 14 */
+    --kn-lh-body: 1.6;
+
+    /* Espacement — grille de 4 px */
+    --kn-space-1: 4px;
+    --kn-space-2: 8px;
+    --kn-space-3: 12px;
+    --kn-space-4: 16px;
+    --kn-space-5: 24px;
+    --kn-space-6: 32px;
+
+    /* Rayons */
+    --kn-radius-control: 8px;
+    --kn-radius-card: 12px;
+    --kn-radius-pill: 20px;
+
+    /* Cibles tactiles */
+    --kn-touch: 48px;
+}
+
+/* Mode sombre optionnel — surfaces plates, mêmes principes */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --kn-ink: #EEF0F7;
+        --kn-muted: #A2A9BD;
+        --kn-paper: #12141C;
+        --kn-surface: #1A1D28;
+        --kn-line: #2A2E3D;
+        --kn-accent: #7E90F6;
+        --kn-accent-ink: #A9B6F9;
+    }
+}
+
+/* Respecte la préférence de mouvement réduit */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.001ms !important;
+        transition-duration: 0.001ms !important;
+        scroll-behavior: auto !important;
+    }
+}
