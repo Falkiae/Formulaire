@@ -259,6 +259,16 @@ final class AvailabilityRepository
     }
 
     /**
+     * Identifiant de l'atelier actif par défaut (mono-site au lancement).
+     */
+    public function defaultWorkshopLocationId(): ?int
+    {
+        $id = $this->db->scalar('SELECT id FROM locations WHERE is_active = 1 ORDER BY sort_order LIMIT 1');
+
+        return $id !== null ? (int) $id : null;
+    }
+
+    /**
      * @return list<string>
      */
     private function localDates(\DateTimeImmutable $from, \DateTimeImmutable $to): array

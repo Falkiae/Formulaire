@@ -27,6 +27,24 @@ use Keepnew\Core\View;
 use Keepnew\Http\Controller\HealthController;
 use Keepnew\Http\Middleware\AuthMiddleware;
 use Keepnew\Http\Middleware\CsrfMiddleware;
+use Keepnew\Http\Middleware\RateLimitMiddleware;
+use Keepnew\Availability\AvailabilityRepository;
+use Keepnew\Availability\AvailabilityService;
+use Keepnew\Availability\ZoneResolver;
+use Keepnew\Booking\BookingService;
+use Keepnew\Booking\CartService;
+use Keepnew\Booking\HoldService;
+use Keepnew\Geo\CachingGeoProvider;
+use Keepnew\Geo\ChainGeoProvider;
+use Keepnew\Geo\GeoProviderInterface;
+use Keepnew\Geo\HaversineGeoProvider;
+use Keepnew\Geo\OpenRouteServiceProvider;
+use Keepnew\Geo\PostalMatrixGeoProvider;
+use Keepnew\Http\Api\AvailabilityApiController;
+use Keepnew\Http\Api\BookingApiController;
+use Keepnew\Http\Api\CartApiController;
+use Keepnew\Http\Api\CatalogApiController;
+use Keepnew\Core\Config;
 
 return static function (Router $router, Container $container): void {
     // --- Services partagés -------------------------------------------------
@@ -47,6 +65,55 @@ return static function (Router $router, Container $container): void {
         $c->get(\Keepnew\Catalog\LineResolver::class),
         $c->get(\Keepnew\Pricing\CartPricer::class),
     ));
+
+    // --- Geo (fournisseur de trajet : cache(ORS) → matrice CP → haversine) --
+    $container->singleton(GeoProviderInterface::class, static function (Container $c): GeoProviderInterface {
+        $config = $c->get(Config::class);
+        $db = $c->get(Database::class);
+        $ors = new CachingGeoProvider($db, new OpenRouteServiceProvider((string) $config->get('geo.ors_api_key', '')));
+
+        return new ChainGeoProvider($ors, new PostalMatrixGeoProvider($db), new HaversineGeoProvider());
+    });
+
+    // --- Disponibilité -----------------------------------------------------
+    $container->singleton(AvailabilityRepository::class, static fn (Container $c): AvailabilityRepository => new AvailabilityRepository($c->get(Database::class)));
+    $container->singleton(ZoneResolver::class, static fn (): ZoneResolver => new ZoneResolver());
+    $container->singleton(AvailabilityService::class, static fn (Container $c): AvailabilityService => new AvailabilityService(
+        $c->get(AvailabilityRepository::class),
+        $c->get(CatalogRepository::class),
+        $c->get(\Keepnew\Catalog\LineResolver::class),
+        $c->get(\Keepnew\Pricing\PriceCalculator::class),
+        $c->get(ZoneResolver::class),
+        $c->get(GeoProviderInterface::class),
+        $c->get(Database::class),
+    ));
+
+    // --- Panier / commande -------------------------------------------------
+    $container->singleton(CartService::class, static fn (Container $c): CartService => new CartService(
+        $c->get(Database::class),
+        $c->get(CatalogRepository::class),
+        $c->get(\Keepnew\Catalog\LineResolver::class),
+        $c->get(\Keepnew\Pricing\PriceCalculator::class),
+        $c->get(\Keepnew\Catalog\CartPricingService::class),
+    ));
+    $container->singleton(HoldService::class, static fn (Container $c): HoldService => new HoldService($c->get(Database::class)));
+    $container->singleton(BookingService::class, static fn (Container $c): BookingService => new BookingService(
+        $c->get(Database::class),
+        $c->get(CartService::class),
+        $c->get(CatalogRepository::class),
+        $c->get(\Keepnew\Catalog\CartPricingService::class),
+        $c->get(HoldService::class),
+    ));
+
+    // --- Contrôleurs API ---------------------------------------------------
+    $container->singleton(CatalogApiController::class, static fn (Container $c): CatalogApiController => new CatalogApiController($c->get(CatalogRepository::class)));
+    $container->singleton(CartApiController::class, static fn (Container $c): CartApiController => new CartApiController($c->get(CartService::class)));
+    $container->singleton(AvailabilityApiController::class, static fn (Container $c): AvailabilityApiController => new AvailabilityApiController(
+        $c->get(CartService::class),
+        $c->get(AvailabilityService::class),
+        $c->get(AvailabilityRepository::class),
+    ));
+    $container->singleton(BookingApiController::class, static fn (Container $c): BookingApiController => new BookingApiController($c->get(BookingService::class)));
 
     // --- Middlewares -------------------------------------------------------
     $container->singleton(CsrfMiddleware::class, static fn (Container $c): CsrfMiddleware => new CsrfMiddleware($c->get(Csrf::class)));
@@ -140,7 +207,36 @@ return static function (Router $router, Container $container): void {
         $r->post('/simulateur/panier', [SimulatorController::class, 'cart'], [CsrfMiddleware::class]);
     });
 
-    // --- Emplacements réservés aux phases suivantes ------------------------
-    // $router->group('/api', [/* RateLimit */], function (Router $r) { ... });   // Phase 5
-    // $router->group('/widget', [], function (Router $r) { ... });               // Phase 6
+    // --- API REST publique (widget) ----------------------------------------
+    // Cross-origin par nature : pas de CSRF cookie ; endpoints sensibles
+    // protégés par rate limiting. Le panier est authentifié par son token.
+    $db = $container->get(Database::class);
+    $availabilityLimit = new RateLimitMiddleware($db, 'api_availability', 40, 60);
+    $bookingLimit = new RateLimitMiddleware($db, 'api_booking', 15, 60);
+
+    $router->group('/api', [], static function (Router $r) use ($availabilityLimit, $bookingLimit): void {
+        // Catalogue (lecture)
+        $r->get('/catalog', [CatalogApiController::class, 'index']);
+        $r->get('/services/{id}', [CatalogApiController::class, 'service']);
+
+        // Panier
+        $r->post('/cart', [CartApiController::class, 'create']);
+        $r->get('/cart/{token}', [CartApiController::class, 'show']);
+        $r->post('/cart/{token}/items', [CartApiController::class, 'addItem']);
+        $r->patch('/cart/{token}/items/{itemId}', [CartApiController::class, 'updateItem']);
+        $r->delete('/cart/{token}/items/{itemId}', [CartApiController::class, 'removeItem']);
+        $r->post('/cart/{token}/coupon', [CartApiController::class, 'setCoupon']);
+
+        // Disponibilité (rate-limité : anti-énumération de créneaux)
+        $r->post('/availability', [AvailabilityApiController::class, 'search'], [$availabilityLimit]);
+
+        // Réservation (rate-limité)
+        $r->post('/bookings', [BookingApiController::class, 'create'], [$bookingLimit]);
+        $r->get('/bookings/{token}', [BookingApiController::class, 'show']);
+        $r->post('/bookings/{token}/schedule', [BookingApiController::class, 'schedule'], [$bookingLimit]);
+        $r->post('/bookings/{token}/cancel', [BookingApiController::class, 'cancel']);
+    });
+
+    // --- Emplacement réservé à la Phase 6 ----------------------------------
+    // $router->group('/widget', [], function (Router $r) { ... });               // Widget public
 };
