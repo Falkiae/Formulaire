@@ -15,6 +15,7 @@ Trois différences avec les SaaS type Zenbooker / BookingKoala :
 | Phase | Contenu | Statut |
 |---|---|---|
 | **1** | Architecture + schéma SQL + seed | ✅ Livrée |
+| **1b** | Noyau micro-MVC maison (routeur, requête, PDO, session, CSRF, vues) | ✅ Livré |
 | 2 | Back-office catalogue + simulateur de prix | ⏳ À venir |
 | 3 | Moteur de tarification & durée + tests | ⏳ |
 | 4 | Moteur de disponibilité (domicile/atelier) + tests | ⏳ |
@@ -36,6 +37,23 @@ Trois différences avec les SaaS type Zenbooker / BookingKoala :
 
 Le schéma et le seed ont été **validés par chargement réel sur MariaDB 10.11**
 (intégrité des clés étrangères, JSON, encodage utf8mb4, simulation de devis).
+
+## Noyau applicatif (micro-MVC maison)
+
+Le socle de code sur lequel s'appuient toutes les phases suivantes est en place
+et **documenté en détail dans [`docs/02-noyau-mvc.md`](docs/02-noyau-mvc.md)** :
+front controller unique, routeur (routes paramétrées + groupes + middlewares),
+requête immuable à accesseurs typés, réponse, conteneur DI, accès base PDO
+100 % préparé, session sécurisée, protection CSRF, rate limiting, moteur de vues
+sans `extract()`, et les utilitaires `Money` (centimes) / `Clock` (UTC↔Bruxelles).
+
+Validé en exécution réelle (PHP 8.4) : routage, 404, en-têtes de sécurité,
+accesseurs filtrés, TVA en centimes — 11 assertions au vert.
+
+```bash
+php -S 127.0.0.1:8080 -t public public/index.php
+curl -s http://127.0.0.1:8080/health
+```
 
 ## Installation locale (validation du schéma)
 

@@ -1,0 +1,11 @@
+# Racine du dépôt — si l'hébergeur ne permet pas de pointer le DocumentRoot sur
+# public/, cette règle redirige tout le trafic vers public/ tout en gardant
+# src/, config/, storage/ et .env inaccessibles depuis le web.
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
+
+# Ceinture et bretelles : bloque l'accès direct aux dossiers de code/données.
+RedirectMatch 403 ^/(src|config|storage|database|tests|vendor|docs)/.*$
+RedirectMatch 403 ^/\.env
