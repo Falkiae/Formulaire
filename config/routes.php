@@ -34,10 +34,18 @@ return static function (Router $router, Container $container): void {
     $container->singleton(ExtraRepository::class, static fn (Container $c): ExtraRepository => new ExtraRepository($c->get(Database::class)));
     $container->singleton(UserRepository::class, static fn (Container $c): UserRepository => new UserRepository($c->get(Database::class)));
     $container->singleton(\Keepnew\Pricing\PriceCalculator::class, static fn (): \Keepnew\Pricing\PriceCalculator => new \Keepnew\Pricing\PriceCalculator());
+    $container->singleton(\Keepnew\Pricing\CartPricer::class, static fn (Container $c): \Keepnew\Pricing\CartPricer => new \Keepnew\Pricing\CartPricer($c->get(\Keepnew\Pricing\PriceCalculator::class)));
+    $container->singleton(\Keepnew\Catalog\LineResolver::class, static fn (Container $c): \Keepnew\Catalog\LineResolver => new \Keepnew\Catalog\LineResolver($c->get(CatalogRepository::class)));
     $container->singleton(SimulatorService::class, static fn (Container $c): SimulatorService => new SimulatorService(
         $c->get(CatalogRepository::class),
         $c->get(\Keepnew\Pricing\PriceCalculator::class),
         $c->get(Database::class),
+        $c->get(\Keepnew\Catalog\LineResolver::class),
+    ));
+    $container->singleton(\Keepnew\Catalog\CartPricingService::class, static fn (Container $c): \Keepnew\Catalog\CartPricingService => new \Keepnew\Catalog\CartPricingService(
+        $c->get(Database::class),
+        $c->get(\Keepnew\Catalog\LineResolver::class),
+        $c->get(\Keepnew\Pricing\CartPricer::class),
     ));
 
     // --- Middlewares -------------------------------------------------------
@@ -78,6 +86,7 @@ return static function (Router $router, Container $container): void {
         $c->get(Csrf::class),
         $c->get(CatalogRepository::class),
         $c->get(SimulatorService::class),
+        $c->get(\Keepnew\Catalog\CartPricingService::class),
     ));
 
     // --- Santé / démonstration du noyau ------------------------------------
@@ -128,6 +137,7 @@ return static function (Router $router, Container $container): void {
         $r->get('/simulateur', [SimulatorController::class, 'index']);
         $r->get('/simulateur/service/{id}', [SimulatorController::class, 'serviceConfig']);
         $r->post('/simulateur/calcul', [SimulatorController::class, 'calculate'], [CsrfMiddleware::class]);
+        $r->post('/simulateur/panier', [SimulatorController::class, 'cart'], [CsrfMiddleware::class]);
     });
 
     // --- Emplacements réservés aux phases suivantes ------------------------

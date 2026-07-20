@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Keepnew\Admin;
 
+use Keepnew\Catalog\CartPricingService;
 use Keepnew\Catalog\CatalogRepository;
 use Keepnew\Catalog\SimulatorService;
 use Keepnew\Core\Csrf;
@@ -31,6 +32,7 @@ final class SimulatorController
         private readonly Csrf $csrf,
         private readonly CatalogRepository $catalog,
         private readonly SimulatorService $simulator,
+        private readonly CartPricingService $cartPricing,
     ) {
     }
 
@@ -93,6 +95,32 @@ final class SimulatorController
             );
 
             return Response::json($quote);
+        } catch (\InvalidArgumentException $e) {
+            return Response::json(['error' => $e->getMessage()], 422);
+        }
+    }
+
+    /**
+     * Calcule le devis d'un PANIER multi-lignes (remise cumul, coupon, TVA).
+     *
+     * Corps JSON : { lines: [{service_id, mode, variant_id?, extra_ids?,
+     * quantity?, address_key?}], coupon_code?, travel_surcharge_cents? }
+     */
+    public function cart(Request $request): Response
+    {
+        $lines = $request->array('lines');
+        if ($lines === []) {
+            return Response::json(['error' => 'Panier vide.'], 422);
+        }
+
+        try {
+            $quote = $this->cartPricing->price(
+                $lines,
+                $request->string('coupon_code') ?: null,
+                max(0, $request->int('travel_surcharge_cents')),
+            );
+
+            return Response::json($this->cartPricing->format($quote));
         } catch (\InvalidArgumentException $e) {
             return Response::json(['error' => $e->getMessage()], 422);
         }

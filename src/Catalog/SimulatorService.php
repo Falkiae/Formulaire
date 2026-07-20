@@ -23,6 +23,7 @@ final class SimulatorService
         private readonly CatalogRepository $catalog,
         private readonly PriceCalculator $calculator,
         private readonly Database $db,
+        private readonly LineResolver $resolver,
     ) {
     }
 
@@ -39,61 +40,7 @@ final class SimulatorService
             throw new \InvalidArgumentException('Prestation inconnue.');
         }
 
-        $modeRow = $this->catalog->serviceMode($serviceId, $mode);
-        if ($modeRow === null) {
-            throw new \InvalidArgumentException("Mode « {$mode} » indisponible pour cette prestation.");
-        }
-
-        // Base = prix/durée du mode si définis, sinon base du service.
-        $basePrice = $modeRow['price_cents'] !== null
-            ? (int) $modeRow['price_cents']
-            : (int) $service['base_price_cents'];
-        $baseDuration = $modeRow['active_duration_min'] !== null
-            ? (int) $modeRow['active_duration_min']
-            : (int) $service['base_duration_min'];
-
-        $input = [
-            'base_price_cents' => $basePrice,
-            'base_duration_min' => $baseDuration,
-            'base_label' => (string) $service['name'],
-            'occupancy_duration_min' => (int) ($modeRow['occupancy_duration_min'] ?? 0),
-            'extras' => [],
-            'quantity' => max(1, $quantity),
-        ];
-
-        // Variante (si le service en a).
-        if ($variantId !== null) {
-            $variant = $this->catalog->findVariant($variantId);
-            if ($variant === null || (int) $variant['service_id'] !== $serviceId) {
-                throw new \InvalidArgumentException('Variante invalide pour cette prestation.');
-            }
-            $input['variant'] = [
-                'label' => (string) $variant['label'],
-                'price_delta_cents' => (int) $variant['price_delta_cents'],
-                'duration_delta_min' => (int) $variant['duration_delta_min'],
-                'price_override_cents' => $variant['price_override_cents'] !== null ? (int) $variant['price_override_cents'] : null,
-                'duration_override_min' => $variant['duration_override_min'] !== null ? (int) $variant['duration_override_min'] : null,
-            ];
-        }
-
-        // Extras : on ne retient que ceux réellement rattachés au service.
-        if ($extraIds !== []) {
-            $available = [];
-            foreach ($this->catalog->serviceExtras($serviceId) as $se) {
-                $available[(int) $se['extra_id']] = $se;
-            }
-            foreach ($extraIds as $extraId) {
-                if (isset($available[$extraId])) {
-                    $se = $available[$extraId];
-                    $input['extras'][] = [
-                        'label' => (string) $se['label'],
-                        'price_cents' => (int) $se['eff_price_cents'],
-                        'duration_min' => (int) $se['eff_duration_min'],
-                    ];
-                }
-            }
-        }
-
+        $input = $this->resolver->resolve($serviceId, $mode, $variantId, $extraIds, $quantity);
         $line = $this->calculator->calculateLine($input);
 
         return $this->format($line, $service, $mode);
