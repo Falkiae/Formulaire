@@ -159,6 +159,18 @@ final class CatalogRepository
         );
     }
 
+    /**
+     * Compétences (skill_id) requises par un service.
+     *
+     * @return list<int>
+     */
+    public function serviceSkillIds(int $serviceId): array
+    {
+        $rows = $this->db->select('SELECT skill_id FROM service_skills WHERE service_id = :id', ['id' => $serviceId]);
+
+        return array_map(static fn (array $r): int => (int) $r['skill_id'], $rows);
+    }
+
     // --- Écriture (édition back-office) ---------------------------------------
 
     /**
