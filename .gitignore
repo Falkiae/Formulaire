@@ -1,0 +1,20 @@
+# Secrets / config locale — jamais committés
+.env
+.env.local
+
+# Dépendances
+/vendor/
+
+# Stockage hors webroot (uploads, logs, cache, PDF/UBL générés)
+/storage/*
+!/storage/.gitkeep
+
+# Artefacts
+*.log
+.DS_Store
+.idea/
+.vscode/
+
+# Tests
+/.phpunit.cache/
+/coverage/

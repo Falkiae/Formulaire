@@ -1,0 +1,64 @@
+# Keepnew Booking
+
+Plateforme de prise de rendez-vous en ligne pour **Keepnew SRL**
+(BE 1009.875.116) — nettoyage mobile de véhicules, canapés et matelas, à domicile
+ou en atelier, principalement en province de Liège.
+
+Trois différences avec les SaaS type Zenbooker / BookingKoala :
+
+1. **Auto-hébergé** sur mutualisé classique (PHP 8.2+ / MySQL), sans Docker ni Node en prod.
+2. **Moteur de disponibilité intégrant le temps de trajet** entre interventions.
+3. **Widget embarquable** sur keepnew.be sans casser design ni SEO.
+
+## État d'avancement (par phases)
+
+| Phase | Contenu | Statut |
+|---|---|---|
+| **1** | Architecture + schéma SQL + seed | ✅ Livrée |
+| 2 | Back-office catalogue + simulateur de prix | ⏳ À venir |
+| 3 | Moteur de tarification & durée + tests | ⏳ |
+| 4 | Moteur de disponibilité (domicile/atelier) + tests | ⏳ |
+| 5 | API REST + panier + découpage en jobs | ⏳ |
+| 6 | Widget public & tunnel | ⏳ |
+| 7 | Dispatch, ateliers, clients | ⏳ |
+| 8 | Form builder | ⏳ |
+| 9 | Notifications, facturation, Peppol | ⏳ |
+| 10 | App technicien PWA | ⏳ |
+| 11 | Tracking, rapports, documentation | ⏳ |
+| 12 | Activation du paiement en ligne | ultérieure |
+
+## Contenu de la Phase 1
+
+- `docs/01-architecture.md` — choix d'architecture argumenté, arborescence, flux.
+- `database/schema.sql` — schéma complet commenté (61 tables, InnoDB, utf8mb4).
+- `database/seed.sql` — jeu de données Keepnew réaliste (catalogue, 5 techniciens,
+  1 atelier, zones province de Liège, formulaire d'intake, notifications).
+
+Le schéma et le seed ont été **validés par chargement réel sur MariaDB 10.11**
+(intégrité des clés étrangères, JSON, encodage utf8mb4, simulation de devis).
+
+## Installation locale (validation du schéma)
+
+Prérequis : MySQL 8 ou MariaDB 10.6+.
+
+```bash
+# Créer la base
+mysql -uroot -e "CREATE DATABASE keepnew CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+
+# Charger le schéma puis le seed
+mysql -uroot keepnew < database/schema.sql
+mysql -uroot keepnew < database/seed.sql
+```
+
+## Conventions transverses
+
+- **Montants** : entiers en **centimes** d'euro, jamais de float. Taux (TVA,
+  remises) en **points de base** (`2100` = 21 %).
+- **Dates** : stockées en **UTC**, affichées en `Europe/Brussels`.
+- **Durées** : en minutes (entiers).
+- **SQL** : PDO préparé exclusivement, jamais de requête concaténée.
+- **Réglages** : dans la table `settings` (barèmes, seuils, clés API), jamais en dur.
+
+## Convention de branche
+
+Développement sur `claude/session-czmr0w`.
