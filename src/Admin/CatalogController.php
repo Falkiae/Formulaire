@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Keepnew\Admin;
 
 use Keepnew\Catalog\CatalogRepository;
+use Keepnew\Catalog\ExtraRepository;
 use Keepnew\Core\Csrf;
 use Keepnew\Core\Exception\NotFoundException;
 use Keepnew\Core\Request;
@@ -24,6 +25,7 @@ final class CatalogController
         private readonly Session $session,
         private readonly Csrf $csrf,
         private readonly CatalogRepository $catalog,
+        private readonly ExtraRepository $extras,
     ) {
     }
 
@@ -33,7 +35,9 @@ final class CatalogController
     public function index(Request $request): Response
     {
         return $this->view->render('admin/catalog/index', [
+            'csrf' => $this->csrf->field(),
             'tree' => $this->catalog->categoryTree(),
+            'categories' => $this->catalog->allCategories(),
             'services' => $this->catalog->allServices(),
             'user_name' => $this->session->get('user_name'),
             'flash' => $this->session->pullFlash('catalog_ok'),
@@ -51,12 +55,20 @@ final class CatalogController
             throw new NotFoundException('Prestation introuvable.');
         }
 
+        // Extras disponibles à rattacher = catalogue central moins ceux déjà liés.
+        $attached = array_map(static fn (array $e): int => (int) $e['extra_id'], $this->catalog->serviceExtras($id, false));
+        $available = array_filter(
+            $this->extras->all(true),
+            static fn (array $e): bool => !in_array((int) $e['id'], $attached, true),
+        );
+
         return $this->view->render('admin/catalog/service', [
             'csrf' => $this->csrf->field(),
             'service' => $service,
             'modes' => $this->catalog->serviceModes($id),
             'variants' => $this->catalog->serviceVariants($id, false),
             'extras' => $this->catalog->serviceExtras($id, false),
+            'available_extras' => array_values($available),
             'user_name' => $this->session->get('user_name'),
             'flash' => $this->session->pullFlash('catalog_ok'),
         ]);
@@ -101,6 +113,140 @@ final class CatalogController
         $this->session->flash('catalog_ok', 'Prestation enregistrée.');
 
         return Response::redirect("/admin/catalogue/service/{$id}");
+    }
+
+    /**
+     * POST /admin/catalogue/service — création d'une prestation.
+     */
+    public function createService(Request $request): Response
+    {
+        $name = $request->string('name');
+        $categoryId = $request->int('category_id');
+        if ($name === '' || $categoryId <= 0) {
+            $this->session->flash('catalog_ok', 'Nom et catégorie sont requis pour créer une prestation.');
+
+            return Response::redirect('/admin/catalogue');
+        }
+
+        $id = $this->catalog->createService([
+            'category_id' => $categoryId,
+            'name' => $name,
+            'base_price_cents' => $this->eurosToCents($request->string('base_price')),
+            'base_duration_min' => max(0, $request->int('base_duration', 60)),
+        ]);
+
+        $this->session->flash('catalog_ok', 'Prestation créée — complétez sa configuration puis activez-la.');
+
+        return Response::redirect("/admin/catalogue/service/{$id}");
+    }
+
+    /**
+     * POST /admin/catalogue/service/{id}/dupliquer — duplication en un clic.
+     */
+    public function duplicateService(Request $request): Response
+    {
+        $id = (int) $request->attribute('id');
+        $newId = $this->catalog->duplicateService($id);
+        if ($newId === null) {
+            throw new NotFoundException('Prestation introuvable.');
+        }
+
+        $this->session->flash('catalog_ok', 'Prestation dupliquée (inactive).');
+
+        return Response::redirect("/admin/catalogue/service/{$newId}");
+    }
+
+    /**
+     * POST /admin/catalogue/service/{id}/supprimer — suppression ou désactivation.
+     */
+    public function deleteService(Request $request): Response
+    {
+        $id = (int) $request->attribute('id');
+        $action = $this->catalog->deleteOrDeactivateService($id);
+        $this->session->flash(
+            'catalog_ok',
+            $action === 'deleted' ? 'Prestation supprimée.' : 'Prestation déjà commandée : désactivée plutôt que supprimée.',
+        );
+
+        return Response::redirect('/admin/catalogue');
+    }
+
+    // --- Variantes -----------------------------------------------------------
+
+    /**
+     * POST /admin/catalogue/service/{id}/variante — ajout d'une variante.
+     */
+    public function createVariant(Request $request): Response
+    {
+        $id = (int) $request->attribute('id');
+        $label = $request->string('label');
+        if ($label !== '') {
+            $this->catalog->createVariant($id, [
+                'label' => $label,
+                'price_delta_cents' => $this->eurosToCents($request->string('price_delta')),
+                'duration_delta_min' => $request->int('duration_delta'),
+                'is_active' => 1,
+            ]);
+            $this->session->flash('catalog_ok', 'Variante ajoutée.');
+        }
+
+        return Response::redirect("/admin/catalogue/service/{$id}");
+    }
+
+    /**
+     * POST /admin/catalogue/service/{id}/variante/{variantId} — mise à jour.
+     */
+    public function updateVariant(Request $request): Response
+    {
+        $id = (int) $request->attribute('id');
+        $variantId = (int) $request->attribute('variantId');
+        $this->catalog->updateVariant($variantId, [
+            'label' => $request->string('label'),
+            'price_delta_cents' => $this->eurosToCents($request->string('price_delta')),
+            'duration_delta_min' => $request->int('duration_delta'),
+            'is_active' => $request->bool('is_active') ? 1 : 0,
+        ]);
+        $this->session->flash('catalog_ok', 'Variante enregistrée.');
+
+        return Response::redirect("/admin/catalogue/service/{$id}");
+    }
+
+    /**
+     * POST /admin/catalogue/service/{id}/variante/{variantId}/supprimer.
+     */
+    public function deleteVariant(Request $request): Response
+    {
+        $id = (int) $request->attribute('id');
+        $variantId = (int) $request->attribute('variantId');
+        $deleted = $this->catalog->deleteVariant($variantId);
+        $this->session->flash(
+            'catalog_ok',
+            $deleted ? 'Variante supprimée.' : 'Variante déjà utilisée : désactivée plutôt que supprimée.',
+        );
+
+        return Response::redirect("/admin/catalogue/service/{$id}");
+    }
+
+    // --- Réordonnancement ----------------------------------------------------
+
+    /**
+     * POST /admin/catalogue/services/ordre — réordonnancement (JSON, drag & drop).
+     */
+    public function reorderServices(Request $request): Response
+    {
+        $this->catalog->reorder('services', array_map('intval', $request->array('order')));
+
+        return Response::json(['status' => 'ok']);
+    }
+
+    /**
+     * POST /admin/catalogue/service/{id}/variantes/ordre — réordonnancement.
+     */
+    public function reorderVariants(Request $request): Response
+    {
+        $this->catalog->reorder('variants', array_map('intval', $request->array('order')));
+
+        return Response::json(['status' => 'ok']);
     }
 
     /**

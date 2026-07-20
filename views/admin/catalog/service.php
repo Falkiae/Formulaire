@@ -108,42 +108,120 @@ foreach ($data['modes'] as $m) {
 
         <section class="kn-card" style="margin-top:24px;">
             <h2>Variantes</h2>
-            <table class="kn-table">
-                <thead><tr><th>Variante</th><th class="kn-num">Δ prix</th><th class="kn-num">Δ durée</th><th>État</th></tr></thead>
-                <tbody>
-                    <?php foreach ($data['variants'] as $v): ?>
-                        <tr>
-                            <td><?= $e($v['label']) ?></td>
-                            <td class="kn-num"><?= $e($centsToEuros((int) $v['price_delta_cents'])) ?> €</td>
-                            <td class="kn-num"><?= (int) $v['duration_delta_min'] ?> min</td>
-                            <td><?= ((int) $v['is_active'] === 1) ? 'actif' : '<span class="kn-muted">inactif</span>' ?></td>
-                        </tr>
-                    <?php endforeach; ?>
-                    <?php if ($data['variants'] === []): ?>
-                        <tr><td colspan="4" class="kn-muted">Aucune variante.</td></tr>
-                    <?php endif; ?>
-                </tbody>
-            </table>
+
+            <?php if ($data['variants'] === []): ?>
+                <p class="kn-muted">Aucune variante.</p>
+            <?php endif; ?>
+
+            <?php foreach ($data['variants'] as $v): ?>
+                <div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--kn-line);">
+                    <form method="post" action="/admin/catalogue/service/<?= (int) $service['id'] ?>/variante/<?= (int) $v['id'] ?>"
+                          style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;">
+                        <?= $data['csrf'] ?>
+                        <div class="kn-field" style="margin:0;"><label>Libellé</label><input type="text" name="label" value="<?= $e($v['label']) ?>" style="max-width:180px;"></div>
+                        <div class="kn-field" style="margin:0;"><label>Δ prix (€)</label><input type="text" name="price_delta" value="<?= $e($centsToEuros((int) $v['price_delta_cents'])) ?>" inputmode="decimal" style="max-width:100px;"></div>
+                        <div class="kn-field" style="margin:0;"><label>Δ durée (min)</label><input type="number" name="duration_delta" value="<?= (int) $v['duration_delta_min'] ?>" style="max-width:90px;"></div>
+                        <label style="display:inline-flex;align-items:center;gap:4px;margin:0 0 12px;color:var(--kn-ink);">
+                            <input type="checkbox" name="is_active" value="1" <?= ((int) $v['is_active'] === 1) ? 'checked' : '' ?> style="width:auto;min-height:auto;"> active
+                        </label>
+                        <button type="submit" class="kn-btn kn-btn-ghost" style="min-height:40px;padding:0 12px;margin-bottom:12px;">Enregistrer</button>
+                    </form>
+                    <form method="post" action="/admin/catalogue/service/<?= (int) $service['id'] ?>/variante/<?= (int) $v['id'] ?>/supprimer"
+                          onsubmit="return confirm('Supprimer cette variante ?');" style="margin-bottom:12px;">
+                        <?= $data['csrf'] ?>
+                        <button type="submit" class="kn-btn kn-btn-ghost" style="min-height:40px;padding:0 10px;color:var(--kn-alert);">Supprimer</button>
+                    </form>
+                </div>
+            <?php endforeach; ?>
+
+            <details style="margin-top:12px;">
+                <summary>Ajouter une variante</summary>
+                <form method="post" action="/admin/catalogue/service/<?= (int) $service['id'] ?>/variante"
+                      style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin-top:12px;">
+                    <?= $data['csrf'] ?>
+                    <div class="kn-field" style="margin:0;"><label>Libellé</label><input type="text" name="label" required style="max-width:200px;"></div>
+                    <div class="kn-field" style="margin:0;"><label>Δ prix (€)</label><input type="text" name="price_delta" inputmode="decimal" value="0" style="max-width:100px;"></div>
+                    <div class="kn-field" style="margin:0;"><label>Δ durée (min)</label><input type="number" name="duration_delta" value="0" style="max-width:90px;"></div>
+                    <button type="submit" class="kn-btn kn-btn-ghost">Ajouter</button>
+                </form>
+            </details>
         </section>
 
         <section class="kn-card" style="margin-top:24px;">
             <h2>Extras rattachés</h2>
             <table class="kn-table">
-                <thead><tr><th>Extra</th><th>Sélection</th><th class="kn-num">Prix effectif</th><th class="kn-num">Durée</th></tr></thead>
+                <thead><tr><th>Extra</th><th>Sélection</th><th class="kn-num">Prix effectif</th><th class="kn-num">Durée</th><th></th></tr></thead>
                 <tbody>
                     <?php foreach ($data['extras'] as $x): ?>
                         <tr>
                             <td><?= $e($x['label']) ?></td>
-                            <td class="kn-muted"><?= $x['selection_type'] === 'radio' ? 'exclusif' : 'cumulable' ?></td>
+                            <td class="kn-muted"><?= $x['selection_type'] === 'radio' ? 'exclusif' : 'cumulable' ?><?= $x['exclusive_group'] ? ' · ' . $e($x['exclusive_group']) : '' ?></td>
                             <td class="kn-num"><?= $e($centsToEuros((int) $x['eff_price_cents'])) ?> €</td>
                             <td class="kn-num"><?= (int) $x['eff_duration_min'] ?> min</td>
+                            <td>
+                                <form method="post" action="/admin/catalogue/service/<?= (int) $service['id'] ?>/extras/<?= (int) $x['extra_id'] ?>/detacher">
+                                    <?= $data['csrf'] ?>
+                                    <button type="submit" class="kn-btn kn-btn-ghost" style="min-height:32px;padding:0 10px;">Détacher</button>
+                                </form>
+                            </td>
                         </tr>
                     <?php endforeach; ?>
                     <?php if ($data['extras'] === []): ?>
-                        <tr><td colspan="4" class="kn-muted">Aucun extra rattaché.</td></tr>
+                        <tr><td colspan="5" class="kn-muted">Aucun extra rattaché.</td></tr>
                     <?php endif; ?>
                 </tbody>
             </table>
+
+            <?php if ($data['available_extras'] !== []): ?>
+                <details style="margin-top:12px;">
+                    <summary>Rattacher un extra existant</summary>
+                    <form method="post" action="/admin/catalogue/service/<?= (int) $service['id'] ?>/extras"
+                          style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin-top:12px;">
+                        <?= $data['csrf'] ?>
+                        <div class="kn-field" style="margin:0;">
+                            <label>Extra</label>
+                            <select name="extra_id">
+                                <?php foreach ($data['available_extras'] as $ax): ?>
+                                    <option value="<?= (int) $ax['id'] ?>"><?= $e($ax['label']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="kn-field" style="margin:0;">
+                            <label>Prix surchargé (€, vide = défaut)</label>
+                            <input type="text" name="price" inputmode="decimal" style="max-width:120px;">
+                        </div>
+                        <div class="kn-field" style="margin:0;">
+                            <label>Sélection</label>
+                            <select name="selection_type">
+                                <option value="checkbox">Cumulable</option>
+                                <option value="radio">Exclusif</option>
+                            </select>
+                        </div>
+                        <div class="kn-field" style="margin:0;">
+                            <label>Groupe exclusif (optionnel)</label>
+                            <input type="text" name="exclusive_group" style="max-width:120px;">
+                        </div>
+                        <button type="submit" class="kn-btn kn-btn-ghost">Rattacher</button>
+                    </form>
+                </details>
+            <?php else: ?>
+                <p class="kn-muted">Tous les extras actifs sont déjà rattachés. <a href="/admin/extras">Créer un nouvel extra</a>.</p>
+            <?php endif; ?>
+        </section>
+
+        <section class="kn-card" style="margin-top:24px;">
+            <h2>Actions</h2>
+            <div style="display:flex;gap:12px;flex-wrap:wrap;">
+                <form method="post" action="/admin/catalogue/service/<?= (int) $service['id'] ?>/dupliquer">
+                    <?= $data['csrf'] ?>
+                    <button type="submit" class="kn-btn kn-btn-ghost">Dupliquer la prestation</button>
+                </form>
+                <form method="post" action="/admin/catalogue/service/<?= (int) $service['id'] ?>/supprimer"
+                      onsubmit="return confirm('Supprimer cette prestation ? Si elle a déjà été commandée, elle sera désactivée.');">
+                    <?= $data['csrf'] ?>
+                    <button type="submit" class="kn-btn kn-btn-ghost" style="color:var(--kn-alert);">Supprimer / désactiver</button>
+                </form>
+            </div>
         </section>
     </main>
 </body>

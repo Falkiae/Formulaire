@@ -89,9 +89,49 @@ Testé de bout en bout sur MariaDB 10.11 + serveur PHP 8.4 :
 
 `antoine@keepnew.be` / `keepnew-demo` (rôle admin). À changer en production.
 
-## Reste de la Phase 2 (à poursuivre)
+## CRUD catalogue complet
 
-CRUD complet des catégories/extras/variantes (création, réordonnancement drag &
-drop, slugs), duplication de service/catégorie en un clic, éditeur de grille de
-variantes au clavier, upload de photos. Le socle (repository, historisation,
-calculateur, simulateur) est en place pour les brancher.
+Ajouté au-dessus du socle : gestion complète depuis le back-office, sans
+intervention technique.
+
+- **Catégories** : création, édition (nom, parent, description, icône,
+  visibilité), suppression **gardée** (refusée si sous-catégories ou services),
+  réordonnancement (drag & drop → endpoint JSON), slug SEO auto-unique.
+- **Services** : création (avec mode « à domicile » activé par défaut),
+  **duplication en un clic** (recopie modes, variantes et extras rattachés sous
+  « … (copie) », inactif), suppression **gardée** (désactivation si déjà
+  commandé), réordonnancement drag & drop.
+- **Variantes** : ajout, édition inline (libellé, Δ prix, Δ durée, activation),
+  suppression gardée, réordonnancement.
+- **Extras** : catalogue central (créer/éditer/supprimer), **rattachement à un
+  service** avec surcharge de prix/durée, sélection `checkbox`/`radio` et groupe
+  d'exclusivité ; détachement.
+
+### Garde-fous métier (« Delete » ≠ effacement)
+
+Conformément au cahier des charges, rien qui a un passé n'est réellement
+effacé : la suppression **dégrade automatiquement en désactivation** dès qu'une
+donnée est référencée par un panier ou une commande. Vérifié en conditions
+réelles :
+
+| Action | Sans référence | Avec référence (commande/panier) |
+|---|---|---|
+| Supprimer un service | supprimé (cascade modes/variantes) | **désactivé** (`is_active=0`) |
+| Supprimer un extra | supprimé | **désactivé** |
+| Supprimer une variante | supprimée | **désactivée** |
+| Supprimer une catégorie | supprimée si vide | **refusée** si contient des éléments |
+
+### Validation réelle (suite)
+
+Testé de bout en bout (MariaDB + PHP 8.4) : création catégorie « Tapis »,
+création service « Nettoyage tapis » (+ mode onsite auto), ajout/suppression de
+variante, création + rattachement (override 12,50 € / radio / groupe) +
+détachement d'un extra, duplication d'un service (6 variantes recopiées),
+réordonnancement persisté, et les 4 garde-fous ci-dessus.
+
+## Reste de la Phase 2 (optionnel, cosmétique)
+
+Éditeur de grille de variantes en saisie clavier rapide, upload de photos
+avant/après et d'illustrations, réordonnancement drag & drop des catégories dans
+l'arbre (l'endpoint existe déjà, seul le liant visuel manque). Non bloquant pour
+la suite.

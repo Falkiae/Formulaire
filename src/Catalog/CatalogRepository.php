@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Keepnew\Catalog;
 
 use Keepnew\Core\Database;
+use Keepnew\Support\Slug;
 
 /**
  * Accès en lecture/écriture au catalogue : catégories, services, modes,
@@ -264,5 +265,356 @@ final class CatalogRepository
             'UPDATE services SET is_active = :a WHERE id = :id',
             ['a' => $active ? 1 : 0, 'id' => $serviceId],
         );
+    }
+
+    // =========================================================================
+    //  CATÉGORIES — création / modification / suppression / réordonnancement
+    // =========================================================================
+
+    public function findCategory(int $id): ?array
+    {
+        return $this->db->selectOne('SELECT * FROM service_categories WHERE id = :id', ['id' => $id]);
+    }
+
+    /**
+     * Crée une catégorie. Le slug est dérivé du nom et rendu unique.
+     *
+     * @param array{name:string, parent_id:?int, description:?string, icon:?string, is_visible:int} $data
+     */
+    public function createCategory(array $data): int
+    {
+        $nextOrder = (int) $this->db->scalar(
+            'SELECT COALESCE(MAX(sort_order), -1) + 1 FROM service_categories
+             WHERE parent_id <=> :parent',
+            ['parent' => $data['parent_id']],
+        );
+
+        return $this->db->insert('service_categories', [
+            'parent_id' => $data['parent_id'],
+            'name' => $data['name'],
+            'slug' => $this->uniqueSlug('service_categories', Slug::make($data['name'])),
+            'description' => $data['description'] ?? null,
+            'icon' => $data['icon'] ?? null,
+            'is_visible' => $data['is_visible'],
+            'sort_order' => $nextOrder,
+        ]);
+    }
+
+    /**
+     * @param array{name:string, parent_id:?int, description:?string, icon:?string, is_visible:int} $data
+     */
+    public function updateCategory(int $id, array $data): void
+    {
+        $this->db->run(
+            'UPDATE service_categories
+             SET name = :name, parent_id = :parent, description = :desc, icon = :icon, is_visible = :vis
+             WHERE id = :id',
+            [
+                'name' => $data['name'],
+                'parent' => $data['parent_id'],
+                'desc' => $data['description'] ?? null,
+                'icon' => $data['icon'] ?? null,
+                'vis' => $data['is_visible'],
+                'id' => $id,
+            ],
+        );
+    }
+
+    /**
+     * Une catégorie n'est supprimable que si elle n'a ni sous-catégorie ni
+     * service. Sinon on invite à la masquer (désactivation) plutôt qu'à casser
+     * des références.
+     */
+    public function categoryDeletable(int $id): bool
+    {
+        $children = (int) $this->db->scalar('SELECT COUNT(*) FROM service_categories WHERE parent_id = :id', ['id' => $id]);
+        $services = (int) $this->db->scalar('SELECT COUNT(*) FROM services WHERE category_id = :id', ['id' => $id]);
+
+        return $children === 0 && $services === 0;
+    }
+
+    public function deleteCategory(int $id): void
+    {
+        if ($this->categoryDeletable($id)) {
+            $this->db->run('DELETE FROM service_categories WHERE id = :id', ['id' => $id]);
+        }
+    }
+
+    // =========================================================================
+    //  SERVICES — création / duplication / suppression
+    // =========================================================================
+
+    /**
+     * Crée un service minimal (nom + catégorie + prix/durée de base) et ses
+     * deux modes potentiels désactivés, prêts à être configurés.
+     *
+     * @param array{category_id:int, name:string, base_price_cents:int, base_duration_min:int} $data
+     */
+    public function createService(array $data): int
+    {
+        return $this->db->transaction(function (Database $db) use ($data): int {
+            $nextOrder = (int) $db->scalar(
+                'SELECT COALESCE(MAX(sort_order), -1) + 1 FROM services WHERE category_id = :c',
+                ['c' => $data['category_id']],
+            );
+
+            $id = $db->insert('services', [
+                'category_id' => $data['category_id'],
+                'name' => $data['name'],
+                'slug' => $this->uniqueSlug('services', Slug::make($data['name'])),
+                'variant_type' => 'none',
+                'base_price_cents' => $data['base_price_cents'],
+                'base_duration_min' => $data['base_duration_min'],
+                'booking_mode' => 'instant',
+                'is_active' => 0, // inactif tant qu'il n'est pas configuré
+                'sort_order' => $nextOrder,
+            ]);
+
+            // Mode « à domicile » activé par défaut, « atelier » présent mais inactif.
+            $db->insert('service_delivery_modes', [
+                'service_id' => $id,
+                'mode' => 'onsite',
+                'price_cents' => $data['base_price_cents'],
+                'active_duration_min' => $data['base_duration_min'],
+                'is_active' => 1,
+            ]);
+
+            return $id;
+        });
+    }
+
+    /**
+     * Duplique un service (avec ses modes, variantes et extras rattachés) sous
+     * un nouveau nom « … (copie) », inactif. Permet de créer une variante
+     * d'offre sans repartir de zéro.
+     */
+    public function duplicateService(int $serviceId): ?int
+    {
+        $service = $this->findService($serviceId);
+        if ($service === null) {
+            return null;
+        }
+
+        return $this->db->transaction(function (Database $db) use ($service, $serviceId): int {
+            $newName = $service['name'] . ' (copie)';
+            $newId = $db->insert('services', [
+                'category_id' => $service['category_id'],
+                'name' => $newName,
+                'slug' => $this->uniqueSlug('services', Slug::make($newName)),
+                'short_description' => $service['short_description'],
+                'description' => $service['description'],
+                'variant_type' => $service['variant_type'],
+                'base_price_cents' => $service['base_price_cents'],
+                'base_duration_min' => $service['base_duration_min'],
+                'booking_mode' => $service['booking_mode'],
+                'is_active' => 0,
+                'sort_order' => (int) $service['sort_order'] + 1,
+            ]);
+
+            foreach ($db->select('SELECT * FROM service_delivery_modes WHERE service_id = :id', ['id' => $serviceId]) as $m) {
+                $db->insert('service_delivery_modes', [
+                    'service_id' => $newId,
+                    'mode' => $m['mode'],
+                    'price_cents' => $m['price_cents'],
+                    'active_duration_min' => $m['active_duration_min'],
+                    'occupancy_duration_min' => $m['occupancy_duration_min'],
+                    'travel_surcharge_cents' => $m['travel_surcharge_cents'],
+                    'is_active' => $m['is_active'],
+                ]);
+            }
+            foreach ($db->select('SELECT * FROM service_variants WHERE service_id = :id', ['id' => $serviceId]) as $v) {
+                $db->insert('service_variants', [
+                    'service_id' => $newId,
+                    'code' => $v['code'],
+                    'label' => $v['label'],
+                    'price_delta_cents' => $v['price_delta_cents'],
+                    'duration_delta_min' => $v['duration_delta_min'],
+                    'price_override_cents' => $v['price_override_cents'],
+                    'duration_override_min' => $v['duration_override_min'],
+                    'is_default' => $v['is_default'],
+                    'is_active' => $v['is_active'],
+                    'sort_order' => $v['sort_order'],
+                ]);
+            }
+            foreach ($db->select('SELECT * FROM service_extras WHERE service_id = :id', ['id' => $serviceId]) as $se) {
+                $db->insert('service_extras', [
+                    'service_id' => $newId,
+                    'extra_id' => $se['extra_id'],
+                    'price_cents' => $se['price_cents'],
+                    'duration_min' => $se['duration_min'],
+                    'selection_type' => $se['selection_type'],
+                    'exclusive_group' => $se['exclusive_group'],
+                    'requires_variant_id' => null, // les variantes ont de nouveaux ID
+                    'is_active' => $se['is_active'],
+                    'sort_order' => $se['sort_order'],
+                ]);
+            }
+
+            return $newId;
+        });
+    }
+
+    /**
+     * Un service n'est réellement supprimable que s'il n'a jamais été commandé
+     * (ni panier ni ligne de commande). Sinon, on désactive.
+     */
+    public function serviceDeletable(int $serviceId): bool
+    {
+        $inCarts = (int) $this->db->scalar('SELECT COUNT(*) FROM cart_items WHERE service_id = :id', ['id' => $serviceId]);
+        $inBookings = (int) $this->db->scalar('SELECT COUNT(*) FROM booking_items WHERE service_id = :id', ['id' => $serviceId]);
+
+        return $inCarts === 0 && $inBookings === 0;
+    }
+
+    /**
+     * Supprime un service si possible (cascade sur modes/variantes/extras),
+     * sinon le désactive pour préserver l'historique. Renvoie l'action réalisée.
+     */
+    public function deleteOrDeactivateService(int $serviceId): string
+    {
+        if ($this->serviceDeletable($serviceId)) {
+            $this->db->run('DELETE FROM services WHERE id = :id', ['id' => $serviceId]);
+
+            return 'deleted';
+        }
+
+        $this->setServiceActive($serviceId, false);
+
+        return 'deactivated';
+    }
+
+    // =========================================================================
+    //  VARIANTES — création / modification / suppression
+    // =========================================================================
+
+    /**
+     * @param array{label:string, price_delta_cents:int, duration_delta_min:int, is_active:int} $data
+     */
+    public function createVariant(int $serviceId, array $data): int
+    {
+        $nextOrder = (int) $this->db->scalar(
+            'SELECT COALESCE(MAX(sort_order), -1) + 1 FROM service_variants WHERE service_id = :s',
+            ['s' => $serviceId],
+        );
+
+        return $this->db->insert('service_variants', [
+            'service_id' => $serviceId,
+            'code' => $this->uniqueVariantCode($serviceId, Slug::make($data['label'])),
+            'label' => $data['label'],
+            'price_delta_cents' => $data['price_delta_cents'],
+            'duration_delta_min' => $data['duration_delta_min'],
+            'is_active' => $data['is_active'],
+            'sort_order' => $nextOrder,
+        ]);
+    }
+
+    /**
+     * @param array{label:string, price_delta_cents:int, duration_delta_min:int, is_active:int} $data
+     */
+    public function updateVariant(int $variantId, array $data): void
+    {
+        $this->db->run(
+            'UPDATE service_variants
+             SET label = :label, price_delta_cents = :pd, duration_delta_min = :dd, is_active = :a
+             WHERE id = :id',
+            [
+                'label' => $data['label'],
+                'pd' => $data['price_delta_cents'],
+                'dd' => $data['duration_delta_min'],
+                'a' => $data['is_active'],
+                'id' => $variantId,
+            ],
+        );
+    }
+
+    public function variantDeletable(int $variantId): bool
+    {
+        $inCarts = (int) $this->db->scalar('SELECT COUNT(*) FROM cart_items WHERE variant_id = :id', ['id' => $variantId]);
+        $inBookings = (int) $this->db->scalar('SELECT COUNT(*) FROM booking_items WHERE variant_id = :id', ['id' => $variantId]);
+
+        return $inCarts === 0 && $inBookings === 0;
+    }
+
+    public function deleteVariant(int $variantId): bool
+    {
+        if (!$this->variantDeletable($variantId)) {
+            $this->db->run('UPDATE service_variants SET is_active = 0 WHERE id = :id', ['id' => $variantId]);
+
+            return false;
+        }
+        $this->db->run('DELETE FROM service_variants WHERE id = :id', ['id' => $variantId]);
+
+        return true;
+    }
+
+    // =========================================================================
+    //  RÉORDONNANCEMENT (drag & drop) — liste ordonnée d'IDs
+    // =========================================================================
+
+    /**
+     * Applique un nouvel ordre à un ensemble de lignes. Le nom de table et de
+     * colonne est whitelisté (jamais issu de l'entrée utilisateur brute).
+     *
+     * @param list<int> $orderedIds
+     */
+    public function reorder(string $entity, array $orderedIds): void
+    {
+        $table = match ($entity) {
+            'categories' => 'service_categories',
+            'services' => 'services',
+            'variants' => 'service_variants',
+            'extras_pivot' => 'service_extras',
+            default => throw new \InvalidArgumentException('Entité non réordonnable.'),
+        };
+
+        $this->db->transaction(function (Database $db) use ($table, $orderedIds): void {
+            $position = 0;
+            foreach ($orderedIds as $id) {
+                $db->run(
+                    "UPDATE `{$table}` SET sort_order = :pos WHERE id = :id",
+                    ['pos' => $position, 'id' => (int) $id],
+                );
+                $position++;
+            }
+        });
+    }
+
+    // =========================================================================
+    //  Helpers internes
+    // =========================================================================
+
+    /**
+     * Garantit l'unicité d'un slug sur une table donnée (suffixe -2, -3…).
+     */
+    private function uniqueSlug(string $table, string $base): string
+    {
+        $whitelist = ['service_categories', 'services'];
+        if (!in_array($table, $whitelist, true)) {
+            throw new \InvalidArgumentException('Table non autorisée pour un slug.');
+        }
+
+        $slug = $base;
+        $suffix = 1;
+        while ((int) $this->db->scalar("SELECT COUNT(*) FROM `{$table}` WHERE slug = :slug", ['slug' => $slug]) > 0) {
+            $suffix++;
+            $slug = $base . '-' . $suffix;
+        }
+
+        return $slug;
+    }
+
+    private function uniqueVariantCode(int $serviceId, string $base): string
+    {
+        $code = $base;
+        $suffix = 1;
+        while ((int) $this->db->scalar(
+            'SELECT COUNT(*) FROM service_variants WHERE service_id = :s AND code = :code',
+            ['s' => $serviceId, 'code' => $code],
+        ) > 0) {
+            $suffix++;
+            $code = $base . '-' . $suffix;
+        }
+
+        return $code;
     }
 }
