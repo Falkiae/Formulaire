@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Keepnew\Http\Api;
 
 use Keepnew\Booking\CartService;
+use Keepnew\Catalog\CartPricingService;
 use Keepnew\Core\Exception\HttpException;
 use Keepnew\Core\Request;
 use Keepnew\Core\Response;
@@ -14,8 +15,34 @@ use Keepnew\Core\Response;
  */
 final class CartApiController
 {
-    public function __construct(private readonly CartService $cart)
+    public function __construct(
+        private readonly CartService $cart,
+        private readonly CartPricingService $pricing,
+    ) {
+    }
+
+    /**
+     * POST /api/quote — prix live d'une configuration, SANS panier (étape 3 du
+     * tunnel : le prix s'affiche dès la configuration).
+     *
+     * Corps : { lines:[{service_id, mode, variant_id?, extra_ids?, quantity?}] }
+     */
+    public function quote(Request $request): Response
     {
+        $lines = $request->array('lines');
+        if ($lines === []) {
+            return Response::json(['error' => 'Aucune configuration.'], 422);
+        }
+        foreach ($lines as &$line) {
+            $line['address_key'] = $line['mode'] ?? 'onsite';
+        }
+        unset($line);
+
+        try {
+            return Response::json($this->pricing->format($this->pricing->price($lines)));
+        } catch (\InvalidArgumentException $e) {
+            return Response::json(['error' => $e->getMessage()], 422);
+        }
     }
 
     /**

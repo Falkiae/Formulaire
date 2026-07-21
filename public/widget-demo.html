@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Keepnew — démonstration du widget</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 0; background: #eef0f7; color: #141a2e; }
+    header { padding: 24px; text-align: center; }
+    .host { max-width: 600px; margin: 0 auto 40px; background: #fff; border-radius: 16px; overflow: hidden; box-shadow: 0 2px 8px rgba(20,26,46,.06); }
+    /* Style hôte volontairement agressif : prouve l'isolation Shadow DOM. */
+    button { font-size: 40px !important; color: hotpink; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>keepnew.be — page hôte</h1>
+    <p>Le widget ci-dessous est embarqué en Shadow DOM. Le style rose agressif de la page hôte ne l'affecte pas.</p>
+  </header>
+
+  <div class="host">
+    <!-- Snippet d'embarquement -->
+    <div id="keepnew-booking" data-api=""></div>
+    <script src="/widget.js" async></script>
+  </div>
+</body>
+</html>

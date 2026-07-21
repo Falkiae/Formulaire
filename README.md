@@ -20,7 +20,7 @@ Trois différences avec les SaaS type Zenbooker / BookingKoala :
 | **3** | Moteur de tarification & durée du panier + tests ([doc](docs/04-moteur-tarification.md)) | ✅ Livrée |
 | **4** | Moteur de disponibilité (domicile/atelier) + tests ([doc](docs/05-moteur-disponibilite.md)) | ✅ Livrée |
 | **5** | API REST + panier + découpage en jobs ([doc](docs/06-api-panier-commande.md)) | ✅ Livrée |
-| 6 | Widget public & tunnel | ⏳ |
+| **6** | Widget public & tunnel ([doc](docs/07-widget-tunnel.md)) | ✅ Livrée |
 | 7 | Dispatch, ateliers, clients | ⏳ |
 | 8 | Form builder | ⏳ |
 | 9 | Notifications, facturation, Peppol | ⏳ |

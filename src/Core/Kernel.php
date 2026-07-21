@@ -29,6 +29,11 @@ final class Kernel
 
     public function handle(Request $request): Response
     {
+        // Préflight CORS pour l'API (widget cross-origin).
+        if ($request->method() === 'OPTIONS' && str_starts_with($request->path(), '/api')) {
+            return $this->withSecurityHeaders(Response::noContent(), $request);
+        }
+
         try {
             [$request, $handler, $middleware] = $this->router->match($request);
             $response = $this->runPipeline($request, $handler, $middleware);
@@ -122,6 +127,17 @@ final class Kernel
         $response = $response
             ->withHeader('X-Content-Type-Options', 'nosniff')
             ->withHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+
+        // L'API est cross-origin (widget embarqué) : en-têtes CORS.
+        if (str_starts_with($request->path(), '/api')) {
+            $response = $response
+                ->withHeader('Access-Control-Allow-Origin', (string) $this->config->get('app.cors_origin', '*'))
+                ->withHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS')
+                ->withHeader('Access-Control-Allow-Headers', 'Content-Type')
+                ->withHeader('Access-Control-Max-Age', '600');
+
+            return $response; // pas de X-Frame-Options sur l'API
+        }
 
         $widgetPrefix = (string) $this->config->get('app.widget_prefix', '/widget');
         $isWidget = str_starts_with($request->path(), $widgetPrefix);

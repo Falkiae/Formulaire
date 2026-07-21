@@ -107,7 +107,10 @@ return static function (Router $router, Container $container): void {
 
     // --- Contrôleurs API ---------------------------------------------------
     $container->singleton(CatalogApiController::class, static fn (Container $c): CatalogApiController => new CatalogApiController($c->get(CatalogRepository::class)));
-    $container->singleton(CartApiController::class, static fn (Container $c): CartApiController => new CartApiController($c->get(CartService::class)));
+    $container->singleton(CartApiController::class, static fn (Container $c): CartApiController => new CartApiController(
+        $c->get(CartService::class),
+        $c->get(\Keepnew\Catalog\CartPricingService::class),
+    ));
     $container->singleton(AvailabilityApiController::class, static fn (Container $c): AvailabilityApiController => new AvailabilityApiController(
         $c->get(CartService::class),
         $c->get(AvailabilityService::class),
@@ -218,6 +221,9 @@ return static function (Router $router, Container $container): void {
         // Catalogue (lecture)
         $r->get('/catalog', [CatalogApiController::class, 'index']);
         $r->get('/services/{id}', [CatalogApiController::class, 'service']);
+
+        // Devis live (sans panier)
+        $r->post('/quote', [CartApiController::class, 'quote']);
 
         // Panier
         $r->post('/cart', [CartApiController::class, 'create']);
