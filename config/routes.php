@@ -26,6 +26,7 @@ use Keepnew\Catalog\ExtraRepository;
 use Keepnew\Catalog\SimulatorService;
 use Keepnew\Core\Container;
 use Keepnew\Core\Csrf;
+use Keepnew\Core\Response;
 use Keepnew\Core\Database;
 use Keepnew\Core\Router;
 use Keepnew\Core\Session;
@@ -301,6 +302,9 @@ return static function (Router $router, Container $container): void {
         $c->get(SimulatorService::class),
         $c->get(\Keepnew\Catalog\CartPricingService::class),
     ));
+
+    // --- Racine → redirige vers le back-office ----------------------------
+    $router->get('/', static fn (): Response => Response::redirect('/admin/connexion'));
 
     // --- Santé / démonstration du noyau ------------------------------------
     $router->get('/health', [HealthController::class, 'index']);
