@@ -17,16 +17,7 @@ $eur = static fn (int $c): string => number_format($c / 100, 2, ',', ' ');
     <link rel="stylesheet" href="/assets/admin.css">
 </head>
 <body>
-    <header class="kn-header">
-        <strong>Keepnew · back-office</strong>
-        <nav>
-            <a href="/admin/dispatch">Dispatch</a>
-            <a href="/admin/clients">Clients</a>
-            <a href="/admin/ateliers">Ateliers</a>
-            <a href="/admin/catalogue">Catalogue</a>
-            <a href="/admin/deconnexion">Déconnexion</a>
-        </nav>
-    </header>
+    <?php include __DIR__ . '/_nav.php'; ?>
 
     <main class="kn-wrap">
         <p><a href="/admin/dispatch">← Dispatch</a></p>
@@ -52,11 +43,13 @@ $eur = static fn (int $c): string => number_format($c / 100, 2, ',', ' ');
 
             <section class="kn-card">
                 <h2>Prestations</h2>
-                <table class="kn-table">
-                    <?php foreach ($data['items'] as $it): ?>
-                        <tr><td><?= $e($it['label_snapshot']) ?> ×<?= (int) $it['quantity'] ?></td><td class="kn-num"><?= $e($eur((int) $it['line_total_cents'])) ?> €</td></tr>
-                    <?php endforeach; ?>
-                </table>
+                <div class="kn-table-wrap">
+                    <table class="kn-table">
+                        <?php foreach ($data['items'] as $it): ?>
+                            <tr><td><?= $e($it['label_snapshot']) ?> ×<?= (int) $it['quantity'] ?></td><td class="kn-num"><?= $e($eur((int) $it['line_total_cents'])) ?> €</td></tr>
+                        <?php endforeach; ?>
+                    </table>
+                </div>
             </section>
         </div>
 
@@ -90,11 +83,13 @@ $eur = static fn (int $c): string => number_format($c / 100, 2, ',', ' ');
                     <button type="submit" class="kn-btn kn-btn-primary">Appliquer</button>
                 </form>
 
-                <h3 class="kn-h3" style="margin-top:16px;">Note interne</h3>
+                <h3 style="margin-top:16px;">Note interne</h3>
                 <form method="post" action="/admin/job/<?= (int) $j['id'] ?>/note">
                     <?= $data['csrf'] ?>
                     <input type="hidden" name="customer_id" value="<?= (int) $j['customer_id'] ?>">
-                    <div class="kn-field"><textarea name="body" rows="2" style="width:100%;padding:8px;border:1px solid var(--kn-line);border-radius:8px;"></textarea></div>
+                    <div class="kn-field">
+                        <textarea name="body" rows="3" style="width:100%;padding:8px;border:1px solid var(--kn-line);border-radius:8px;resize:vertical;"></textarea>
+                    </div>
                     <button type="submit" class="kn-btn kn-btn-ghost">Ajouter la note</button>
                 </form>
             </section>

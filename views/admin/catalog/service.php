@@ -24,14 +24,7 @@ foreach ($data['modes'] as $m) {
     <link rel="stylesheet" href="/assets/admin.css">
 </head>
 <body>
-    <header class="kn-header">
-        <strong>Keepnew · back-office</strong>
-        <nav>
-            <a href="/admin/catalogue">Catalogue</a>
-            <a href="/admin/simulateur">Simulateur</a>
-            <a href="/admin/deconnexion">Déconnexion</a>
-        </nav>
-    </header>
+    <?php include dirname(__DIR__) . '/_nav.php'; ?>
 
     <main class="kn-wrap">
         <p><a href="/admin/catalogue">← Retour au catalogue</a></p>
@@ -60,8 +53,8 @@ foreach ($data['modes'] as $m) {
                                value="<?= (int) $service['base_duration_min'] ?>">
                     </div>
                 </div>
-                <label style="display:flex;align-items:center;gap:8px;">
-                    <input type="checkbox" name="is_active" value="1" style="width:auto;min-height:auto;"
+                <label class="kn-check">
+                    <input type="checkbox" name="is_active" value="1"
                         <?= ((int) $service['is_active'] === 1) ? 'checked' : '' ?>>
                     Prestation active (visible côté client)
                 </label>
@@ -121,15 +114,15 @@ foreach ($data['modes'] as $m) {
                         <div class="kn-field" style="margin:0;"><label>Libellé</label><input type="text" name="label" value="<?= $e($v['label']) ?>" style="max-width:180px;"></div>
                         <div class="kn-field" style="margin:0;"><label>Δ prix (€)</label><input type="text" name="price_delta" value="<?= $e($centsToEuros((int) $v['price_delta_cents'])) ?>" inputmode="decimal" style="max-width:100px;"></div>
                         <div class="kn-field" style="margin:0;"><label>Δ durée (min)</label><input type="number" name="duration_delta" value="<?= (int) $v['duration_delta_min'] ?>" style="max-width:90px;"></div>
-                        <label style="display:inline-flex;align-items:center;gap:4px;margin:0 0 12px;color:var(--kn-ink);">
-                            <input type="checkbox" name="is_active" value="1" <?= ((int) $v['is_active'] === 1) ? 'checked' : '' ?> style="width:auto;min-height:auto;"> active
+                        <label class="kn-check" style="margin-bottom:12px;">
+                            <input type="checkbox" name="is_active" value="1" <?= ((int) $v['is_active'] === 1) ? 'checked' : '' ?>> active
                         </label>
-                        <button type="submit" class="kn-btn kn-btn-ghost" style="min-height:40px;padding:0 12px;margin-bottom:12px;">Enregistrer</button>
+                        <button type="submit" class="kn-btn kn-btn-ghost kn-btn-sm" style="margin-bottom:12px;">Enregistrer</button>
                     </form>
                     <form method="post" action="/admin/catalogue/service/<?= (int) $service['id'] ?>/variante/<?= (int) $v['id'] ?>/supprimer"
                           onsubmit="return confirm('Supprimer cette variante ?');" style="margin-bottom:12px;">
                         <?= $data['csrf'] ?>
-                        <button type="submit" class="kn-btn kn-btn-ghost" style="min-height:40px;padding:0 10px;color:var(--kn-alert);">Supprimer</button>
+                        <button type="submit" class="kn-btn kn-btn-danger kn-btn-sm">Supprimer</button>
                     </form>
                 </div>
             <?php endforeach; ?>
@@ -149,28 +142,30 @@ foreach ($data['modes'] as $m) {
 
         <section class="kn-card" style="margin-top:24px;">
             <h2>Extras rattachés</h2>
-            <table class="kn-table">
-                <thead><tr><th>Extra</th><th>Sélection</th><th class="kn-num">Prix effectif</th><th class="kn-num">Durée</th><th></th></tr></thead>
-                <tbody>
-                    <?php foreach ($data['extras'] as $x): ?>
-                        <tr>
-                            <td><?= $e($x['label']) ?></td>
-                            <td class="kn-muted"><?= $x['selection_type'] === 'radio' ? 'exclusif' : 'cumulable' ?><?= $x['exclusive_group'] ? ' · ' . $e($x['exclusive_group']) : '' ?></td>
-                            <td class="kn-num"><?= $e($centsToEuros((int) $x['eff_price_cents'])) ?> €</td>
-                            <td class="kn-num"><?= (int) $x['eff_duration_min'] ?> min</td>
-                            <td>
-                                <form method="post" action="/admin/catalogue/service/<?= (int) $service['id'] ?>/extras/<?= (int) $x['extra_id'] ?>/detacher">
-                                    <?= $data['csrf'] ?>
-                                    <button type="submit" class="kn-btn kn-btn-ghost" style="min-height:32px;padding:0 10px;">Détacher</button>
-                                </form>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                    <?php if ($data['extras'] === []): ?>
-                        <tr><td colspan="5" class="kn-muted">Aucun extra rattaché.</td></tr>
-                    <?php endif; ?>
-                </tbody>
-            </table>
+            <div class="kn-table-wrap">
+                <table class="kn-table">
+                    <thead><tr><th>Extra</th><th>Sélection</th><th class="kn-num">Prix effectif</th><th class="kn-num">Durée</th><th></th></tr></thead>
+                    <tbody>
+                        <?php foreach ($data['extras'] as $x): ?>
+                            <tr>
+                                <td><?= $e($x['label']) ?></td>
+                                <td class="kn-muted"><?= $x['selection_type'] === 'radio' ? 'exclusif' : 'cumulable' ?><?= $x['exclusive_group'] ? ' · ' . $e($x['exclusive_group']) : '' ?></td>
+                                <td class="kn-num"><?= $e($centsToEuros((int) $x['eff_price_cents'])) ?> €</td>
+                                <td class="kn-num"><?= (int) $x['eff_duration_min'] ?> min</td>
+                                <td>
+                                    <form method="post" action="/admin/catalogue/service/<?= (int) $service['id'] ?>/extras/<?= (int) $x['extra_id'] ?>/detacher">
+                                        <?= $data['csrf'] ?>
+                                        <button type="submit" class="kn-btn kn-btn-ghost kn-btn-sm">Détacher</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                        <?php if ($data['extras'] === []): ?>
+                            <tr><td colspan="5" class="kn-muted">Aucun extra rattaché.</td></tr>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
 
             <?php if ($data['available_extras'] !== []): ?>
                 <details style="margin-top:12px;">
@@ -219,7 +214,7 @@ foreach ($data['modes'] as $m) {
                 <form method="post" action="/admin/catalogue/service/<?= (int) $service['id'] ?>/supprimer"
                       onsubmit="return confirm('Supprimer cette prestation ? Si elle a déjà été commandée, elle sera désactivée.');">
                     <?= $data['csrf'] ?>
-                    <button type="submit" class="kn-btn kn-btn-ghost" style="color:var(--kn-alert);">Supprimer / désactiver</button>
+                    <button type="submit" class="kn-btn kn-btn-danger">Supprimer / désactiver</button>
                 </form>
             </div>
         </section>

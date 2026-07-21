@@ -36,20 +36,7 @@ $centsToEuros = static fn (int $c): string => number_format($c / 100, 2, ',', ' 
     <link rel="stylesheet" href="/assets/admin.css">
 </head>
 <body>
-    <header class="kn-header">
-        <strong>Keepnew · back-office</strong>
-        <nav>
-            <a href="/admin/dispatch">Dispatch</a>
-            <a href="/admin/clients">Clients</a>
-            <a href="/admin/ateliers">Ateliers</a>
-            <a href="/admin/factures">Factures</a>
-            <a href="/admin/catalogue" aria-current="page">Catalogue</a>
-            <a href="/admin/extras">Extras</a>
-            <a href="/admin/formulaire">Formulaire</a>
-            <a href="/admin/simulateur">Simulateur</a>
-            <a href="/admin/deconnexion">Déconnexion</a>
-        </nav>
-    </header>
+    <?php include dirname(__DIR__) . '/_nav.php'; ?>
 
     <main class="kn-wrap">
         <?php if (!empty($data['flash'])): ?>
@@ -80,8 +67,8 @@ $centsToEuros = static fn (int $c): string => number_format($c / 100, 2, ',', ' 
                                 <?php endforeach; ?>
                             </select>
                         </div>
-                        <label style="display:flex;align-items:center;gap:8px;">
-                            <input type="checkbox" name="is_visible" value="1" checked style="width:auto;min-height:auto;">
+                        <label class="kn-check">
+                            <input type="checkbox" name="is_visible" value="1" checked>
                             Visible côté client
                         </label>
                         <button type="submit" class="kn-btn kn-btn-ghost" style="margin-top:12px;">Créer la catégorie</button>
@@ -92,41 +79,43 @@ $centsToEuros = static fn (int $c): string => number_format($c / 100, 2, ',', ' 
             <section class="kn-card">
                 <h2>Prestations</h2>
                 <p class="kn-muted">Glissez-déposez les lignes pour réordonner.</p>
-                <table class="kn-table" id="services-table">
-                    <thead>
-                        <tr>
-                            <th>Prestation</th>
-                            <th>Catégorie</th>
-                            <th class="kn-num">Prix base</th>
-                            <th class="kn-num">Durée</th>
-                            <th>État</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody id="services-body">
-                        <?php foreach ($data['services'] as $s): ?>
-                            <tr draggable="true" data-id="<?= (int) $s['id'] ?>">
-                                <td><a href="/admin/catalogue/service/<?= (int) $s['id'] ?>"><?= $e($s['name']) ?></a></td>
-                                <td class="kn-muted"><?= $e($s['category_name']) ?></td>
-                                <td class="kn-num"><?= $e($centsToEuros((int) $s['base_price_cents'])) ?> €</td>
-                                <td class="kn-num"><?= (int) $s['base_duration_min'] ?> min</td>
-                                <td>
-                                    <?php if ((int) $s['is_active'] === 1): ?>
-                                        <span class="kn-badge kn-badge-onsite">actif</span>
-                                    <?php else: ?>
-                                        <span class="kn-badge kn-badge-off">inactif</span>
-                                    <?php endif; ?>
-                                </td>
-                                <td>
-                                    <form method="post" action="/admin/catalogue/service/<?= (int) $s['id'] ?>/dupliquer" style="display:inline;">
-                                        <?= $data['csrf'] ?>
-                                        <button type="submit" class="kn-btn kn-btn-ghost" style="min-height:36px;padding:0 12px;">Dupliquer</button>
-                                    </form>
-                                </td>
+                <div class="kn-table-wrap">
+                    <table class="kn-table" id="services-table">
+                        <thead>
+                            <tr>
+                                <th>Prestation</th>
+                                <th>Catégorie</th>
+                                <th class="kn-num">Prix base</th>
+                                <th class="kn-num">Durée</th>
+                                <th>État</th>
+                                <th></th>
                             </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody id="services-body">
+                            <?php foreach ($data['services'] as $s): ?>
+                                <tr draggable="true" data-id="<?= (int) $s['id'] ?>">
+                                    <td><a href="/admin/catalogue/service/<?= (int) $s['id'] ?>"><?= $e($s['name']) ?></a></td>
+                                    <td class="kn-muted"><?= $e($s['category_name']) ?></td>
+                                    <td class="kn-num"><?= $e($centsToEuros((int) $s['base_price_cents'])) ?> €</td>
+                                    <td class="kn-num"><?= (int) $s['base_duration_min'] ?> min</td>
+                                    <td>
+                                        <?php if ((int) $s['is_active'] === 1): ?>
+                                            <span class="kn-badge kn-badge-onsite">actif</span>
+                                        <?php else: ?>
+                                            <span class="kn-badge kn-badge-off">inactif</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>
+                                        <form method="post" action="/admin/catalogue/service/<?= (int) $s['id'] ?>/dupliquer" style="display:inline;">
+                                            <?= $data['csrf'] ?>
+                                            <button type="submit" class="kn-btn kn-btn-ghost kn-btn-sm">Dupliquer</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
 
                 <details style="margin-top:16px;">
                     <summary>Ajouter une prestation</summary>

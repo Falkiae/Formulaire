@@ -18,14 +18,7 @@
     <link rel="stylesheet" href="/assets/admin.css">
 </head>
 <body>
-    <header class="kn-header">
-        <strong>Keepnew · back-office</strong>
-        <nav>
-            <a href="/admin/catalogue">Catalogue</a>
-            <a href="/admin/simulateur" aria-current="page">Simulateur</a>
-            <a href="/admin/deconnexion">Déconnexion</a>
-        </nav>
-    </header>
+    <?php include __DIR__ . '/_nav.php'; ?>
 
     <main class="kn-wrap">
         <h1>Simulateur de prix</h1>
@@ -120,10 +113,9 @@
                 cfg.extras.forEach((x) => {
                     const id = "extra_" + x.id;
                     const wrap = document.createElement("label");
-                    wrap.style.cssText = "display:flex;align-items:center;gap:8px;margin-bottom:8px;";
+                    wrap.className = "kn-check";
                     const input = document.createElement("input");
                     input.type = "checkbox"; input.value = x.id; input.className = "extra-cb";
-                    input.style.cssText = "width:auto;min-height:auto;";
                     input.id = id;
                     wrap.appendChild(input);
                     wrap.appendChild(document.createTextNode(" " + x.label + (x.selection_type === "radio" ? " (exclusif)" : "")));

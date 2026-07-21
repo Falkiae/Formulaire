@@ -17,17 +17,9 @@ $cat = $data['category'];
     <link rel="stylesheet" href="/assets/admin.css">
 </head>
 <body>
-    <header class="kn-header">
-        <strong>Keepnew · back-office</strong>
-        <nav>
-            <a href="/admin/catalogue">Catalogue</a>
-            <a href="/admin/extras">Extras</a>
-            <a href="/admin/simulateur">Simulateur</a>
-            <a href="/admin/deconnexion">Déconnexion</a>
-        </nav>
-    </header>
+    <?php include dirname(__DIR__) . '/_nav.php'; ?>
 
-    <main class="kn-wrap" style="max-width:640px;">
+    <main class="kn-wrap kn-wrap-narrow">
         <p><a href="/admin/catalogue">← Retour au catalogue</a></p>
         <h1>Catégorie</h1>
 
@@ -57,8 +49,8 @@ $cat = $data['category'];
                 <label for="icon">Icône (nom du set SVG)</label>
                 <input type="text" id="icon" name="icon" value="<?= $e($cat['icon'] ?? '') ?>">
             </div>
-            <label style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
-                <input type="checkbox" name="is_visible" value="1" <?= ((int) $cat['is_visible'] === 1) ? 'checked' : '' ?> style="width:auto;min-height:auto;">
+            <label class="kn-check" style="margin-bottom:16px;">
+                <input type="checkbox" name="is_visible" value="1" <?= ((int) $cat['is_visible'] === 1) ? 'checked' : '' ?>>
                 Visible côté client
             </label>
             <button type="submit" class="kn-btn kn-btn-primary">Enregistrer</button>
@@ -68,7 +60,7 @@ $cat = $data['category'];
               onsubmit="return confirm('Supprimer cette catégorie ?');">
             <?= $data['csrf'] ?>
             <?php if ($data['deletable']): ?>
-                <button type="submit" class="kn-btn kn-btn-ghost" style="color:var(--kn-alert);">Supprimer la catégorie</button>
+                <button type="submit" class="kn-btn kn-btn-danger">Supprimer la catégorie</button>
             <?php else: ?>
                 <p class="kn-muted">Cette catégorie contient des sous-catégories ou des prestations : elle ne peut pas être supprimée. Décochez « visible » pour la masquer.</p>
             <?php endif; ?>

@@ -18,16 +18,7 @@ $name = $c['type'] === 'b2b' && $c['company_name'] ? $c['company_name'] : trim((
     <link rel="stylesheet" href="/assets/admin.css">
 </head>
 <body>
-    <header class="kn-header">
-        <strong>Keepnew · back-office</strong>
-        <nav>
-            <a href="/admin/dispatch">Dispatch</a>
-            <a href="/admin/clients">Clients</a>
-            <a href="/admin/ateliers">Ateliers</a>
-            <a href="/admin/catalogue">Catalogue</a>
-            <a href="/admin/deconnexion">Déconnexion</a>
-        </nav>
-    </header>
+    <?php include __DIR__ . '/_nav.php'; ?>
 
     <main class="kn-wrap">
         <p><a href="/admin/clients">← Clients</a></p>
@@ -42,16 +33,18 @@ $name = $c['type'] === 'b2b' && $c['company_name'] ? $c['company_name'] : trim((
         <div class="kn-grid kn-grid-2">
             <section class="kn-card">
                 <h2>Commandes</h2>
-                <table class="kn-table">
-                    <?php foreach ($data['bookings'] as $b): ?>
-                        <tr>
-                            <td><?= $e($b['reference']) ?><br><span class="kn-muted"><?= $e(substr((string) $b['created_at'], 0, 10)) ?></span></td>
-                            <td><span class="kn-badge"><?= $e($b['status']) ?></span></td>
-                            <td class="kn-num"><?= $e($eur((int) $b['total_cents'])) ?> €</td>
-                        </tr>
-                    <?php endforeach; ?>
-                    <?php if ($data['bookings'] === []): ?><tr><td class="kn-muted">Aucune commande.</td></tr><?php endif; ?>
-                </table>
+                <div class="kn-table-wrap">
+                    <table class="kn-table">
+                        <?php foreach ($data['bookings'] as $b): ?>
+                            <tr>
+                                <td><?= $e($b['reference']) ?><br><span class="kn-muted"><?= $e(substr((string) $b['created_at'], 0, 10)) ?></span></td>
+                                <td><span class="kn-badge"><?= $e($b['status']) ?></span></td>
+                                <td class="kn-num"><?= $e($eur((int) $b['total_cents'])) ?> €</td>
+                            </tr>
+                        <?php endforeach; ?>
+                        <?php if ($data['bookings'] === []): ?><tr><td class="kn-muted">Aucune commande.</td></tr><?php endif; ?>
+                    </table>
+                </div>
             </section>
 
             <section class="kn-card">
@@ -61,7 +54,7 @@ $name = $c['type'] === 'b2b' && $c['company_name'] ? $c['company_name'] : trim((
                 <?php endforeach; ?>
                 <?php if ($data['addresses'] === []): ?><p class="kn-muted">Aucune.</p><?php endif; ?>
 
-                <h3 class="kn-h3">Notes</h3>
+                <h3>Notes</h3>
                 <?php foreach ($data['notes'] as $n): ?>
                     <p class="kn-muted"><?= $e(substr((string) $n['created_at'], 0, 10)) ?> (<?= $e($n['first_name'] ?? 'système') ?>) : <?= $e($n['body']) ?></p>
                 <?php endforeach; ?>

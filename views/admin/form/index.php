@@ -15,35 +15,29 @@
     <link rel="stylesheet" href="/assets/admin.css">
 </head>
 <body>
-    <header class="kn-header">
-        <strong>Keepnew · back-office</strong>
-        <nav>
-            <a href="/admin/dispatch">Dispatch</a>
-            <a href="/admin/clients">Clients</a>
-            <a href="/admin/catalogue">Catalogue</a>
-            <a href="/admin/formulaire" aria-current="page">Formulaire</a>
-            <a href="/admin/deconnexion">Déconnexion</a>
-        </nav>
-    </header>
+    <?php include dirname(__DIR__) . '/_nav.php'; ?>
+
     <main class="kn-wrap">
         <?php if (!empty($data['flash'])): ?><p class="kn-alert kn-alert-ok"><?= $e($data['flash']) ?></p><?php endif; ?>
         <h1>Formulaire dynamique</h1>
         <p class="kn-muted">Éditez un brouillon puis publiez-le : la version publiée devient le formulaire du tunnel.</p>
 
         <section class="kn-card">
-            <table class="kn-table">
-                <thead><tr><th>Version</th><th>Libellé</th><th>État</th><th></th></tr></thead>
-                <tbody>
-                    <?php foreach ($data['versions'] as $v): ?>
-                        <tr>
-                            <td>v<?= (int) $v['version'] ?></td>
-                            <td><a href="/admin/formulaire/<?= (int) $v['id'] ?>"><?= $e($v['label']) ?></a></td>
-                            <td><?= (int) $v['is_published'] === 1 ? '<span class="kn-badge kn-badge-onsite">publiée</span>' : '<span class="kn-badge kn-badge-off">brouillon</span>' ?></td>
-                            <td><a href="/admin/formulaire/<?= (int) $v['id'] ?>">Éditer</a></td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
+            <div class="kn-table-wrap">
+                <table class="kn-table">
+                    <thead><tr><th>Version</th><th>Libellé</th><th>État</th><th></th></tr></thead>
+                    <tbody>
+                        <?php foreach ($data['versions'] as $v): ?>
+                            <tr>
+                                <td>v<?= (int) $v['version'] ?></td>
+                                <td><a href="/admin/formulaire/<?= (int) $v['id'] ?>"><?= $e($v['label']) ?></a></td>
+                                <td><?= (int) $v['is_published'] === 1 ? '<span class="kn-badge kn-badge-onsite">publiée</span>' : '<span class="kn-badge kn-badge-off">brouillon</span>' ?></td>
+                                <td><a href="/admin/formulaire/<?= (int) $v['id'] ?>">Éditer</a></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
         </section>
 
         <section class="kn-card" style="margin-top:24px;max-width:480px;">
