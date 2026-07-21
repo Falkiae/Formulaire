@@ -67,6 +67,9 @@ use Keepnew\Notification\SmsProviderInterface;
 use Keepnew\Notification\SmtpMailer;
 use Keepnew\Notification\TemplateRenderer;
 use Keepnew\Notification\TwilioSmsProvider;
+use Keepnew\Tech\TechController;
+use Keepnew\Tech\TimeEntryService;
+use Keepnew\Support\ImageUpload;
 use Keepnew\Core\Config;
 
 return static function (Router $router, Container $container): void {
@@ -180,6 +183,8 @@ return static function (Router $router, Container $container): void {
     $container->singleton(InvoiceService::class, static fn (Container $c): InvoiceService => new InvoiceService($c->get(Database::class)));
     $container->singleton(UblGenerator::class, static fn (): UblGenerator => new UblGenerator());
     $container->singleton(JournalExporter::class, static fn (Container $c): JournalExporter => new JournalExporter($c->get(Database::class)));
+    $container->singleton(TimeEntryService::class, static fn (Container $c): TimeEntryService => new TimeEntryService($c->get(Database::class)));
+    $container->singleton(ImageUpload::class, static fn (): ImageUpload => new ImageUpload(dirname(__DIR__) . '/storage/uploads'));
     $container->singleton(InvoiceController::class, static fn (Container $c): InvoiceController => new InvoiceController(
         $c->get(View::class),
         $c->get(Session::class),
@@ -188,6 +193,16 @@ return static function (Router $router, Container $container): void {
         $c->get(InvoiceService::class),
         $c->get(UblGenerator::class),
         $c->get(JournalExporter::class),
+        $c->get(TimeEntryService::class),
+    ));
+    $container->singleton(TechController::class, static fn (Container $c): TechController => new TechController(
+        $c->get(View::class),
+        $c->get(Session::class),
+        $c->get(Csrf::class),
+        $c->get(Database::class),
+        $c->get(TimeEntryService::class),
+        $c->get(NotificationService::class),
+        $c->get(ImageUpload::class),
     ));
     $container->singleton(BookingApiController::class, static fn (Container $c): BookingApiController => new BookingApiController(
         $c->get(BookingService::class),
@@ -338,6 +353,7 @@ return static function (Router $router, Container $container): void {
         // Factures & Peppol
         $r->get('/factures', [InvoiceController::class, 'index']);
         $r->get('/factures/journal', [InvoiceController::class, 'journal']);
+        $r->get('/mobilite', [InvoiceController::class, 'mobility']);
         $r->post('/factures/commande/{bookingId}', [InvoiceController::class, 'generate'], [CsrfMiddleware::class]);
         $r->get('/factures/{id}/ubl', [InvoiceController::class, 'ubl']);
 
@@ -359,6 +375,18 @@ return static function (Router $router, Container $container): void {
         $r->get('/simulateur/service/{id}', [SimulatorController::class, 'serviceConfig']);
         $r->post('/simulateur/calcul', [SimulatorController::class, 'calculate'], [CsrfMiddleware::class]);
         $r->post('/simulateur/panier', [SimulatorController::class, 'cart'], [CsrfMiddleware::class]);
+    });
+
+    // --- App technicien (PWA, authentifiée) --------------------------------
+    $router->group('/tech', [AuthMiddleware::class], static function (Router $r): void {
+        $r->get('', [TechController::class, 'planning']);
+        $r->get('/job/{id}', [TechController::class, 'job']);
+        $r->get('/photo/{id}', [TechController::class, 'servePhoto']);
+        $r->post('/job/{id}/pointer', [TechController::class, 'punch'], [CsrfMiddleware::class]);
+        $r->post('/job/{id}/statut', [TechController::class, 'status'], [CsrfMiddleware::class]);
+        $r->post('/job/{id}/photo', [TechController::class, 'photo'], [CsrfMiddleware::class]);
+        $r->post('/job/{id}/signature', [TechController::class, 'signature'], [CsrfMiddleware::class]);
+        $r->post('/job/{id}/encaisser', [TechController::class, 'collect'], [CsrfMiddleware::class]);
     });
 
     // --- API REST publique (widget) ----------------------------------------

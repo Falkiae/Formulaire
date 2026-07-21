@@ -1,0 +1,19 @@
+{
+  "name": "Keepnew — App technicien",
+  "short_name": "Keepnew Tech",
+  "description": "Planning, pointage et interventions terrain.",
+  "start_url": "/tech",
+  "scope": "/tech",
+  "display": "standalone",
+  "background_color": "#FBFBFD",
+  "theme_color": "#586FF3",
+  "lang": "fr",
+  "icons": [
+    {
+      "src": "/assets/tech-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

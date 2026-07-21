@@ -31,6 +31,7 @@ final class Request
         private array $headers = [],
         private array $server = [],
         private readonly ?string $rawBody = null,
+        private array $files = [],
     ) {
     }
 
@@ -78,7 +79,23 @@ final class Request
                 'HTTPS' => $_SERVER['HTTPS'] ?? null,
             ],
             rawBody: $raw,
+            files: $_FILES,
         );
+    }
+
+    /**
+     * Métadonnées d'un fichier uploadé (seul accès à $_FILES, centralisé).
+     *
+     * @return array{name:string, type:string, tmp_name:string, error:int, size:int}|null
+     */
+    public function file(string $key): ?array
+    {
+        $file = $this->files[$key] ?? null;
+        if (!is_array($file) || ($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
+            return null;
+        }
+
+        return $file;
     }
 
     public function method(): string

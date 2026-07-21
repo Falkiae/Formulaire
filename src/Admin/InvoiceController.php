@@ -15,6 +15,7 @@ use Keepnew\Invoice\InvoiceService;
 use Keepnew\Invoice\JournalExporter;
 use Keepnew\Invoice\UblGenerator;
 use Keepnew\Support\Clock;
+use Keepnew\Tech\TimeEntryService;
 
 /**
  * Factures : liste, génération depuis une commande, export UBL (Peppol) et
@@ -30,6 +31,7 @@ final class InvoiceController
         private readonly InvoiceService $invoices,
         private readonly UblGenerator $ubl,
         private readonly JournalExporter $journal,
+        private readonly TimeEntryService $timeEntries,
     ) {
     }
 
@@ -109,5 +111,18 @@ final class InvoiceController
         return Response::html($csv)
             ->withHeader('Content-Type', 'text/csv; charset=utf-8')
             ->withHeader('Content-Disposition', 'attachment; filename="journal-recettes-' . $from . '_' . $to . '.csv"');
+    }
+
+    /**
+     * GET /admin/mobilite?month=YYYY-MM — export CSV des indemnités CP 121.
+     */
+    public function mobility(Request $request): Response
+    {
+        $month = preg_match('/^\d{4}-\d{2}$/', $request->string('month')) ? $request->string('month') : Clock::format(Clock::nowUtc(), 'Y-m');
+        $csv = $this->timeEntries->mobilityCsv($month);
+
+        return Response::html($csv)
+            ->withHeader('Content-Type', 'text/csv; charset=utf-8')
+            ->withHeader('Content-Disposition', 'attachment; filename="indemnites-mobilite-' . $month . '.csv"');
     }
 }

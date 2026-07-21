@@ -60,7 +60,8 @@ final class AuthController
         $this->session->set('user_role', $user['role']);
         $this->session->set('user_name', $user['first_name'] . ' ' . $user['last_name']);
 
-        return Response::redirect('/admin/catalogue');
+        // Les techniciens vont vers leur app terrain ; les autres au back-office.
+        return Response::redirect($user['role'] === 'technician' ? '/tech' : '/admin/catalogue');
     }
 
     public function logout(Request $request): Response
