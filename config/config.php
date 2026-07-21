@@ -53,6 +53,14 @@ return [
         'ors_api_key' => $get('ORS_API_KEY', ''),
         'google_maps_api_key' => $get('GOOGLE_MAPS_API_KEY', ''),
     ],
+    'sms' => [
+        'provider' => $get('SMS_PROVIDER', 'none'),
+        'twilio_sid' => $get('TWILIO_SID', ''),
+        'twilio_token' => $get('TWILIO_TOKEN', ''),
+        'twilio_from' => $get('TWILIO_FROM', ''),
+        'brevo_key' => $get('BREVO_API_KEY', ''),
+        'brevo_sender' => $get('BREVO_SENDER', 'Keepnew'),
+    ],
     'payment' => [
         'gateway' => $get('PAYMENT_GATEWAY', 'null'),
     ],

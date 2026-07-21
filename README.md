@@ -23,7 +23,7 @@ Trois différences avec les SaaS type Zenbooker / BookingKoala :
 | **6** | Widget public & tunnel ([doc](docs/07-widget-tunnel.md)) | ✅ Livrée |
 | **7** | Dispatch, ateliers, clients ([doc](docs/08-back-office-operationnel.md)) | ✅ Livrée |
 | **8** | Form builder ([doc](docs/09-form-builder.md)) | ✅ Livrée |
-| 9 | Notifications, facturation, Peppol | ⏳ |
+| **9** | Notifications, facturation, Peppol ([doc](docs/10-notifications-facturation-peppol.md)) | ✅ Livrée |
 | 10 | App technicien PWA | ⏳ |
 | 11 | Tracking, rapports, documentation | ⏳ |
 | 12 | Activation du paiement en ligne | ultérieure |

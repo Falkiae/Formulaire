@@ -54,6 +54,19 @@ use Keepnew\Http\Api\FormApiController;
 use Keepnew\Admin\FormBuilderController;
 use Keepnew\Form\FormRepository;
 use Keepnew\Form\FormValidator;
+use Keepnew\Admin\InvoiceController;
+use Keepnew\Invoice\InvoiceService;
+use Keepnew\Invoice\JournalExporter;
+use Keepnew\Invoice\UblGenerator;
+use Keepnew\Notification\BrevoSmsProvider;
+use Keepnew\Notification\LogMailer;
+use Keepnew\Notification\MailerInterface;
+use Keepnew\Notification\NotificationService;
+use Keepnew\Notification\NullSmsProvider;
+use Keepnew\Notification\SmsProviderInterface;
+use Keepnew\Notification\SmtpMailer;
+use Keepnew\Notification\TemplateRenderer;
+use Keepnew\Notification\TwilioSmsProvider;
 use Keepnew\Core\Config;
 
 return static function (Router $router, Container $container): void {
@@ -128,10 +141,59 @@ return static function (Router $router, Container $container): void {
     ));
     $container->singleton(FormRepository::class, static fn (Container $c): FormRepository => new FormRepository($c->get(Database::class)));
     $container->singleton(FormValidator::class, static fn (): FormValidator => new FormValidator());
+
+    // --- Notifications (Phase 9) -------------------------------------------
+    $container->singleton(TemplateRenderer::class, static fn (): TemplateRenderer => new TemplateRenderer());
+    $container->singleton(MailerInterface::class, static function (Container $c): MailerInterface {
+        $cfg = $c->get(Config::class);
+        // SMTP si configuré ET PHPMailer présent, sinon LogMailer.
+        if ((string) $cfg->get('mail.host', '') !== '' && class_exists('PHPMailer\\PHPMailer\\PHPMailer')) {
+            return new SmtpMailer([
+                'host' => (string) $cfg->get('mail.host'),
+                'port' => (int) $cfg->get('mail.port', 587),
+                'user' => (string) $cfg->get('mail.user', ''),
+                'password' => (string) $cfg->get('mail.password', ''),
+                'encryption' => (string) $cfg->get('mail.encryption', 'tls'),
+                'from_address' => (string) $cfg->get('mail.from_address', 'hello@keepnew.be'),
+                'from_name' => (string) $cfg->get('mail.from_name', 'Keepnew'),
+            ]);
+        }
+
+        return new LogMailer(dirname(__DIR__) . '/storage/logs');
+    });
+    $container->singleton(SmsProviderInterface::class, static function (Container $c): SmsProviderInterface {
+        $cfg = $c->get(Config::class);
+        return match ((string) $cfg->get('sms.provider', 'none')) {
+            'twilio' => new TwilioSmsProvider((string) $cfg->get('sms.twilio_sid', ''), (string) $cfg->get('sms.twilio_token', ''), (string) $cfg->get('sms.twilio_from', '')),
+            'brevo' => new BrevoSmsProvider((string) $cfg->get('sms.brevo_key', ''), (string) $cfg->get('sms.brevo_sender', 'Keepnew')),
+            default => new NullSmsProvider(),
+        };
+    });
+    $container->singleton(NotificationService::class, static fn (Container $c): NotificationService => new NotificationService(
+        $c->get(Database::class),
+        $c->get(TemplateRenderer::class),
+        $c->get(MailerInterface::class),
+        $c->get(SmsProviderInterface::class),
+    ));
+
+    // --- Facturation & Peppol ----------------------------------------------
+    $container->singleton(InvoiceService::class, static fn (Container $c): InvoiceService => new InvoiceService($c->get(Database::class)));
+    $container->singleton(UblGenerator::class, static fn (): UblGenerator => new UblGenerator());
+    $container->singleton(JournalExporter::class, static fn (Container $c): JournalExporter => new JournalExporter($c->get(Database::class)));
+    $container->singleton(InvoiceController::class, static fn (Container $c): InvoiceController => new InvoiceController(
+        $c->get(View::class),
+        $c->get(Session::class),
+        $c->get(Csrf::class),
+        $c->get(Database::class),
+        $c->get(InvoiceService::class),
+        $c->get(UblGenerator::class),
+        $c->get(JournalExporter::class),
+    ));
     $container->singleton(BookingApiController::class, static fn (Container $c): BookingApiController => new BookingApiController(
         $c->get(BookingService::class),
         $c->get(FormRepository::class),
         $c->get(FormValidator::class),
+        $c->get(NotificationService::class),
     ));
     $container->singleton(FormApiController::class, static fn (Container $c): FormApiController => new FormApiController($c->get(FormRepository::class)));
     $container->singleton(FormBuilderController::class, static fn (Container $c): FormBuilderController => new FormBuilderController(
@@ -272,6 +334,12 @@ return static function (Router $router, Container $container): void {
         $r->get('/ateliers', [LocationController::class, 'index']);
         $r->post('/ateliers/{id}/poste', [LocationController::class, 'addBay'], [CsrfMiddleware::class]);
         $r->post('/ateliers/{id}/fermeture', [LocationController::class, 'addClosure'], [CsrfMiddleware::class]);
+
+        // Factures & Peppol
+        $r->get('/factures', [InvoiceController::class, 'index']);
+        $r->get('/factures/journal', [InvoiceController::class, 'journal']);
+        $r->post('/factures/commande/{bookingId}', [InvoiceController::class, 'generate'], [CsrfMiddleware::class]);
+        $r->get('/factures/{id}/ubl', [InvoiceController::class, 'ubl']);
 
         // Form builder
         $r->get('/formulaire', [FormBuilderController::class, 'index']);

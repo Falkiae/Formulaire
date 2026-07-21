@@ -10,6 +10,7 @@ use Keepnew\Core\Request;
 use Keepnew\Core\Response;
 use Keepnew\Form\FormRepository;
 use Keepnew\Form\FormValidator;
+use Keepnew\Notification\NotificationService;
 
 /**
  * API réservation — confirmation de commande (sans paiement) et gestion via
@@ -21,6 +22,7 @@ final class BookingApiController
         private readonly BookingService $bookings,
         private readonly FormRepository $forms,
         private readonly FormValidator $validator,
+        private readonly NotificationService $notifications,
     ) {
     }
 
@@ -58,6 +60,11 @@ final class BookingApiController
             $request->array('answers'),
         );
 
+        // Confirmation immédiate + programmation des rappels (48 h / 2 h).
+        foreach (['booking_confirmed', 'reminder_48h', 'reminder_2h'] as $event) {
+            $this->notifications->trigger($event, $result['booking_id']);
+        }
+
         return Response::json($result, 201);
     }
 
@@ -84,9 +91,12 @@ final class BookingApiController
      */
     public function cancel(Request $request): Response
     {
-        $this->bookings->cancel((string) $request->attribute('token'));
+        $token = (string) $request->attribute('token');
+        $this->bookings->cancel($token);
+        $booking = $this->bookings->findByManageToken($token);
+        $this->notifications->trigger('booking_cancelled', (int) $booking['id']);
 
-        return Response::json($this->bookings->view((string) $request->attribute('token')));
+        return Response::json($this->bookings->view($token));
     }
 
     /**

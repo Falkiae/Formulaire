@@ -42,8 +42,10 @@ $centsToEuros = static fn (int $c): string => number_format($c / 100, 2, ',', ' 
             <a href="/admin/dispatch">Dispatch</a>
             <a href="/admin/clients">Clients</a>
             <a href="/admin/ateliers">Ateliers</a>
+            <a href="/admin/factures">Factures</a>
             <a href="/admin/catalogue" aria-current="page">Catalogue</a>
             <a href="/admin/extras">Extras</a>
+            <a href="/admin/formulaire">Formulaire</a>
             <a href="/admin/simulateur">Simulateur</a>
             <a href="/admin/deconnexion">Déconnexion</a>
         </nav>
