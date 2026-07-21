@@ -89,7 +89,7 @@ Développement sur `claude/session-czmr0w`.
 - [07 — Widget & tunnel](docs/07-widget-tunnel.md) · [08 — Back-office opérationnel](docs/08-back-office-operationnel.md)
 - [09 — Form builder](docs/09-form-builder.md) · [10 — Notifications, facturation, Peppol](docs/10-notifications-facturation-peppol.md)
 - [11 — App technicien PWA](docs/11-app-technicien-pwa.md) · [14 — Tracking & rapports](docs/14-tracking-rapports.md)
-- **Exploitation** : [12 — Installation](docs/12-installation.md) · [13 — Checklist QA](docs/13-qa-checklist.md) · [15 — Guide admin](docs/15-guide-admin.md)
+- **Exploitation** : [16 — Déploiement OVH pas à pas](docs/16-deploiement-ovh.md) · [12 — Installation générique](docs/12-installation.md) · [13 — Checklist QA](docs/13-qa-checklist.md) · [15 — Guide admin](docs/15-guide-admin.md)
 
 ## Périmètre de lancement
 
