@@ -50,6 +50,10 @@ use Keepnew\Http\Api\AvailabilityApiController;
 use Keepnew\Http\Api\BookingApiController;
 use Keepnew\Http\Api\CartApiController;
 use Keepnew\Http\Api\CatalogApiController;
+use Keepnew\Http\Api\FormApiController;
+use Keepnew\Admin\FormBuilderController;
+use Keepnew\Form\FormRepository;
+use Keepnew\Form\FormValidator;
 use Keepnew\Core\Config;
 
 return static function (Router $router, Container $container): void {
@@ -122,7 +126,20 @@ return static function (Router $router, Container $container): void {
         $c->get(AvailabilityService::class),
         $c->get(AvailabilityRepository::class),
     ));
-    $container->singleton(BookingApiController::class, static fn (Container $c): BookingApiController => new BookingApiController($c->get(BookingService::class)));
+    $container->singleton(FormRepository::class, static fn (Container $c): FormRepository => new FormRepository($c->get(Database::class)));
+    $container->singleton(FormValidator::class, static fn (): FormValidator => new FormValidator());
+    $container->singleton(BookingApiController::class, static fn (Container $c): BookingApiController => new BookingApiController(
+        $c->get(BookingService::class),
+        $c->get(FormRepository::class),
+        $c->get(FormValidator::class),
+    ));
+    $container->singleton(FormApiController::class, static fn (Container $c): FormApiController => new FormApiController($c->get(FormRepository::class)));
+    $container->singleton(FormBuilderController::class, static fn (Container $c): FormBuilderController => new FormBuilderController(
+        $c->get(View::class),
+        $c->get(Session::class),
+        $c->get(Csrf::class),
+        $c->get(FormRepository::class),
+    ));
 
     // --- Middlewares -------------------------------------------------------
     $container->singleton(CsrfMiddleware::class, static fn (Container $c): CsrfMiddleware => new CsrfMiddleware($c->get(Csrf::class)));
@@ -256,6 +273,19 @@ return static function (Router $router, Container $container): void {
         $r->post('/ateliers/{id}/poste', [LocationController::class, 'addBay'], [CsrfMiddleware::class]);
         $r->post('/ateliers/{id}/fermeture', [LocationController::class, 'addClosure'], [CsrfMiddleware::class]);
 
+        // Form builder
+        $r->get('/formulaire', [FormBuilderController::class, 'index']);
+        $r->post('/formulaire', [FormBuilderController::class, 'createVersion'], [CsrfMiddleware::class]);
+        $r->get('/formulaire/{id}', [FormBuilderController::class, 'edit']);
+        $r->post('/formulaire/{id}/publier', [FormBuilderController::class, 'publish'], [CsrfMiddleware::class]);
+        $r->post('/formulaire/{id}/champ', [FormBuilderController::class, 'addField'], [CsrfMiddleware::class]);
+        $r->post('/formulaire/{id}/champ/{fieldId}/supprimer', [FormBuilderController::class, 'deleteField'], [CsrfMiddleware::class]);
+        $r->post('/formulaire/{id}/champs/ordre', [FormBuilderController::class, 'reorderFields'], [CsrfMiddleware::class]);
+        $r->post('/formulaire/{id}/champ/{fieldId}/option', [FormBuilderController::class, 'addOption'], [CsrfMiddleware::class]);
+        $r->get('/formulaire/{id}/option/{optionId}/supprimer', [FormBuilderController::class, 'deleteOption']);
+        $r->post('/formulaire/{id}/condition', [FormBuilderController::class, 'addCondition'], [CsrfMiddleware::class]);
+        $r->get('/formulaire/{id}/condition/{conditionId}/supprimer', [FormBuilderController::class, 'deleteCondition']);
+
         // Simulateur
         $r->get('/simulateur', [SimulatorController::class, 'index']);
         $r->get('/simulateur/service/{id}', [SimulatorController::class, 'serviceConfig']);
@@ -274,6 +304,9 @@ return static function (Router $router, Container $container): void {
         // Catalogue (lecture)
         $r->get('/catalog', [CatalogApiController::class, 'index']);
         $r->get('/services/{id}', [CatalogApiController::class, 'service']);
+
+        // Formulaire dynamique publié (intake)
+        $r->get('/form', [FormApiController::class, 'published']);
 
         // Devis live (sans panier)
         $r->post('/quote', [CartApiController::class, 'quote']);

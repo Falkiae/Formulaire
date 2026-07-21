@@ -475,24 +475,34 @@
     });
   }
 
-  // --- Étape 5 : QUESTIONS D'INTAKE -----------------------------------------
+  // --- Étape 5 : QUESTIONS D'INTAKE (formulaire dynamique) ------------------
   function renderIntake(body) {
     body.appendChild(el('<h2 class="kn-h">Quelques précisions</h2>'));
-    var hasOnsite = cartHasMode("onsite");
-    var q = [];
-    if (hasOnsite) {
-      q.push(radioQ("water_access", "Avez-vous un accès à l'eau ?", ["Oui", "Non"]));
-      q.push(radioQ("power_access", "Avez-vous un accès à l'électricité ?", ["Oui", "Non"]));
+    if (!state._form) {
+      body.appendChild(loading());
+      api("/form").then(function (f) {
+        state._form = f;
+        render();
+      }).catch(function () {
+        state._form = { fields: [], conditions: [] };
+        render();
+      });
+      return;
     }
-    q.push(radioQ("pets", "Avez-vous des animaux ?", ["Oui", "Non"]));
-    q.push(dirtScale());
-    q.forEach(function (n) {
-      body.appendChild(n);
-    });
+
+    var hasOnsite = cartHasMode("onsite");
+    var container = el('<div id="kn-form"></div>');
+    body.appendChild(container);
+    renderFormFields(container, hasOnsite);
+
     body.appendChild(reassure("Si l'état diffère, on vous prévient avant de commencer. Vous restez libre de refuser."));
     var actions = el('<div class="kn-actions"></div>');
     var cont = el('<button class="kn-btn kn-btn-primary" type="button">Continuer</button>');
     cont.addEventListener("click", function () {
+      if (!validateForm(hasOnsite)) {
+        flash("Merci de compléter les champs requis.");
+        return;
+      }
       goto("contact");
     });
     actions.appendChild(cont);
@@ -501,44 +511,88 @@
       goto("cart");
     }));
   }
-  function radioQ(key, label, opts) {
-    var wrap = el('<div class="kn-field"><label>' + esc(label) + "</label></div>");
-    var group = el('<div class="kn-choice-row"></div>');
-    opts.forEach(function (o) {
-      var val = o.toLowerCase() === "oui" ? "yes" : "no";
-      var b = el('<button type="button" class="kn-chip ' + (state.answers[key] === val ? "on" : "") + '">' + esc(o) + "</button>");
-      b.addEventListener("click", function () {
-        state.answers[key] = val;
-        group.querySelectorAll(".kn-chip").forEach(function (c) {
-          c.classList.remove("on");
-        });
-        b.classList.add("on");
-      });
-      group.appendChild(b);
+  // Champs effectivement visibles/requis après application des conditions.
+  function formState(hasOnsite) {
+    var st = {};
+    state._form.fields.forEach(function (f) {
+      var onsiteOnly = f.config && f.config.onsite_only;
+      st[f.field_key] = { field: f, visible: onsiteOnly ? hasOnsite : true, required: !!f.is_required };
     });
-    wrap.appendChild(group);
-    return wrap;
+    var byId = {};
+    state._form.fields.forEach(function (f) { byId[f.id] = f; });
+    state._form.conditions.forEach(function (c) {
+      var src = byId[c.source_field_id], tgt = byId[c.target_field_id];
+      if (!src || !tgt) return;
+      var val = state.answers[src.field_key];
+      if (!condMatches(val, c.operator, c.compare_value)) return;
+      var s = st[tgt.field_key];
+      if (c.action === "show") s.visible = true;
+      else if (c.action === "hide") s.visible = false;
+      else if (c.action === "require") s.required = true;
+      else if (c.action === "optional") s.required = false;
+    });
+    return st;
   }
-  function dirtScale() {
-    var wrap = el('<div class="kn-field"><label>Quel est l\'état de salissure ?</label></div>');
-    var row = el('<div class="kn-choice-row"></div>');
-    [
-      ["light", "Léger"],
-      ["marked", "Marqué"],
-      ["deep", "Profond"],
-    ].forEach(function (o) {
-      var b = el('<button type="button" class="kn-chip ' + (state.answers.dirt_level === o[0] ? "on" : "") + '">' + esc(o[1]) + "</button>");
-      b.addEventListener("click", function () {
-        state.answers.dirt_level = o[0];
-        row.querySelectorAll(".kn-chip").forEach(function (c) {
-          c.classList.remove("on");
-        });
-        b.classList.add("on");
-      });
-      row.appendChild(b);
+  function condMatches(val, op, cmp) {
+    switch (op) {
+      case "eq": return String(val) === String(cmp);
+      case "neq": return String(val) !== String(cmp);
+      case "in": return String(cmp || "").split(",").map(function (s) { return s.trim(); }).indexOf(String(val)) >= 0;
+      case "filled": return val != null && String(val).trim() !== "";
+      case "empty": return val == null || String(val).trim() === "";
+      default: return false;
+    }
+  }
+  function renderFormFields(container, hasOnsite) {
+    container.innerHTML = "";
+    var st = formState(hasOnsite);
+    state._form.fields.forEach(function (f) {
+      if (!st[f.field_key].visible) return;
+      var node = fieldNode(f, st[f.field_key].required, hasOnsite);
+      if (node) container.appendChild(node);
     });
-    wrap.appendChild(row);
-    return wrap;
+  }
+  function fieldNode(f, required, hasOnsite) {
+    var label = f.label + (required ? " *" : "");
+    if (f.field_type === "radio" || f.field_type === "select" || f.field_type === "cards") {
+      var wrap = el('<div class="kn-field"><label>' + esc(label) + "</label></div>");
+      var row = el('<div class="kn-choice-row"></div>');
+      (f.options || []).forEach(function (o) {
+        var b = el('<button type="button" class="kn-chip ' + (state.answers[f.field_key] === o.value ? "on" : "") + '">' + esc(o.label) + "</button>");
+        b.addEventListener("click", function () {
+          state.answers[f.field_key] = o.value;
+          var host = root.querySelector("#kn-form");
+          if (host) renderFormFields(host, hasOnsite);
+        });
+        row.appendChild(b);
+      });
+      wrap.appendChild(row);
+      return wrap;
+    }
+    if (f.field_type === "checkbox") {
+      var w2 = el('<label class="kn-extra"><span>' + esc(label) + "</span><input type=\"checkbox\" " + (state.answers[f.field_key] === "yes" ? "checked" : "") + "></label>");
+      w2.querySelector("input").addEventListener("change", function (e) { state.answers[f.field_key] = e.target.checked ? "yes" : "no"; });
+      return w2;
+    }
+    if (f.field_type === "textarea") {
+      var w3 = el('<div class="kn-field"><label>' + esc(label) + '</label><textarea rows="2" style="width:100%;min-height:64px;padding:8px;border:1px solid var(--line);border-radius:8px;font:inherit;">' + esc(state.answers[f.field_key] || "") + "</textarea></div>");
+      w3.querySelector("textarea").addEventListener("input", function (e) { state.answers[f.field_key] = e.target.value; });
+      return w3;
+    }
+    // text, number, date, consent, autres → input
+    var type = f.field_type === "number" ? "number" : (f.field_type === "date" ? "date" : "text");
+    var w4 = el('<div class="kn-field"><label>' + esc(label) + '</label><input type="' + type + '" value="' + esc(state.answers[f.field_key] || "") + '"></div>');
+    w4.querySelector("input").addEventListener("input", function (e) { state.answers[f.field_key] = e.target.value; });
+    return w4;
+  }
+  function validateForm(hasOnsite) {
+    var st = formState(hasOnsite);
+    return state._form.fields.every(function (f) {
+      var m = st[f.field_key];
+      if (!m.visible || !m.required) return true;
+      var v = state.answers[f.field_key];
+      return v != null && String(v).trim() !== "";
+    });
   }
 
   // --- Étape 6 : COORDONNÉES -------------------------------------------------

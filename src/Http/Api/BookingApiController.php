@@ -8,6 +8,8 @@ use Keepnew\Booking\BookingService;
 use Keepnew\Core\Exception\HttpException;
 use Keepnew\Core\Request;
 use Keepnew\Core\Response;
+use Keepnew\Form\FormRepository;
+use Keepnew\Form\FormValidator;
 
 /**
  * API réservation — confirmation de commande (sans paiement) et gestion via
@@ -15,8 +17,11 @@ use Keepnew\Core\Response;
  */
 final class BookingApiController
 {
-    public function __construct(private readonly BookingService $bookings)
-    {
+    public function __construct(
+        private readonly BookingService $bookings,
+        private readonly FormRepository $forms,
+        private readonly FormValidator $validator,
+    ) {
     }
 
     /**
@@ -33,6 +38,16 @@ final class BookingApiController
         }
         if (!$request->bool('consent_terms')) {
             throw new HttpException(422, 'Les conditions générales doivent être acceptées.');
+        }
+
+        // Revalidation serveur des réponses au formulaire (jamais de confiance au front).
+        $answers = $request->array('answers');
+        $form = $this->forms->publishedForm();
+        if ($form !== null) {
+            $errors = $this->validator->validate($answers, $form['fields'], $form['conditions']);
+            if ($errors !== []) {
+                return Response::json(['error' => 'Formulaire incomplet.', 'fields' => $errors], 422);
+            }
         }
 
         $result = $this->bookings->createFromCart(
