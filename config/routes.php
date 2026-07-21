@@ -70,6 +70,9 @@ use Keepnew\Notification\TwilioSmsProvider;
 use Keepnew\Tech\TechController;
 use Keepnew\Tech\TimeEntryService;
 use Keepnew\Support\ImageUpload;
+use Keepnew\Admin\ReportController;
+use Keepnew\Tracking\MetaCapiClient;
+use Keepnew\Tracking\TrackingService;
 use Keepnew\Core\Config;
 
 return static function (Router $router, Container $container): void {
@@ -209,8 +212,17 @@ return static function (Router $router, Container $container): void {
         $c->get(FormRepository::class),
         $c->get(FormValidator::class),
         $c->get(NotificationService::class),
+        $c->get(TrackingService::class),
     ));
     $container->singleton(FormApiController::class, static fn (Container $c): FormApiController => new FormApiController($c->get(FormRepository::class)));
+
+    // --- Tracking (Phase 11) -----------------------------------------------
+    $container->singleton(MetaCapiClient::class, static function (Container $c): MetaCapiClient {
+        $cfg = $c->get(Config::class);
+        return new MetaCapiClient((string) $cfg->get('tracking.meta_pixel_id', ''), (string) $cfg->get('tracking.meta_token', ''));
+    });
+    $container->singleton(TrackingService::class, static fn (Container $c): TrackingService => new TrackingService($c->get(Database::class), $c->get(MetaCapiClient::class)));
+    $container->singleton(ReportController::class, static fn (Container $c): ReportController => new ReportController($c->get(View::class), $c->get(Session::class), $c->get(Database::class)));
     $container->singleton(FormBuilderController::class, static fn (Container $c): FormBuilderController => new FormBuilderController(
         $c->get(View::class),
         $c->get(Session::class),
@@ -333,6 +345,9 @@ return static function (Router $router, Container $container): void {
         // Extras — rattachement à un service (pivot)
         $r->post('/catalogue/service/{id}/extras', [ExtraController::class, 'attach'], [CsrfMiddleware::class]);
         $r->post('/catalogue/service/{id}/extras/{extraId}/detacher', [ExtraController::class, 'detach'], [CsrfMiddleware::class]);
+
+        // Rapports
+        $r->get('/rapports', [ReportController::class, 'index']);
 
         // Dispatch & opérationnel
         $r->get('/dispatch', [DispatchController::class, 'index']);

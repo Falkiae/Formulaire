@@ -1,0 +1,58 @@
+# Keepnew Booking — Guide d'utilisation du back-office
+
+Accès : `/admin/connexion`. Le menu du haut donne accès à toutes les sections.
+
+## Catalogue (`/admin/catalogue`)
+
+Le pilier, utilisable sans aide technique.
+
+- **Catégories** : arborescence réordonnable (glisser-déposer), visibilité, slug.
+- **Prestations** : créer, éditer (prix/durée de base, **prix et durée par mode**
+  domicile/atelier), **dupliquer** en un clic, activer/désactiver (jamais
+  supprimer si déjà commandé — désactivation automatique).
+- **Variantes** : gabarits / places / dimensions, avec delta de prix/durée.
+- **Extras** (`/admin/extras`) : catalogue central ; on crée l'extra une fois
+  puis on le rattache aux prestations (surcharge de prix, exclusif ou cumulable).
+- **Simulateur** (`/admin/simulateur`) : vérifier une configuration et son prix,
+  détail ligne par ligne — idéal pour déboguer une grille.
+
+## Dispatch (`/admin/dispatch`)
+
+Agenda du jour par technicien. **Glisser-déposer** un rendez-vous d'une colonne à
+l'autre pour le réassigner : le trajet est recalculé et un conflit est signalé.
+Cliquer une carte ouvre la **fiche job** (statut, note, photos, historique).
+
+## Clients (`/admin/clients`)
+
+Liste avec LTV, fréquence et segment B2B/B2C ; fiche client (commandes, adresses,
+notes).
+
+## Ateliers (`/admin/ateliers`)
+
+Adresse, postes de travail, fermetures exceptionnelles.
+
+## Formulaire (`/admin/formulaire`)
+
+Éditer un **brouillon** (champs, options, conditions SI/ALORS) puis **publier** :
+la version publiée devient le formulaire du tunnel, sans redéploiement.
+
+## Factures (`/admin/factures`)
+
+Générer la facture d'une commande (numérotation séquentielle, simplifiée <250 €).
+Télécharger l'**UBL** (B2B/Peppol). Exporter le **journal des recettes** (CSV).
+Exporter les **indemnités de mobilité** CP 121 (`/admin/mobilite`).
+
+## Rapports (`/admin/rapports`)
+
+Chiffre d'affaires, panier moyen, taux de conversion et d'annulation, km ; CA par
+prestation, technicien et mois.
+
+## App technicien (`/tech`)
+
+Les comptes « technicien » sont redirigés vers leur app terrain : planning,
+pointage, statuts, photos, signature, encaissement.
+
+## Réglages
+
+Les barèmes et seuils (TVA, remise cumul, indemnité de mobilité, délais de
+réservation, fournisseurs) vivent dans la table `settings` — jamais en dur.

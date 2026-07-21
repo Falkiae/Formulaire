@@ -54,6 +54,8 @@ $jobCard = static function (array $j, callable $e): string {
         <nav>
             <a href="/admin/dispatch" aria-current="page">Dispatch</a>
             <a href="/admin/clients">Clients</a>
+            <a href="/admin/rapports">Rapports</a>
+            <a href="/admin/factures">Factures</a>
             <a href="/admin/ateliers">Ateliers</a>
             <a href="/admin/catalogue">Catalogue</a>
             <a href="/admin/deconnexion">Déconnexion</a>

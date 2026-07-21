@@ -11,6 +11,7 @@ use Keepnew\Core\Response;
 use Keepnew\Form\FormRepository;
 use Keepnew\Form\FormValidator;
 use Keepnew\Notification\NotificationService;
+use Keepnew\Tracking\TrackingService;
 
 /**
  * API réservation — confirmation de commande (sans paiement) et gestion via
@@ -23,6 +24,7 @@ final class BookingApiController
         private readonly FormRepository $forms,
         private readonly FormValidator $validator,
         private readonly NotificationService $notifications,
+        private readonly TrackingService $tracking,
     ) {
     }
 
@@ -65,7 +67,16 @@ final class BookingApiController
             $this->notifications->trigger($event, $result['booking_id']);
         }
 
-        return Response::json($result, 201);
+        // Conversion serveur (Meta CAPI), dédupliquée via l'event_id du pixel.
+        $eventId = $request->string('event_id') ?: ('kn-' . $result['booking_id']);
+        $this->tracking->purchaseFromBooking(
+            $result['booking_id'],
+            $eventId,
+            $request->ip(),
+            $request->header('user-agent'),
+        );
+
+        return Response::json($result + ['event_id' => $eventId], 201);
     }
 
     /**

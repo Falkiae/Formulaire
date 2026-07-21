@@ -399,6 +399,8 @@
     ensureCart().then(function () {
       api("/cart/" + state.token + "/items", { method: "POST", body: body }).then(function (snap) {
         state.cart = snap;
+        var p = snap.pricing;
+        dl("add_to_cart", { currency: "EUR", value: p ? p.total_tvac_cents / 100 : undefined, items: cartItemsForTracking() });
         state.serviceId = null;
         state.variantId = null;
         state.extraIds = [];
@@ -467,6 +469,8 @@
       });
       var cont = el('<button class="kn-btn kn-btn-primary" type="button">Continuer</button>');
       cont.addEventListener("click", function () {
+        var p = state.cart && state.cart.pricing ? state.cart.pricing : null;
+        dl("begin_checkout", { currency: "EUR", value: p ? p.total_tvac_cents / 100 : undefined, items: cartItemsForTracking() });
         goto("intake");
       });
       actions.appendChild(more);
@@ -791,6 +795,8 @@
     });
   }
   function submitBooking() {
+    // event_id partagé pixel/serveur pour la déduplication Meta CAPI.
+    var eventId = state._eventId || (state._eventId = uuid());
     var payload = {
       token: state.token,
       customer: state.customer,
@@ -798,11 +804,21 @@
       slots: state.slots,
       answers: state.answers,
       consent_terms: !!state._consent,
+      event_id: eventId,
       hp: "",
     };
     api("/bookings", { method: "POST", body: payload })
       .then(function (res) {
         state.booking = res;
+        // GA4 purchase (dataLayer de la page hôte) + Meta pixel dédupliqué serveur.
+        var p = state.cart && state.cart.pricing ? state.cart.pricing : null;
+        dl("purchase", {
+          transaction_id: res.reference,
+          event_id: eventId,
+          value: p ? p.total_tvac_cents / 100 : undefined,
+          currency: "EUR",
+          items: cartItemsForTracking(),
+        });
         goto("done");
         reset(); // panier consommé
       })
@@ -810,6 +826,26 @@
         if (e.status === 409) flash("Ce créneau vient d'être réservé. Merci d'en choisir un autre.");
         else flash(e.message || "Une erreur est survenue.");
       });
+  }
+  // --- Tracking GA4 (dataLayer) ---------------------------------------------
+  function dl(event, data) {
+    try {
+      window.dataLayer = window.dataLayer || [];
+      window.dataLayer.push(Object.assign({ event: event }, data || {}));
+    } catch (e) {}
+  }
+  function cartItemsForTracking() {
+    if (!state.cart || !state.cart.items) return [];
+    return state.cart.items.map(function (it) {
+      return { item_name: it.label, quantity: it.quantity, price: it.unit_price_cents / 100 };
+    });
+  }
+  function uuid() {
+    if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+    return "xxxxxxxxxxxx4xxxyxxxxxxxxxxxxxxx".replace(/[xy]/g, function (c) {
+      var r = (Math.random() * 16) | 0;
+      return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
+    });
   }
 
   // --- Étape 9 : CONFIRMATION ------------------------------------------------

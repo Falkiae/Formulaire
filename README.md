@@ -25,7 +25,7 @@ Trois différences avec les SaaS type Zenbooker / BookingKoala :
 | **8** | Form builder ([doc](docs/09-form-builder.md)) | ✅ Livrée |
 | **9** | Notifications, facturation, Peppol ([doc](docs/10-notifications-facturation-peppol.md)) | ✅ Livrée |
 | **10** | App technicien PWA ([doc](docs/11-app-technicien-pwa.md)) | ✅ Livrée |
-| 11 | Tracking, rapports, documentation | ⏳ |
+| **11** | Tracking, rapports, documentation ([doc](docs/14-tracking-rapports.md)) | ✅ Livrée |
 | 12 | Activation du paiement en ligne | ultérieure |
 
 ## Contenu de la Phase 1
@@ -80,3 +80,21 @@ mysql -uroot keepnew < database/seed.sql
 ## Convention de branche
 
 Développement sur `claude/session-czmr0w`.
+
+## Documentation complète
+
+- [01 — Architecture](docs/01-architecture.md) · [02 — Noyau MVC](docs/02-noyau-mvc.md)
+- [03 — Back-office catalogue](docs/03-back-office-catalogue.md) · [04 — Moteur de tarification](docs/04-moteur-tarification.md)
+- [05 — Moteur de disponibilité](docs/05-moteur-disponibilite.md) · [06 — API, panier, commande](docs/06-api-panier-commande.md)
+- [07 — Widget & tunnel](docs/07-widget-tunnel.md) · [08 — Back-office opérationnel](docs/08-back-office-operationnel.md)
+- [09 — Form builder](docs/09-form-builder.md) · [10 — Notifications, facturation, Peppol](docs/10-notifications-facturation-peppol.md)
+- [11 — App technicien PWA](docs/11-app-technicien-pwa.md) · [14 — Tracking & rapports](docs/14-tracking-rapports.md)
+- **Exploitation** : [12 — Installation](docs/12-installation.md) · [13 — Checklist QA](docs/13-qa-checklist.md) · [15 — Guide admin](docs/15-guide-admin.md)
+
+## Périmètre de lancement
+
+Les **11 phases du périmètre de lancement sont livrées**. La phase 12 (activation
+du paiement en ligne via Mollie/Stripe) est prévue **ultérieurement** :
+l'architecture est déjà prête (interface `PaymentGatewayInterface`, table
+`payments`, `payment_status`, `NullGateway` actif) — activable par configuration,
+sans refonte.

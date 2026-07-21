@@ -64,4 +64,10 @@ return [
     'payment' => [
         'gateway' => $get('PAYMENT_GATEWAY', 'null'),
     ],
+    'tracking' => [
+        'ga4_measurement_id' => $get('GA4_MEASUREMENT_ID', ''),
+        'meta_pixel_id' => $get('META_CAPI_PIXEL_ID', ''),
+        'meta_token' => $get('META_CAPI_TOKEN', ''),
+        'google_ads_conversion_id' => $get('GOOGLE_ADS_CONVERSION_ID', ''),
+    ],
 ];
