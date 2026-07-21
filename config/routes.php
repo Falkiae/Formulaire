@@ -12,8 +12,14 @@ declare(strict_types=1);
 use Keepnew\Admin\AuthController;
 use Keepnew\Admin\CatalogController;
 use Keepnew\Admin\CategoryController;
+use Keepnew\Admin\CustomerController;
+use Keepnew\Admin\DispatchController;
+use Keepnew\Admin\DispatchService;
 use Keepnew\Admin\ExtraController;
+use Keepnew\Admin\JobController;
+use Keepnew\Admin\LocationController;
 use Keepnew\Admin\SimulatorController;
+use Keepnew\Availability\EngineConfig;
 use Keepnew\Auth\UserRepository;
 use Keepnew\Catalog\CatalogRepository;
 use Keepnew\Catalog\ExtraRepository;
@@ -150,6 +156,37 @@ return static function (Router $router, Container $container): void {
         $c->get(Csrf::class),
         $c->get(ExtraRepository::class),
     ));
+
+    // --- Dispatch / opérationnel (Phase 7) ---------------------------------
+    $container->singleton(EngineConfig::class, static fn (): EngineConfig => new EngineConfig());
+    $container->singleton(DispatchService::class, static fn (Container $c): DispatchService => new DispatchService(
+        $c->get(Database::class),
+        $c->get(GeoProviderInterface::class),
+        $c->get(EngineConfig::class),
+    ));
+    $container->singleton(DispatchController::class, static fn (Container $c): DispatchController => new DispatchController(
+        $c->get(View::class),
+        $c->get(Session::class),
+        $c->get(Csrf::class),
+        $c->get(DispatchService::class),
+    ));
+    $container->singleton(JobController::class, static fn (Container $c): JobController => new JobController(
+        $c->get(View::class),
+        $c->get(Session::class),
+        $c->get(Csrf::class),
+        $c->get(Database::class),
+    ));
+    $container->singleton(CustomerController::class, static fn (Container $c): CustomerController => new CustomerController(
+        $c->get(View::class),
+        $c->get(Session::class),
+        $c->get(Database::class),
+    ));
+    $container->singleton(LocationController::class, static fn (Container $c): LocationController => new LocationController(
+        $c->get(View::class),
+        $c->get(Session::class),
+        $c->get(Csrf::class),
+        $c->get(Database::class),
+    ));
     $container->singleton(SimulatorController::class, static fn (Container $c): SimulatorController => new SimulatorController(
         $c->get(View::class),
         $c->get(Session::class),
@@ -202,6 +239,22 @@ return static function (Router $router, Container $container): void {
         // Extras — rattachement à un service (pivot)
         $r->post('/catalogue/service/{id}/extras', [ExtraController::class, 'attach'], [CsrfMiddleware::class]);
         $r->post('/catalogue/service/{id}/extras/{extraId}/detacher', [ExtraController::class, 'detach'], [CsrfMiddleware::class]);
+
+        // Dispatch & opérationnel
+        $r->get('/dispatch', [DispatchController::class, 'index']);
+        $r->post('/dispatch/reassign', [DispatchController::class, 'reassign'], [CsrfMiddleware::class]);
+        $r->get('/job/{id}', [JobController::class, 'show']);
+        $r->post('/job/{id}/statut', [JobController::class, 'updateStatus'], [CsrfMiddleware::class]);
+        $r->post('/job/{id}/note', [JobController::class, 'addNote'], [CsrfMiddleware::class]);
+
+        // Clients
+        $r->get('/clients', [CustomerController::class, 'index']);
+        $r->get('/client/{id}', [CustomerController::class, 'show']);
+
+        // Ateliers
+        $r->get('/ateliers', [LocationController::class, 'index']);
+        $r->post('/ateliers/{id}/poste', [LocationController::class, 'addBay'], [CsrfMiddleware::class]);
+        $r->post('/ateliers/{id}/fermeture', [LocationController::class, 'addClosure'], [CsrfMiddleware::class]);
 
         // Simulateur
         $r->get('/simulateur', [SimulatorController::class, 'index']);

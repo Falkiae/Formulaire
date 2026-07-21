@@ -39,6 +39,9 @@ $centsToEuros = static fn (int $c): string => number_format($c / 100, 2, ',', ' 
     <header class="kn-header">
         <strong>Keepnew · back-office</strong>
         <nav>
+            <a href="/admin/dispatch">Dispatch</a>
+            <a href="/admin/clients">Clients</a>
+            <a href="/admin/ateliers">Ateliers</a>
             <a href="/admin/catalogue" aria-current="page">Catalogue</a>
             <a href="/admin/extras">Extras</a>
             <a href="/admin/simulateur">Simulateur</a>
