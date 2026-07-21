@@ -74,6 +74,26 @@ final class Session
         $this->regenerate();
         $this->set('user_id', $userId);
         $this->set('logged_in_at', time());
+        $this->set('last_activity', time());
+    }
+
+    /**
+     * Vérifie si la session est inactive depuis plus de $maxSeconds secondes.
+     * Renvoie true si le délai est dépassé (session à expirer).
+     */
+    public function isInactive(int $maxSeconds): bool
+    {
+        $last = $this->get('last_activity');
+
+        return !is_int($last) || (time() - $last) > $maxSeconds;
+    }
+
+    /**
+     * Met à jour l'horodatage d'activité (à appeler sur chaque requête authentifiée).
+     */
+    public function touchActivity(): void
+    {
+        $this->set('last_activity', time());
     }
 
     public function logout(): void

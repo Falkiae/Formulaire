@@ -20,6 +20,8 @@ final class AuthMiddleware implements Middleware
     {
     }
 
+    private const INACTIVITY_LIMIT = 7200; // 2 heures en secondes
+
     public function handle(Request $request, callable $next): Response
     {
         if (!$this->session->isAuthenticated()) {
@@ -27,6 +29,16 @@ final class AuthMiddleware implements Middleware
                 ? Response::json(['error' => 'Authentification requise.'], 401)
                 : Response::redirect('/admin/connexion');
         }
+
+        if ($this->session->isInactive(self::INACTIVITY_LIMIT)) {
+            $this->session->logout();
+
+            return $request->isJson()
+                ? Response::json(['error' => 'Session expirée, veuillez vous reconnecter.'], 401)
+                : Response::redirect('/admin/connexion?expired=1');
+        }
+
+        $this->session->touchActivity();
 
         return $next($request);
     }

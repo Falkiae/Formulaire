@@ -22,6 +22,10 @@
         <h1>Keepnew</h1>
         <p class="kn-muted">Espace d'administration</p>
 
+        <?php if (!empty($data['expired'])): ?>
+            <p class="kn-alert kn-alert-warning">Session expirée après 2 heures d'inactivité. Veuillez vous reconnecter.</p>
+        <?php endif; ?>
+
         <?php if (!empty($data['error'])): ?>
             <p class="kn-alert kn-alert-error"><?= $e($data['error']) ?></p>
         <?php endif; ?>

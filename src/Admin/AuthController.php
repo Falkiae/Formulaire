@@ -38,8 +38,9 @@ final class AuthController
         }
 
         return $this->view->render('admin/login', [
-            'csrf' => $this->csrf->field(),
-            'error' => $this->session->pullFlash('login_error'),
+            'csrf'    => $this->csrf->field(),
+            'error'   => $this->session->pullFlash('login_error'),
+            'expired' => $request->bool('expired'),
         ]);
     }
 
