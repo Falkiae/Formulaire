@@ -19,7 +19,14 @@ $eur = static fn (int $c): string => number_format($c / 100, 2, ',', ' ');
     <?php include __DIR__ . '/_nav.php'; ?>
 
     <main class="kn-wrap">
-        <h1>Clients</h1>
+        <?php if (!empty($data['flash'])): ?><p class="kn-alert kn-alert-ok"><?= $e($data['flash']) ?></p><?php endif; ?>
+
+        <div class="kn-daynav">
+            <h1 style="margin:0;">Clients</h1>
+            <?php if (!empty($data['can_edit'])): ?>
+                <a class="kn-btn kn-btn-primary kn-btn-sm" href="/admin/clients/nouveau">+ Nouveau client</a>
+            <?php endif; ?>
+        </div>
         <form method="get" action="/admin/clients" class="kn-field" style="max-width:360px;">
             <input type="search" name="q" value="<?= $e($data['q']) ?>" placeholder="Rechercher (nom, email, société)">
         </form>

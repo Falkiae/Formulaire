@@ -26,6 +26,7 @@ use Keepnew\Availability\EngineConfig;
 use Keepnew\Auth\UserRepository;
 use Keepnew\Catalog\CatalogRepository;
 use Keepnew\Catalog\ExtraRepository;
+use Keepnew\Customer\CustomerRepository;
 use Keepnew\Catalog\SimulatorService;
 use Keepnew\Core\Container;
 use Keepnew\Core\Csrf;
@@ -294,10 +295,12 @@ return static function (Router $router, Container $container): void {
         $c->get(Session::class),
         $c->get(DispatchService::class),
     ));
+    $container->singleton(CustomerRepository::class, static fn (Container $c): CustomerRepository => new CustomerRepository($c->get(Database::class)));
     $container->singleton(CustomerController::class, static fn (Container $c): CustomerController => new CustomerController(
         $c->get(View::class),
         $c->get(Session::class),
-        $c->get(Database::class),
+        $c->get(Csrf::class),
+        $c->get(CustomerRepository::class),
     ));
     $container->singleton(LocationController::class, static fn (Container $c): LocationController => new LocationController(
         $c->get(View::class),
@@ -426,6 +429,16 @@ return static function (Router $router, Container $container): void {
             $r->get('/ateliers', [LocationController::class, 'index']);
             $r->post('/ateliers/{id}/poste', [LocationController::class, 'addBay'], [CsrfMiddleware::class]);
             $r->post('/ateliers/{id}/fermeture', [LocationController::class, 'addClosure'], [CsrfMiddleware::class]);
+
+            // Clients — édition (lecture partagée plus bas)
+            $r->get('/clients/nouveau', [CustomerController::class, 'createForm']);
+            $r->post('/clients', [CustomerController::class, 'create'], [CsrfMiddleware::class]);
+            $r->get('/client/{id}/editer', [CustomerController::class, 'edit']);
+            $r->post('/client/{id}', [CustomerController::class, 'update'], [CsrfMiddleware::class]);
+            $r->post('/client/{id}/adresse', [CustomerController::class, 'addAddress'], [CsrfMiddleware::class]);
+            $r->post('/client/{id}/adresse/{addrId}', [CustomerController::class, 'updateAddress'], [CsrfMiddleware::class]);
+            $r->post('/client/{id}/adresse/{addrId}/supprimer', [CustomerController::class, 'deleteAddress'], [CsrfMiddleware::class]);
+            $r->post('/client/{id}/note', [CustomerController::class, 'addNote'], [CsrfMiddleware::class]);
 
             // Techniciens (fiches, compétences, disponibilités, absences)
             $r->get('/techniciens', [TechnicianController::class, 'index']);
