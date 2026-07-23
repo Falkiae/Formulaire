@@ -19,6 +19,7 @@ use Keepnew\Admin\ExtraController;
 use Keepnew\Admin\JobController;
 use Keepnew\Admin\LocationController;
 use Keepnew\Admin\SimulatorController;
+use Keepnew\Admin\UserController;
 use Keepnew\Availability\EngineConfig;
 use Keepnew\Auth\UserRepository;
 use Keepnew\Catalog\CatalogRepository;
@@ -35,6 +36,7 @@ use Keepnew\Http\Controller\HealthController;
 use Keepnew\Http\Middleware\AuthMiddleware;
 use Keepnew\Http\Middleware\CsrfMiddleware;
 use Keepnew\Http\Middleware\RateLimitMiddleware;
+use Keepnew\Http\Middleware\RoleMiddleware;
 use Keepnew\Availability\AvailabilityRepository;
 use Keepnew\Availability\AvailabilityService;
 use Keepnew\Availability\ZoneResolver;
@@ -294,6 +296,12 @@ return static function (Router $router, Container $container): void {
         $c->get(Csrf::class),
         $c->get(Database::class),
     ));
+    $container->singleton(UserController::class, static fn (Container $c): UserController => new UserController(
+        $c->get(View::class),
+        $c->get(Session::class),
+        $c->get(Csrf::class),
+        $c->get(UserRepository::class),
+    ));
     $container->singleton(SimulatorController::class, static fn (Container $c): SimulatorController => new SimulatorController(
         $c->get(View::class),
         $c->get(Session::class),
@@ -315,85 +323,116 @@ return static function (Router $router, Container $container): void {
     $router->post('/admin/connexion', [AuthController::class, 'login'], [CsrfMiddleware::class]);
     $router->get('/admin/deconnexion', [AuthController::class, 'logout']);
 
+    // --- Contrôle d'accès par rôle (RBAC) ----------------------------------
+    // Instancié une fois puis appliqué en middleware additionnel aux sous-groupes.
+    $session = $container->get(Session::class);
+    $adminOnly = new RoleMiddleware($session, ['admin']);
+    $ops = new RoleMiddleware($session, ['admin', 'dispatcher']);
+    $accounting = new RoleMiddleware($session, ['admin', 'accountant']);
+    $opsAccounting = new RoleMiddleware($session, ['admin', 'dispatcher', 'accountant']);
+
     // --- Back-office (authentifié) -----------------------------------------
-    $router->group('/admin', [AuthMiddleware::class], static function (Router $r): void {
-        // Catalogue — vue d'ensemble
-        $r->get('/catalogue', [CatalogController::class, 'index']);
+    $router->group('/admin', [AuthMiddleware::class], static function (Router $r) use ($adminOnly, $ops, $accounting, $opsAccounting): void {
 
-        // Catégories (CRUD + réordonnancement)
-        $r->post('/catalogue/categorie', [CategoryController::class, 'create'], [CsrfMiddleware::class]);
-        $r->get('/catalogue/categorie/{id}', [CategoryController::class, 'edit']);
-        $r->post('/catalogue/categorie/{id}', [CategoryController::class, 'update'], [CsrfMiddleware::class]);
-        $r->post('/catalogue/categorie/{id}/supprimer', [CategoryController::class, 'delete'], [CsrfMiddleware::class]);
-        $r->post('/catalogue/categories/ordre', [CategoryController::class, 'reorder'], [CsrfMiddleware::class]);
+        // ===== Sections réservées à l'administrateur =====
+        $r->group('', [$adminOnly], static function (Router $r): void {
+            // Catalogue — vue d'ensemble
+            $r->get('/catalogue', [CatalogController::class, 'index']);
 
-        // Services (CRUD + duplication + réordonnancement)
-        $r->post('/catalogue/service', [CatalogController::class, 'createService'], [CsrfMiddleware::class]);
-        $r->get('/catalogue/service/{id}', [CatalogController::class, 'editService']);
-        $r->post('/catalogue/service/{id}', [CatalogController::class, 'saveService'], [CsrfMiddleware::class]);
-        $r->post('/catalogue/service/{id}/dupliquer', [CatalogController::class, 'duplicateService'], [CsrfMiddleware::class]);
-        $r->post('/catalogue/service/{id}/supprimer', [CatalogController::class, 'deleteService'], [CsrfMiddleware::class]);
-        $r->post('/catalogue/services/ordre', [CatalogController::class, 'reorderServices'], [CsrfMiddleware::class]);
+            // Catégories (CRUD + réordonnancement)
+            $r->post('/catalogue/categorie', [CategoryController::class, 'create'], [CsrfMiddleware::class]);
+            $r->get('/catalogue/categorie/{id}', [CategoryController::class, 'edit']);
+            $r->post('/catalogue/categorie/{id}', [CategoryController::class, 'update'], [CsrfMiddleware::class]);
+            $r->post('/catalogue/categorie/{id}/supprimer', [CategoryController::class, 'delete'], [CsrfMiddleware::class]);
+            $r->post('/catalogue/categories/ordre', [CategoryController::class, 'reorder'], [CsrfMiddleware::class]);
 
-        // Variantes (CRUD + réordonnancement)
-        $r->post('/catalogue/service/{id}/variante', [CatalogController::class, 'createVariant'], [CsrfMiddleware::class]);
-        $r->post('/catalogue/service/{id}/variante/{variantId}', [CatalogController::class, 'updateVariant'], [CsrfMiddleware::class]);
-        $r->post('/catalogue/service/{id}/variante/{variantId}/supprimer', [CatalogController::class, 'deleteVariant'], [CsrfMiddleware::class]);
-        $r->post('/catalogue/service/{id}/variantes/ordre', [CatalogController::class, 'reorderVariants'], [CsrfMiddleware::class]);
+            // Services (CRUD + duplication + réordonnancement)
+            $r->post('/catalogue/service', [CatalogController::class, 'createService'], [CsrfMiddleware::class]);
+            $r->get('/catalogue/service/{id}', [CatalogController::class, 'editService']);
+            $r->post('/catalogue/service/{id}', [CatalogController::class, 'saveService'], [CsrfMiddleware::class]);
+            $r->post('/catalogue/service/{id}/dupliquer', [CatalogController::class, 'duplicateService'], [CsrfMiddleware::class]);
+            $r->post('/catalogue/service/{id}/supprimer', [CatalogController::class, 'deleteService'], [CsrfMiddleware::class]);
+            $r->post('/catalogue/services/ordre', [CatalogController::class, 'reorderServices'], [CsrfMiddleware::class]);
 
-        // Extras — catalogue central (CRUD)
-        $r->get('/extras', [ExtraController::class, 'index']);
-        $r->post('/extras', [ExtraController::class, 'create'], [CsrfMiddleware::class]);
-        $r->post('/extras/{id}', [ExtraController::class, 'update'], [CsrfMiddleware::class]);
-        $r->post('/extras/{id}/supprimer', [ExtraController::class, 'delete'], [CsrfMiddleware::class]);
-        // Extras — rattachement à un service (pivot)
-        $r->post('/catalogue/service/{id}/extras', [ExtraController::class, 'attach'], [CsrfMiddleware::class]);
-        $r->post('/catalogue/service/{id}/extras/{extraId}/detacher', [ExtraController::class, 'detach'], [CsrfMiddleware::class]);
+            // Variantes (CRUD + réordonnancement)
+            $r->post('/catalogue/service/{id}/variante', [CatalogController::class, 'createVariant'], [CsrfMiddleware::class]);
+            $r->post('/catalogue/service/{id}/variante/{variantId}', [CatalogController::class, 'updateVariant'], [CsrfMiddleware::class]);
+            $r->post('/catalogue/service/{id}/variante/{variantId}/supprimer', [CatalogController::class, 'deleteVariant'], [CsrfMiddleware::class]);
+            $r->post('/catalogue/service/{id}/variantes/ordre', [CatalogController::class, 'reorderVariants'], [CsrfMiddleware::class]);
 
-        // Rapports
-        $r->get('/rapports', [ReportController::class, 'index']);
+            // Extras — catalogue central (CRUD)
+            $r->get('/extras', [ExtraController::class, 'index']);
+            $r->post('/extras', [ExtraController::class, 'create'], [CsrfMiddleware::class]);
+            $r->post('/extras/{id}', [ExtraController::class, 'update'], [CsrfMiddleware::class]);
+            $r->post('/extras/{id}/supprimer', [ExtraController::class, 'delete'], [CsrfMiddleware::class]);
+            // Extras — rattachement à un service (pivot)
+            $r->post('/catalogue/service/{id}/extras', [ExtraController::class, 'attach'], [CsrfMiddleware::class]);
+            $r->post('/catalogue/service/{id}/extras/{extraId}/detacher', [ExtraController::class, 'detach'], [CsrfMiddleware::class]);
 
-        // Dispatch & opérationnel
-        $r->get('/dispatch', [DispatchController::class, 'index']);
-        $r->post('/dispatch/reassign', [DispatchController::class, 'reassign'], [CsrfMiddleware::class]);
-        $r->get('/job/{id}', [JobController::class, 'show']);
-        $r->post('/job/{id}/statut', [JobController::class, 'updateStatus'], [CsrfMiddleware::class]);
-        $r->post('/job/{id}/note', [JobController::class, 'addNote'], [CsrfMiddleware::class]);
+            // Form builder
+            $r->get('/formulaire', [FormBuilderController::class, 'index']);
+            $r->post('/formulaire', [FormBuilderController::class, 'createVersion'], [CsrfMiddleware::class]);
+            $r->get('/formulaire/{id}', [FormBuilderController::class, 'edit']);
+            $r->post('/formulaire/{id}/publier', [FormBuilderController::class, 'publish'], [CsrfMiddleware::class]);
+            $r->post('/formulaire/{id}/champ', [FormBuilderController::class, 'addField'], [CsrfMiddleware::class]);
+            $r->post('/formulaire/{id}/champ/{fieldId}/supprimer', [FormBuilderController::class, 'deleteField'], [CsrfMiddleware::class]);
+            $r->post('/formulaire/{id}/champs/ordre', [FormBuilderController::class, 'reorderFields'], [CsrfMiddleware::class]);
+            $r->post('/formulaire/{id}/champ/{fieldId}/option', [FormBuilderController::class, 'addOption'], [CsrfMiddleware::class]);
+            $r->get('/formulaire/{id}/option/{optionId}/supprimer', [FormBuilderController::class, 'deleteOption']);
+            $r->post('/formulaire/{id}/condition', [FormBuilderController::class, 'addCondition'], [CsrfMiddleware::class]);
+            $r->get('/formulaire/{id}/condition/{conditionId}/supprimer', [FormBuilderController::class, 'deleteCondition']);
 
-        // Clients
-        $r->get('/clients', [CustomerController::class, 'index']);
-        $r->get('/client/{id}', [CustomerController::class, 'show']);
+            // Utilisateurs & rôles
+            $r->get('/utilisateurs', [UserController::class, 'index']);
+            $r->get('/utilisateurs/nouveau', [UserController::class, 'createForm']);
+            $r->post('/utilisateurs', [UserController::class, 'create'], [CsrfMiddleware::class]);
+            $r->get('/utilisateurs/{id}', [UserController::class, 'edit']);
+            $r->post('/utilisateurs/{id}', [UserController::class, 'update'], [CsrfMiddleware::class]);
+            $r->post('/utilisateurs/{id}/actif', [UserController::class, 'toggleActive'], [CsrfMiddleware::class]);
+        });
 
-        // Ateliers
-        $r->get('/ateliers', [LocationController::class, 'index']);
-        $r->post('/ateliers/{id}/poste', [LocationController::class, 'addBay'], [CsrfMiddleware::class]);
-        $r->post('/ateliers/{id}/fermeture', [LocationController::class, 'addClosure'], [CsrfMiddleware::class]);
+        // ===== Opérationnel (admin + dispatcher) =====
+        $r->group('', [$ops], static function (Router $r): void {
+            // Dispatch
+            $r->get('/dispatch', [DispatchController::class, 'index']);
+            $r->post('/dispatch/reassign', [DispatchController::class, 'reassign'], [CsrfMiddleware::class]);
+            // Jobs — mutations
+            $r->post('/job/{id}/statut', [JobController::class, 'updateStatus'], [CsrfMiddleware::class]);
+            $r->post('/job/{id}/note', [JobController::class, 'addNote'], [CsrfMiddleware::class]);
 
-        // Factures & Peppol
-        $r->get('/factures', [InvoiceController::class, 'index']);
-        $r->get('/factures/journal', [InvoiceController::class, 'journal']);
-        $r->get('/mobilite', [InvoiceController::class, 'mobility']);
-        $r->post('/factures/commande/{bookingId}', [InvoiceController::class, 'generate'], [CsrfMiddleware::class]);
-        $r->get('/factures/{id}/ubl', [InvoiceController::class, 'ubl']);
+            // Ateliers
+            $r->get('/ateliers', [LocationController::class, 'index']);
+            $r->post('/ateliers/{id}/poste', [LocationController::class, 'addBay'], [CsrfMiddleware::class]);
+            $r->post('/ateliers/{id}/fermeture', [LocationController::class, 'addClosure'], [CsrfMiddleware::class]);
 
-        // Form builder
-        $r->get('/formulaire', [FormBuilderController::class, 'index']);
-        $r->post('/formulaire', [FormBuilderController::class, 'createVersion'], [CsrfMiddleware::class]);
-        $r->get('/formulaire/{id}', [FormBuilderController::class, 'edit']);
-        $r->post('/formulaire/{id}/publier', [FormBuilderController::class, 'publish'], [CsrfMiddleware::class]);
-        $r->post('/formulaire/{id}/champ', [FormBuilderController::class, 'addField'], [CsrfMiddleware::class]);
-        $r->post('/formulaire/{id}/champ/{fieldId}/supprimer', [FormBuilderController::class, 'deleteField'], [CsrfMiddleware::class]);
-        $r->post('/formulaire/{id}/champs/ordre', [FormBuilderController::class, 'reorderFields'], [CsrfMiddleware::class]);
-        $r->post('/formulaire/{id}/champ/{fieldId}/option', [FormBuilderController::class, 'addOption'], [CsrfMiddleware::class]);
-        $r->get('/formulaire/{id}/option/{optionId}/supprimer', [FormBuilderController::class, 'deleteOption']);
-        $r->post('/formulaire/{id}/condition', [FormBuilderController::class, 'addCondition'], [CsrfMiddleware::class]);
-        $r->get('/formulaire/{id}/condition/{conditionId}/supprimer', [FormBuilderController::class, 'deleteCondition']);
+            // Simulateur
+            $r->get('/simulateur', [SimulatorController::class, 'index']);
+            $r->get('/simulateur/service/{id}', [SimulatorController::class, 'serviceConfig']);
+            $r->post('/simulateur/calcul', [SimulatorController::class, 'calculate'], [CsrfMiddleware::class]);
+            $r->post('/simulateur/panier', [SimulatorController::class, 'cart'], [CsrfMiddleware::class]);
+        });
 
-        // Simulateur
-        $r->get('/simulateur', [SimulatorController::class, 'index']);
-        $r->get('/simulateur/service/{id}', [SimulatorController::class, 'serviceConfig']);
-        $r->post('/simulateur/calcul', [SimulatorController::class, 'calculate'], [CsrfMiddleware::class]);
-        $r->post('/simulateur/panier', [SimulatorController::class, 'cart'], [CsrfMiddleware::class]);
+        // ===== Comptabilité (admin + comptable) =====
+        $r->group('', [$accounting], static function (Router $r): void {
+            // Rapports
+            $r->get('/rapports', [ReportController::class, 'index']);
+
+            // Factures & Peppol
+            $r->get('/factures', [InvoiceController::class, 'index']);
+            $r->get('/factures/journal', [InvoiceController::class, 'journal']);
+            $r->get('/mobilite', [InvoiceController::class, 'mobility']);
+            $r->post('/factures/commande/{bookingId}', [InvoiceController::class, 'generate'], [CsrfMiddleware::class]);
+            $r->get('/factures/{id}/ubl', [InvoiceController::class, 'ubl']);
+        });
+
+        // ===== Lecture partagée (admin + dispatcher + comptable) =====
+        $r->group('', [$opsAccounting], static function (Router $r): void {
+            // Clients (lecture ; l'édition est ajoutée en Phase D)
+            $r->get('/clients', [CustomerController::class, 'index']);
+            $r->get('/client/{id}', [CustomerController::class, 'show']);
+            // Fiche job (lecture)
+            $r->get('/job/{id}', [JobController::class, 'show']);
+        });
     });
 
     // --- App technicien (PWA, authentifiée) --------------------------------

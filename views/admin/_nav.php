@@ -1,18 +1,35 @@
 <?php
 /**
- * Partial : navigation back-office responsive.
+ * Partial : navigation back-office responsive, filtrée par rôle.
  * Inclus dans toutes les vues admin via include __DIR__ . '/_nav.php'
  * (ou dirname(__DIR__) . '/_nav.php' depuis les sous-dossiers).
- * Utilise $_SERVER['REQUEST_URI'] pour marquer la page active.
+ *
+ * Le rôle courant est lu dans la session ($_SESSION['user_role'], posé au login).
+ * Chaque lien déclare les rôles autorisés (miroir de RoleMiddleware dans routes.php).
  *
  * @var callable $e
  */
 $_knPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/';
 $_knActive = static fn (string $prefix): string =>
     str_starts_with($_knPath, $prefix) ? ' aria-current="page"' : '';
+$_knRole = $_SESSION['user_role'] ?? '';
+
+/** @var list<array{href:string,label:string,match:string,roles:list<string>}> $_knItems */
+$_knItems = [
+    ['href' => '/admin/dispatch',      'label' => 'Dispatch',     'match' => '/admin/dispatch',     'roles' => ['admin', 'dispatcher']],
+    ['href' => '/admin/clients',       'label' => 'Clients',      'match' => '/admin/client',       'roles' => ['admin', 'dispatcher', 'accountant']],
+    ['href' => '/admin/factures',      'label' => 'Factures',     'match' => '/admin/factures',     'roles' => ['admin', 'accountant']],
+    ['href' => '/admin/rapports',      'label' => 'Rapports',     'match' => '/admin/rapports',     'roles' => ['admin', 'accountant']],
+    ['href' => '/admin/catalogue',     'label' => 'Catalogue',    'match' => '/admin/catalogue',    'roles' => ['admin']],
+    ['href' => '/admin/extras',        'label' => 'Extras',       'match' => '/admin/extras',       'roles' => ['admin']],
+    ['href' => '/admin/formulaire',    'label' => 'Formulaire',   'match' => '/admin/formulaire',   'roles' => ['admin']],
+    ['href' => '/admin/ateliers',      'label' => 'Ateliers',     'match' => '/admin/ateliers',     'roles' => ['admin', 'dispatcher']],
+    ['href' => '/admin/simulateur',    'label' => 'Simulateur',   'match' => '/admin/simulateur',   'roles' => ['admin', 'dispatcher']],
+    ['href' => '/admin/utilisateurs',  'label' => 'Utilisateurs', 'match' => '/admin/utilisateurs', 'roles' => ['admin']],
+];
 ?>
 <header class="kn-header" id="kn-header">
-    <a href="/admin/dispatch" class="kn-logo">Keepnew</a>
+    <a href="<?= $_knRole === 'accountant' ? '/admin/factures' : '/admin/dispatch' ?>" class="kn-logo">Keepnew</a>
 
     <button class="kn-nav-btn" id="kn-nav-btn"
             aria-label="Ouvrir le menu" aria-expanded="false" aria-controls="kn-nav">
@@ -20,15 +37,11 @@ $_knActive = static fn (string $prefix): string =>
     </button>
 
     <nav class="kn-nav" id="kn-nav" aria-label="Navigation principale">
-        <a href="/admin/dispatch"<?= $_knActive('/admin/dispatch') ?>>Dispatch</a>
-        <a href="/admin/clients"<?= ($_knActive('/admin/client')) ?>>Clients</a>
-        <a href="/admin/factures"<?= $_knActive('/admin/factures') ?>>Factures</a>
-        <a href="/admin/rapports"<?= $_knActive('/admin/rapports') ?>>Rapports</a>
-        <a href="/admin/catalogue"<?= $_knActive('/admin/catalogue') ?>>Catalogue</a>
-        <a href="/admin/extras"<?= $_knActive('/admin/extras') ?>>Extras</a>
-        <a href="/admin/formulaire"<?= $_knActive('/admin/formulaire') ?>>Formulaire</a>
-        <a href="/admin/ateliers"<?= $_knActive('/admin/ateliers') ?>>Ateliers</a>
-        <a href="/admin/simulateur"<?= $_knActive('/admin/simulateur') ?>>Simulateur</a>
+        <?php foreach ($_knItems as $_item): ?>
+            <?php if ($_knRole === '' || in_array($_knRole, $_item['roles'], true)): ?>
+                <a href="<?= $_item['href'] ?>"<?= $_knActive($_item['match']) ?>><?= $e($_item['label']) ?></a>
+            <?php endif; ?>
+        <?php endforeach; ?>
         <a href="/admin/deconnexion" class="kn-nav-logout">Déconnexion</a>
     </nav>
 </header>

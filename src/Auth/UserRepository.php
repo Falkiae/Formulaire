@@ -35,6 +35,98 @@ final class UserRepository
     }
 
     /**
+     * Liste tous les comptes (back-office + techniciens) pour l'administration.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function all(): array
+    {
+        return $this->db->select(
+            'SELECT id, email, first_name, last_name, phone, role, is_active, last_login_at
+               FROM users
+              ORDER BY is_active DESC, last_name, first_name',
+        );
+    }
+
+    /**
+     * Indique si un e-mail est déjà pris (optionnellement hors d'un compte donné).
+     */
+    public function emailExists(string $email, ?int $exceptId = null): bool
+    {
+        $sql = 'SELECT COUNT(*) FROM users WHERE email = :email';
+        $params = ['email' => $email];
+        if ($exceptId !== null) {
+            $sql .= ' AND id <> :id';
+            $params['id'] = $exceptId;
+        }
+
+        return (int) $this->db->scalar($sql, $params) > 0;
+    }
+
+    /**
+     * Crée un compte. Le mot de passe est hashé en Argon2id.
+     *
+     * @param array{email:string,password:string,first_name:string,last_name:string,phone?:?string,role:string,is_active?:bool} $data
+     */
+    public function create(array $data): int
+    {
+        return $this->db->insert('users', [
+            'email' => $data['email'],
+            'password_hash' => password_hash($data['password'], PASSWORD_ARGON2ID),
+            'first_name' => $data['first_name'],
+            'last_name' => $data['last_name'],
+            'phone' => ($data['phone'] ?? '') !== '' ? $data['phone'] : null,
+            'role' => $data['role'],
+            'is_active' => ($data['is_active'] ?? true) ? 1 : 0,
+        ]);
+    }
+
+    /**
+     * Met à jour l'identité et le rôle d'un compte (hors mot de passe).
+     *
+     * @param array{email:string,first_name:string,last_name:string,phone?:?string,role:string,is_active?:bool} $data
+     */
+    public function update(int $id, array $data): void
+    {
+        $this->db->run(
+            'UPDATE users SET email = :email, first_name = :first_name, last_name = :last_name,
+                    phone = :phone, role = :role, is_active = :is_active
+              WHERE id = :id',
+            [
+                'email' => $data['email'],
+                'first_name' => $data['first_name'],
+                'last_name' => $data['last_name'],
+                'phone' => ($data['phone'] ?? '') !== '' ? $data['phone'] : null,
+                'role' => $data['role'],
+                'is_active' => ($data['is_active'] ?? true) ? 1 : 0,
+                'id' => $id,
+            ],
+        );
+    }
+
+    /**
+     * Active ou désactive un compte (un compte inactif ne peut plus se connecter).
+     */
+    public function setActive(int $id, bool $active): void
+    {
+        $this->db->run(
+            'UPDATE users SET is_active = :active WHERE id = :id',
+            ['active' => $active ? 1 : 0, 'id' => $id],
+        );
+    }
+
+    /**
+     * Remplace le mot de passe (hashé Argon2id).
+     */
+    public function updatePassword(int $id, string $plainPassword): void
+    {
+        $this->db->run(
+            'UPDATE users SET password_hash = :h WHERE id = :id',
+            ['h' => password_hash($plainPassword, PASSWORD_ARGON2ID), 'id' => $id],
+        );
+    }
+
+    /**
      * Vérifie l'identité. Renvoie l'utilisateur si le mot de passe correspond.
      *
      * Le hash est réhashé de façon transparente si les paramètres Argon2id ont
