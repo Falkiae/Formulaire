@@ -135,6 +135,23 @@ final class DispatchService
     }
 
     /**
+     * Postes d'atelier actifs, avec le nom de leur atelier (pour le passage en
+     * mode atelier depuis la fiche job).
+     *
+     * @return list<array<string,mixed>>
+     */
+    public function activeBays(): array
+    {
+        return $this->db->select(
+            'SELECT wb.id, wb.name, wb.location_id, l.name AS location_name
+               FROM workshop_bays wb
+               JOIN locations l ON l.id = wb.location_id
+              WHERE wb.is_active = 1 AND l.is_active = 1
+              ORDER BY l.sort_order, wb.sort_order, wb.name',
+        );
+    }
+
+    /**
      * Réassigne un job à un technicien (et éventuellement une nouvelle heure),
      * recalcule le trajet et vérifie les conflits.
      *
@@ -235,6 +252,240 @@ final class DispatchService
 
             return ['ok' => true, 'conflict' => false, 'travel_fits' => $fits, 'travel_in_min' => $travelIn, 'travel_out_min' => $travelOut];
         });
+    }
+
+    /**
+     * Replanifie un job en changeant AUSSI son mode (domicile ↔ atelier).
+     *
+     * Acte opérationnel : réaffecte poste/atelier ou adresse, recalcule les
+     * durées de planning selon le mode cible, vérifie les conflits technicien
+     * et poste. Le PRIX de la commande n'est pas retouché (les lignes gardent
+     * leur tarif ; seul booking_items.mode est aligné pour cohérence).
+     *
+     * @return array{ok:bool, conflict:bool, bay_conflict:bool, unsupported_mode:bool, invalid:bool, travel_fits:bool, travel_in_min:int, travel_out_min:int}
+     */
+    public function reschedule(int $jobId, int $technicianId, string $mode, ?int $bayId, ?int $addressId, string $startUtc, ?int $userId): array
+    {
+        $fail = static function (string $key): array {
+            $r = [
+                'ok' => false, 'conflict' => false, 'bay_conflict' => false,
+                'unsupported_mode' => false, 'invalid' => false, 'travel_fits' => false,
+                'travel_in_min' => 0, 'travel_out_min' => 0,
+            ];
+            $r[$key] = true;
+
+            return $r;
+        };
+
+        if (!in_array($mode, ['onsite', 'workshop'], true)) {
+            return $fail('invalid');
+        }
+        if ($jobId <= 0 || $technicianId <= 0) {
+            return $fail('invalid');
+        }
+
+        $start = (new \DateTimeImmutable($startUtc))->setTimezone(new \DateTimeZone('UTC'));
+
+        return $this->db->transaction(function (Database $db) use ($jobId, $technicianId, $mode, $bayId, $addressId, $start, $userId, $fail): array {
+            $job = $db->selectOne('SELECT * FROM jobs WHERE id = :id FOR UPDATE', ['id' => $jobId]);
+            if ($job === null) {
+                throw new HttpException(404, 'Job introuvable.');
+            }
+
+            // Durées recalculées pour le mode cible depuis les lignes de la commande.
+            $dur = $this->recomputeDurations($db, $jobId, $mode);
+            if ($dur === null) {
+                return $fail('unsupported_mode');
+            }
+            $active = $dur['active'];
+            $occupancy = $mode === 'workshop' ? max($dur['occupancy'], $active) : $active;
+            $end = $start->modify('+' . ($mode === 'workshop' ? $occupancy : $active) . ' minutes');
+            $startStr = $start->format('Y-m-d H:i:s');
+            $endStr = $end->format('Y-m-d H:i:s');
+
+            // Résolution des ressources selon le mode.
+            $locationId = null;
+            $addrId = null;
+            if ($mode === 'workshop') {
+                if ($bayId === null || $bayId <= 0) {
+                    return $fail('invalid');
+                }
+                $bay = $db->selectOne('SELECT id, location_id FROM workshop_bays WHERE id = :b AND is_active = 1', ['b' => $bayId]);
+                if ($bay === null) {
+                    return $fail('invalid');
+                }
+                $locationId = (int) $bay['location_id'];
+            } else {
+                if ($addressId === null || $addressId <= 0) {
+                    return $fail('invalid');
+                }
+                $addr = $db->selectOne('SELECT id FROM addresses WHERE id = :a', ['a' => $addressId]);
+                if ($addr === null) {
+                    return $fail('invalid');
+                }
+                $addrId = $addressId;
+            }
+
+            // Conflit technicien (chevauchement avec un autre job planifié).
+            $overlap = (int) $db->scalar(
+                "SELECT COUNT(*) FROM jobs
+                 WHERE technician_id = :t AND id <> :self
+                   AND status IN ('scheduled','en_route','in_progress')
+                   AND scheduled_start < :end AND scheduled_end > :start
+                 FOR UPDATE",
+                ['t' => $technicianId, 'self' => $jobId, 'start' => $startStr, 'end' => $endStr],
+            );
+            if ($overlap > 0) {
+                return $fail('conflict');
+            }
+
+            // Conflit de poste (mode atelier).
+            if ($mode === 'workshop') {
+                $bayOverlap = (int) $db->scalar(
+                    "SELECT COUNT(*) FROM jobs
+                     WHERE bay_id = :b AND id <> :self
+                       AND status IN ('scheduled','en_route','in_progress')
+                       AND scheduled_start < :end AND scheduled_end > :start
+                     FOR UPDATE",
+                    ['b' => $bayId, 'self' => $jobId, 'start' => $startStr, 'end' => $endStr],
+                );
+                if ($bayOverlap > 0) {
+                    return $fail('bay_conflict');
+                }
+            }
+
+            // Trajet : nul en atelier ; recalculé contre les voisins en domicile.
+            $travelIn = 0;
+            $travelOut = 0;
+            $fits = true;
+            if ($mode === 'onsite') {
+                $addr = $db->selectOne('SELECT lat, lng, postal_code FROM addresses WHERE id = :a', ['a' => $addrId]);
+                $jobPoint = new GeoPoint(
+                    $addr !== null && $addr['lat'] !== null ? (float) $addr['lat'] : null,
+                    $addr !== null && $addr['lng'] !== null ? (float) $addr['lng'] : null,
+                    $addr['postal_code'] ?? null,
+                );
+                $prev = $db->selectOne(
+                    "SELECT j.scheduled_end, a.lat, a.lng, a.postal_code FROM jobs j LEFT JOIN addresses a ON a.id=j.address_id
+                     WHERE j.technician_id = :t AND j.id <> :self AND j.status IN ('scheduled','en_route','in_progress')
+                       AND j.scheduled_end <= :start ORDER BY j.scheduled_end DESC LIMIT 1",
+                    ['t' => $technicianId, 'self' => $jobId, 'start' => $startStr],
+                );
+                $next = $db->selectOne(
+                    "SELECT j.scheduled_start, a.lat, a.lng, a.postal_code FROM jobs j LEFT JOIN addresses a ON a.id=j.address_id
+                     WHERE j.technician_id = :t AND j.id <> :self AND j.status IN ('scheduled','en_route','in_progress')
+                       AND j.scheduled_start >= :end ORDER BY j.scheduled_start ASC LIMIT 1",
+                    ['t' => $technicianId, 'self' => $jobId, 'end' => $endStr],
+                );
+                $travelIn = $prev !== null ? $this->travelMin($this->pointOf($prev), $jobPoint) : 0;
+                $travelOut = $next !== null ? $this->travelMin($jobPoint, $this->pointOf($next)) : 0;
+                if ($prev !== null) {
+                    $prevEnd = new \DateTimeImmutable((string) $prev['scheduled_end'], new \DateTimeZone('UTC'));
+                    if ($prevEnd->modify("+{$travelIn} minutes") > $start) {
+                        $fits = false;
+                    }
+                }
+                if ($next !== null) {
+                    $nextStart = new \DateTimeImmutable((string) $next['scheduled_start'], new \DateTimeZone('UTC'));
+                    if ($end->modify("+{$travelOut} minutes") > $nextStart) {
+                        $fits = false;
+                    }
+                }
+            }
+
+            // Application.
+            $db->run(
+                "UPDATE jobs SET mode = :mode, location_id = :loc, bay_id = :bay, address_id = :addr,
+                        technician_id = :t, scheduled_start = :s, scheduled_end = :e,
+                        active_duration_min = :active, occupancy_duration_min = :occ,
+                        travel_in_min = :ti, travel_out_min = :tout,
+                        arrival_from = :af_start, arrival_to = :af_end,
+                        status = CASE WHEN status = 'unscheduled' THEN 'scheduled' ELSE status END
+                 WHERE id = :id",
+                [
+                    'mode' => $mode,
+                    'loc' => $locationId,
+                    'bay' => $mode === 'workshop' ? $bayId : null,
+                    'addr' => $addrId,
+                    't' => $technicianId,
+                    's' => $startStr,
+                    'e' => $endStr,
+                    'active' => $active,
+                    'occ' => $occupancy,
+                    'ti' => $travelIn,
+                    'tout' => $travelOut,
+                    'af_start' => $mode === 'onsite' ? $startStr : null,
+                    'af_end' => $mode === 'onsite' ? $start->modify('+120 minutes')->format('Y-m-d H:i:s') : null,
+                    'id' => $jobId,
+                ],
+            );
+
+            // Cohérence : les lignes de ce job suivent le nouveau mode (prix inchangé).
+            $db->run('UPDATE booking_items SET mode = :m WHERE job_id = :j', ['m' => $mode, 'j' => $jobId]);
+
+            $db->insert('audit_log', [
+                'user_id' => $userId,
+                'action' => 'dispatch.mode_change',
+                'entity_type' => 'job',
+                'entity_id' => $jobId,
+                'new_values' => json_encode([
+                    'mode' => $mode, 'technician_id' => $technicianId,
+                    'bay_id' => $mode === 'workshop' ? $bayId : null, 'address_id' => $addrId,
+                    'start' => $startStr, 'active_min' => $active, 'occupancy_min' => $occupancy,
+                ], JSON_UNESCAPED_UNICODE),
+            ]);
+
+            return [
+                'ok' => true, 'conflict' => false, 'bay_conflict' => false,
+                'unsupported_mode' => false, 'invalid' => false,
+                'travel_fits' => $fits, 'travel_in_min' => $travelIn, 'travel_out_min' => $travelOut,
+            ];
+        });
+    }
+
+    /**
+     * Recalcule les durées d'un job pour un mode donné à partir de ses lignes
+     * (booking_items), en miroir de BookingService::computeJobDurations.
+     * Renvoie null si un service de la ligne n'existe pas dans le mode cible.
+     *
+     * @return array{active:int, occupancy:int}|null
+     */
+    private function recomputeDurations(Database $db, int $jobId, string $mode): ?array
+    {
+        $rows = $db->select(
+            'SELECT bi.quantity, bi.variant_id,
+                    sdm.id AS mode_id, sdm.active_duration_min AS mode_active, sdm.occupancy_duration_min AS mode_occ,
+                    s.base_duration_min,
+                    sv.duration_delta_min AS variant_delta
+               FROM booking_items bi
+               JOIN services s ON s.id = bi.service_id
+               LEFT JOIN service_delivery_modes sdm ON sdm.service_id = bi.service_id AND sdm.mode = :mode
+               LEFT JOIN service_variants sv ON sv.id = bi.variant_id
+              WHERE bi.job_id = :job',
+            ['mode' => $mode, 'job' => $jobId],
+        );
+
+        if ($rows === []) {
+            return null;
+        }
+
+        $totalActive = 0;
+        $totalOccupancy = 0;
+        foreach ($rows as $row) {
+            // Le service doit être proposé dans le mode cible.
+            if ($row['mode_id'] === null) {
+                return null;
+            }
+            $active = $row['mode_active'] !== null ? (int) $row['mode_active'] : (int) $row['base_duration_min'];
+            $active += $row['variant_delta'] !== null ? (int) $row['variant_delta'] : 0;
+            $active *= max(1, (int) $row['quantity']);
+            $occupancy = $row['mode_occ'] !== null ? (int) $row['mode_occ'] : $active;
+
+            $totalActive += $active;
+            $totalOccupancy += max($occupancy, $active);
+        }
+
+        return ['active' => $totalActive, 'occupancy' => $totalOccupancy];
     }
 
     /**

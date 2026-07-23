@@ -62,6 +62,11 @@ final class JobController
             'job' => $job,
             'statuses' => self::STATUSES,
             'technicians' => $this->dispatch->activeTechnicians(),
+            'active_bays' => $this->dispatch->activeBays(),
+            'customer_addresses' => $this->db->select(
+                'SELECT id, label, street, number, postal_code, city FROM addresses WHERE customer_id = :c ORDER BY id',
+                ['c' => (int) $job['customer_id']],
+            ),
             'scheduled_local' => $scheduledLocal,
             'items' => $this->db->select('SELECT label_snapshot, quantity, line_total_cents FROM booking_items WHERE job_id = :j', ['j' => $id]),
             'answers' => $this->db->select('SELECT field_key, value_text FROM booking_answers WHERE booking_id = :b', ['b' => $bookingId]),
@@ -112,7 +117,8 @@ final class JobController
     public function updateSchedule(Request $request): Response
     {
         $id = (int) $request->attribute('id');
-        if ($this->db->selectOne('SELECT id FROM jobs WHERE id = :id', ['id' => $id]) === null) {
+        $job = $this->db->selectOne('SELECT mode FROM jobs WHERE id = :id', ['id' => $id]);
+        if ($job === null) {
             throw new NotFoundException('Job introuvable.');
         }
 
@@ -126,14 +132,64 @@ final class JobController
 
         // Heure belge saisie → instant UTC non ambigu (offset explicite).
         $startUtc = Clock::fromDisplay(str_replace('T', ' ', $local))->format('c');
-        $result = $this->dispatch->reassign($id, $technicianId, $startUtc, $this->session->userId());
+        $userId = $this->session->userId();
 
-        if ($result['conflict']) {
+        $targetMode = $request->string('mode');
+        if (!in_array($targetMode, ['onsite', 'workshop'], true)) {
+            $targetMode = (string) $job['mode'];
+        }
+
+        // Mode inchangé → simple réassignation (conserve poste/adresse).
+        if ($targetMode === (string) $job['mode']) {
+            $result = $this->dispatch->reassign($id, $technicianId, $startUtc, $userId);
+
+            if ($result['conflict']) {
+                $this->session->flash('job_ok', 'Conflit : ce technicien a déjà un rendez-vous sur ce créneau. Aucune modification.');
+            } elseif (!$result['travel_fits']) {
+                $this->session->flash('job_ok', 'Rendez-vous déplacé, mais le trajet ne tient pas dans le planning (à vérifier).');
+            } else {
+                $this->session->flash('job_ok', 'Rendez-vous déplacé et réassigné.');
+            }
+
+            return Response::redirect("/admin/job/{$id}");
+        }
+
+        // Changement de mode : garde-fous ressources.
+        $bayId = $request->int('bay_id');
+        $addressId = $request->int('address_id');
+        if ($targetMode === 'workshop' && $bayId <= 0) {
+            $this->session->flash('job_ok', 'Passage en atelier : choisissez un poste de travail.');
+
+            return Response::redirect("/admin/job/{$id}");
+        }
+        if ($targetMode === 'onsite' && $addressId <= 0) {
+            $this->session->flash('job_ok', 'Passage à domicile : choisissez une adresse (ajoutez-en une sur la fiche client si besoin).');
+
+            return Response::redirect("/admin/job/{$id}");
+        }
+
+        $result = $this->dispatch->reschedule(
+            $id,
+            $technicianId,
+            $targetMode,
+            $bayId > 0 ? $bayId : null,
+            $addressId > 0 ? $addressId : null,
+            $startUtc,
+            $userId,
+        );
+
+        if ($result['unsupported_mode']) {
+            $this->session->flash('job_ok', 'Une prestation de ce rendez-vous n\'est pas proposée en ' . ($targetMode === 'workshop' ? 'atelier' : 'domicile') . '. Changement refusé.');
+        } elseif ($result['invalid']) {
+            $this->session->flash('job_ok', 'Données de replanification invalides.');
+        } elseif ($result['conflict']) {
             $this->session->flash('job_ok', 'Conflit : ce technicien a déjà un rendez-vous sur ce créneau. Aucune modification.');
+        } elseif ($result['bay_conflict']) {
+            $this->session->flash('job_ok', 'Conflit : ce poste d\'atelier est déjà occupé sur ce créneau. Aucune modification.');
         } elseif (!$result['travel_fits']) {
-            $this->session->flash('job_ok', 'Rendez-vous déplacé, mais le trajet ne tient pas dans le planning (à vérifier).');
+            $this->session->flash('job_ok', 'Mode changé et rendez-vous déplacé, mais le trajet ne tient pas dans le planning (à vérifier).');
         } else {
-            $this->session->flash('job_ok', 'Rendez-vous déplacé et réassigné.');
+            $this->session->flash('job_ok', 'Mode changé (' . ($targetMode === 'workshop' ? 'atelier' : 'domicile') . ') et rendez-vous replanifié. Prix inchangé.');
         }
 
         return Response::redirect("/admin/job/{$id}");
