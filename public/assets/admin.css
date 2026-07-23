@@ -524,3 +524,90 @@ table.kn-table {
     max-width: 400px;
 }
 .kn-login-box h1 { margin-bottom: 4px; }
+
+/* --- Calendrier (mensuel / hebdomadaire) ----------------------------------- */
+.kn-cal-filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: var(--kn-space-3);
+    margin-bottom: var(--kn-space-4);
+}
+.kn-cal-filters .kn-field select { min-width: 150px; }
+.kn-cal-toggle {
+    display: flex;
+    align-items: center;
+    gap: var(--kn-space-2);
+    margin-left: auto;
+}
+
+/* Grille mensuelle : 7 colonnes, condensée sur mobile (le jour renvoie à la semaine). */
+.kn-cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 4px;
+}
+.kn-cal-head {
+    text-align: center;
+    font-size: var(--kn-fs-small);
+    font-weight: 700;
+    color: var(--kn-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 4px 0;
+}
+.kn-cal-cell {
+    min-height: 84px;
+    background: var(--kn-surface);
+    border: 1px solid var(--kn-line);
+    border-radius: var(--kn-radius-control);
+    padding: 4px;
+    overflow: hidden;
+}
+.kn-cal-cell.is-out { background: var(--kn-paper); opacity: 0.55; }
+.kn-cal-cell.is-today { border-color: var(--kn-accent); box-shadow: inset 0 0 0 1px var(--kn-accent); }
+.kn-cal-daynum { font-size: var(--kn-fs-small); font-weight: 600; margin-bottom: 2px; }
+.kn-cal-daynum a { text-decoration: none; color: var(--kn-ink); }
+.kn-cal-daynum a:hover { color: var(--kn-accent); }
+
+.kn-cal-pill {
+    display: block;
+    font-size: 0.72rem;
+    line-height: 1.3;
+    padding: 2px 5px;
+    margin-bottom: 2px;
+    border-radius: 6px;
+    text-decoration: none;
+    color: var(--kn-accent-ink);
+    background: var(--kn-blush);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.kn-cal-pill:hover { filter: brightness(0.96); }
+.kn-pill-onsite   { background: var(--kn-blush);  color: var(--kn-accent-ink); }
+.kn-pill-workshop { background: #E7ECFB;          color: var(--kn-accent-ink); }
+.kn-cal-time { font-variant-numeric: tabular-nums; font-weight: 700; }
+
+@media (max-width: 560px) {
+    .kn-cal-cell { min-height: 60px; }
+    .kn-cal-pill { font-size: 0.65rem; padding: 1px 3px; }
+    .kn-cal-toggle { margin-left: 0; }
+}
+
+/* Grille hebdomadaire : colonnes responsives (1 → 7). */
+.kn-week-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: var(--kn-space-3);
+}
+.kn-week-col {
+    background: var(--kn-surface);
+    border: 1px solid var(--kn-line);
+    border-radius: var(--kn-radius-card);
+    padding: var(--kn-space-3);
+    min-width: 0;
+}
+.kn-week-col.is-today { border-color: var(--kn-accent); }
+.kn-week-col h3 { font-size: var(--kn-fs-small); margin: 0 0 8px; }
+.kn-week-col .kn-cal-pill { white-space: normal; }

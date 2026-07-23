@@ -67,6 +67,30 @@ $eur = static fn (int $c): string => number_format($c / 100, 2, ',', ' ');
             <?php foreach ($data['photos'] as $p): ?><p><?= $e($p['kind']) ?> : <?= $e($p['file_path']) ?></p><?php endforeach; ?>
         </section>
 
+        <section class="kn-card" style="margin-top:24px;">
+            <h2>Replanifier le rendez-vous</h2>
+            <p class="kn-muted">Date/heure en heure belge. Un conflit d'agenda est refusé ; un trajet trop serré est signalé mais appliqué.</p>
+            <form method="post" action="/admin/job/<?= (int) $j['id'] ?>/planifier" style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;">
+                <?= $data['csrf'] ?>
+                <div class="kn-field" style="margin:0;">
+                    <label for="sched">Date et heure</label>
+                    <input type="datetime-local" id="sched" name="scheduled_start" value="<?= $e($data['scheduled_local'] ?? '') ?>" required>
+                </div>
+                <div class="kn-field" style="margin:0;min-width:200px;">
+                    <label for="tech">Technicien</label>
+                    <select id="tech" name="technician_id" required>
+                        <option value="0">— Choisir —</option>
+                        <?php foreach ($data['technicians'] as $t): ?>
+                            <option value="<?= (int) $t['id'] ?>" <?= (int) ($j['technician_id'] ?? 0) === (int) $t['id'] ? 'selected' : '' ?>>
+                                <?= $e(trim($t['first_name'] . ' ' . $t['last_name'])) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <button type="submit" class="kn-btn kn-btn-primary">Déplacer</button>
+            </form>
+        </section>
+
         <div class="kn-grid kn-grid-2" style="margin-top:24px;">
             <section class="kn-card">
                 <h2>Changer le statut</h2>

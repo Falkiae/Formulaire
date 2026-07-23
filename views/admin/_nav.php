@@ -16,6 +16,7 @@ $_knRole = $_SESSION['user_role'] ?? '';
 
 /** @var list<array{href:string,label:string,match:string,roles:list<string>}> $_knItems */
 $_knItems = [
+    ['href' => '/admin/calendrier',    'label' => 'Calendrier',   'match' => '/admin/calendrier',   'roles' => ['admin', 'dispatcher', 'accountant']],
     ['href' => '/admin/dispatch',      'label' => 'Dispatch',     'match' => '/admin/dispatch',     'roles' => ['admin', 'dispatcher']],
     ['href' => '/admin/clients',       'label' => 'Clients',      'match' => '/admin/client',       'roles' => ['admin', 'dispatcher', 'accountant']],
     ['href' => '/admin/factures',      'label' => 'Factures',     'match' => '/admin/factures',     'roles' => ['admin', 'accountant']],

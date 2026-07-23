@@ -10,6 +10,7 @@ declare(strict_types=1);
  */
 
 use Keepnew\Admin\AuthController;
+use Keepnew\Admin\CalendarController;
 use Keepnew\Admin\CatalogController;
 use Keepnew\Admin\CategoryController;
 use Keepnew\Admin\CustomerController;
@@ -286,6 +287,12 @@ return static function (Router $router, Container $container): void {
         $c->get(Session::class),
         $c->get(Csrf::class),
         $c->get(Database::class),
+        $c->get(DispatchService::class),
+    ));
+    $container->singleton(CalendarController::class, static fn (Container $c): CalendarController => new CalendarController(
+        $c->get(View::class),
+        $c->get(Session::class),
+        $c->get(DispatchService::class),
     ));
     $container->singleton(CustomerController::class, static fn (Container $c): CustomerController => new CustomerController(
         $c->get(View::class),
@@ -413,6 +420,7 @@ return static function (Router $router, Container $container): void {
             // Jobs — mutations
             $r->post('/job/{id}/statut', [JobController::class, 'updateStatus'], [CsrfMiddleware::class]);
             $r->post('/job/{id}/note', [JobController::class, 'addNote'], [CsrfMiddleware::class]);
+            $r->post('/job/{id}/planifier', [JobController::class, 'updateSchedule'], [CsrfMiddleware::class]);
 
             // Ateliers
             $r->get('/ateliers', [LocationController::class, 'index']);
@@ -458,6 +466,9 @@ return static function (Router $router, Container $container): void {
             $r->get('/client/{id}', [CustomerController::class, 'show']);
             // Fiche job (lecture)
             $r->get('/job/{id}', [JobController::class, 'show']);
+            // Calendrier (lecture, mensuel / hebdomadaire, avec filtres)
+            $r->get('/calendrier', [CalendarController::class, 'month']);
+            $r->get('/calendrier/semaine', [CalendarController::class, 'week']);
         });
     });
 

@@ -11,10 +11,12 @@ use Keepnew\Core\Request;
 use Keepnew\Core\Response;
 use Keepnew\Core\Session;
 use Keepnew\Core\View;
+use Keepnew\Support\Clock;
 
 /**
  * Fiche job : client, prestations, réponses au formulaire, photos avant/après,
- * historique de statut, notes internes.
+ * historique de statut, notes internes, et replanification (date/heure +
+ * technicien) réutilisant la détection de conflit/trajet du dispatch.
  */
 final class JobController
 {
@@ -25,6 +27,7 @@ final class JobController
         private readonly Session $session,
         private readonly Csrf $csrf,
         private readonly Database $db,
+        private readonly DispatchService $dispatch,
     ) {
     }
 
@@ -49,10 +52,17 @@ final class JobController
 
         $bookingId = (int) $job['booking_id'];
 
+        // Pré-remplissage du formulaire de replanification (heure belge).
+        $scheduledLocal = $job['scheduled_start'] !== null
+            ? Clock::format(new \DateTimeImmutable((string) $job['scheduled_start'] . ' UTC'), 'Y-m-d\TH:i')
+            : '';
+
         return $this->view->render('admin/job', [
             'csrf' => $this->csrf->field(),
             'job' => $job,
             'statuses' => self::STATUSES,
+            'technicians' => $this->dispatch->activeTechnicians(),
+            'scheduled_local' => $scheduledLocal,
             'items' => $this->db->select('SELECT label_snapshot, quantity, line_total_cents FROM booking_items WHERE job_id = :j', ['j' => $id]),
             'answers' => $this->db->select('SELECT field_key, value_text FROM booking_answers WHERE booking_id = :b', ['b' => $bookingId]),
             'photos' => $this->db->select('SELECT kind, file_path FROM booking_photos WHERE job_id = :j', ['j' => $id]),
@@ -91,6 +101,40 @@ final class JobController
         });
 
         $this->session->flash('job_ok', 'Statut mis à jour.');
+
+        return Response::redirect("/admin/job/{$id}");
+    }
+
+    /**
+     * POST /admin/job/{id}/planifier — replanifie (date/heure + technicien).
+     * Réutilise DispatchService::reassign (conflit dur refusé, trajet signalé).
+     */
+    public function updateSchedule(Request $request): Response
+    {
+        $id = (int) $request->attribute('id');
+        if ($this->db->selectOne('SELECT id FROM jobs WHERE id = :id', ['id' => $id]) === null) {
+            throw new NotFoundException('Job introuvable.');
+        }
+
+        $technicianId = $request->int('technician_id');
+        $local = $request->string('scheduled_start'); // "Y-m-dTH:i" (heure belge)
+        if ($technicianId <= 0 || $local === '') {
+            $this->session->flash('job_ok', 'Indiquez une date/heure et un technicien.');
+
+            return Response::redirect("/admin/job/{$id}");
+        }
+
+        // Heure belge saisie → instant UTC non ambigu (offset explicite).
+        $startUtc = Clock::fromDisplay(str_replace('T', ' ', $local))->format('c');
+        $result = $this->dispatch->reassign($id, $technicianId, $startUtc, $this->session->userId());
+
+        if ($result['conflict']) {
+            $this->session->flash('job_ok', 'Conflit : ce technicien a déjà un rendez-vous sur ce créneau. Aucune modification.');
+        } elseif (!$result['travel_fits']) {
+            $this->session->flash('job_ok', 'Rendez-vous déplacé, mais le trajet ne tient pas dans le planning (à vérifier).');
+        } else {
+            $this->session->flash('job_ok', 'Rendez-vous déplacé et réassigné.');
+        }
 
         return Response::redirect("/admin/job/{$id}");
     }

@@ -81,6 +81,60 @@ final class DispatchService
     }
 
     /**
+     * Jobs planifiés sur une PLAGE de dates (locale), avec filtres optionnels.
+     * Sert au calendrier mensuel / hebdomadaire.
+     *
+     * @param array{mode?:string, technician_id?:int} $filters
+     * @return list<array<string,mixed>>
+     */
+    public function range(string $fromDate, string $toDate, array $filters = []): array
+    {
+        $from = Clock::fromDisplay($fromDate . ' 00:00:00')->format('Y-m-d H:i:s');
+        $to = Clock::fromDisplay($toDate . ' 23:59:59')->format('Y-m-d H:i:s');
+
+        $where = "j.scheduled_start BETWEEN :from AND :to AND j.status NOT IN ('cancelled')";
+        $params = ['from' => $from, 'to' => $to];
+
+        if (in_array($filters['mode'] ?? '', ['onsite', 'workshop'], true)) {
+            $where .= ' AND j.mode = :mode';
+            $params['mode'] = $filters['mode'];
+        }
+        if (($filters['technician_id'] ?? 0) > 0) {
+            $where .= ' AND j.technician_id = :tech';
+            $params['tech'] = (int) $filters['technician_id'];
+        }
+
+        $rows = $this->db->select(
+            "SELECT j.id, j.mode, j.status, j.technician_id, j.scheduled_start, j.scheduled_end,
+                    j.active_duration_min, j.travel_in_min, j.travel_out_min, j.bay_id,
+                    b.reference, c.first_name, c.last_name, c.phone,
+                    a.street, a.number, a.postal_code, a.city, a.lat, a.lng,
+                    GROUP_CONCAT(bi.label_snapshot SEPARATOR ' + ') AS services
+             FROM jobs j
+             JOIN bookings b ON b.id = j.booking_id
+             JOIN customers c ON c.id = b.customer_id
+             LEFT JOIN addresses a ON a.id = j.address_id
+             LEFT JOIN booking_items bi ON bi.job_id = j.id
+             WHERE {$where}
+             GROUP BY j.id
+             ORDER BY j.scheduled_start",
+            $params,
+        );
+
+        return array_map([$this, 'formatJob'], $rows);
+    }
+
+    /**
+     * Techniciens actifs (pour les filtres du calendrier / la réassignation).
+     *
+     * @return list<array<string,mixed>>
+     */
+    public function activeTechnicians(): array
+    {
+        return $this->db->select('SELECT id, first_name, last_name FROM technicians WHERE is_active = 1 ORDER BY first_name');
+    }
+
+    /**
      * Réassigne un job à un technicien (et éventuellement une nouvelle heure),
      * recalcule le trajet et vérifie les conflits.
      *
@@ -225,6 +279,7 @@ final class DispatchService
             'lng' => $j['lng'] ?? null,
             'start_local' => $start !== null ? Clock::format($start, 'H:i') : null,
             'end_local' => $end !== null ? Clock::format($end, 'H:i') : null,
+            'date_local' => $start !== null ? Clock::format($start, 'Y-m-d') : null,
             'active_duration_min' => (int) $j['active_duration_min'],
             'travel_in_min' => $j['travel_in_min'] !== null ? (int) $j['travel_in_min'] : null,
             'travel_out_min' => $j['travel_out_min'] !== null ? (int) $j['travel_out_min'] : null,
