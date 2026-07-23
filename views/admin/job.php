@@ -69,8 +69,8 @@ $eur = static fn (int $c): string => number_format($c / 100, 2, ',', ' ');
 
         <section class="kn-card" style="margin-top:24px;">
             <h2>Replanifier le rendez-vous</h2>
-            <p class="kn-muted">Date/heure en heure belge. Un conflit d'agenda est refusé ; un trajet trop serré est signalé mais appliqué.</p>
-            <form method="post" action="/admin/job/<?= (int) $j['id'] ?>/planifier" style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;">
+            <p class="kn-muted">Date/heure en heure belge. Un conflit d'agenda (ou de poste, en atelier) est refusé ; un trajet trop serré est signalé mais appliqué. Changer le mode est un acte opérationnel : le prix facturé reste inchangé.</p>
+            <form method="post" action="/admin/job/<?= (int) $j['id'] ?>/planifier" id="kn-resched" style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;">
                 <?= $data['csrf'] ?>
                 <div class="kn-field" style="margin:0;">
                     <label for="sched">Date et heure</label>
@@ -87,9 +87,55 @@ $eur = static fn (int $c): string => number_format($c / 100, 2, ',', ' ');
                         <?php endforeach; ?>
                     </select>
                 </div>
+                <div class="kn-field" style="margin:0;">
+                    <label for="mode">Mode</label>
+                    <select id="mode" name="mode">
+                        <option value="onsite" <?= $j['mode'] === 'onsite' ? 'selected' : '' ?>>À domicile</option>
+                        <option value="workshop" <?= $j['mode'] === 'workshop' ? 'selected' : '' ?>>Atelier</option>
+                    </select>
+                </div>
+                <div class="kn-field kn-mode-workshop" style="margin:0;min-width:200px;">
+                    <label for="bay">Poste d'atelier</label>
+                    <select id="bay" name="bay_id">
+                        <option value="0">— Choisir —</option>
+                        <?php foreach ($data['active_bays'] as $b): ?>
+                            <option value="<?= (int) $b['id'] ?>" <?= (int) ($j['bay_id'] ?? 0) === (int) $b['id'] ? 'selected' : '' ?>>
+                                <?= $e($b['location_name'] . ' — ' . $b['name']) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="kn-field kn-mode-onsite" style="margin:0;min-width:220px;">
+                    <label for="addr">Adresse (domicile)</label>
+                    <select id="addr" name="address_id">
+                        <option value="0">— Choisir —</option>
+                        <?php foreach ($data['customer_addresses'] as $a): ?>
+                            <option value="<?= (int) $a['id'] ?>" <?= (int) ($j['address_id'] ?? 0) === (int) $a['id'] ? 'selected' : '' ?>>
+                                <?= $e(trim((($a['label'] ?? '') !== '' ? $a['label'] . ' · ' : '') . ($a['street'] ?? '') . ' ' . ($a['number'] ?? '') . ', ' . ($a['postal_code'] ?? '') . ' ' . ($a['city'] ?? ''))) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                    <?php if ($data['customer_addresses'] === []): ?>
+                        <p class="kn-muted" style="margin:4px 0 0;font-size:.8rem;">Aucune adresse : ajoutez-en une sur la <a href="/admin/client/<?= (int) $j['customer_id'] ?>">fiche client</a>.</p>
+                    <?php endif; ?>
+                </div>
                 <button type="submit" class="kn-btn kn-btn-primary">Déplacer</button>
             </form>
         </section>
+        <script>
+        (function () {
+            var form = document.getElementById('kn-resched');
+            if (!form) return;
+            var mode = document.getElementById('mode');
+            function sync() {
+                var ws = mode.value === 'workshop';
+                form.querySelectorAll('.kn-mode-workshop').forEach(function (el) { el.style.display = ws ? '' : 'none'; });
+                form.querySelectorAll('.kn-mode-onsite').forEach(function (el) { el.style.display = ws ? 'none' : ''; });
+            }
+            mode.addEventListener('change', sync);
+            sync();
+        })();
+        </script>
 
         <div class="kn-grid kn-grid-2" style="margin-top:24px;">
             <section class="kn-card">
