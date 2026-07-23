@@ -10,6 +10,11 @@
  * Coordonnées · Rendez-vous · Récapitulatif · Confirmation. Devis « vivant »
  * collant. Reprise de session via localStorage.
  *
+ * Navigation : chaque étape est un panneau plein écran (dans un conteneur de
+ * défilement interne et autonome — pas le scroll de la page hôte) empilé au
+ * fur et à mesure ; on avance en cliquant (comme avant) ou en faisant défiler
+ * / glissant entre panneaux déjà atteints, avec un point d'ancrage par étape.
+ *
  * Voix : vouvoiement chaleureux, libellés d'action explicites, jamais de jargon.
  */
 (function () {
@@ -94,6 +99,9 @@
     d.textContent = s == null ? "" : String(s);
     return d.innerHTML;
   }
+  function prefersReducedMotion() {
+    return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  }
 
   // --- Shadow DOM & styles ---------------------------------------------------
   var shadow = mount.attachShadow ? mount.attachShadow({ mode: "open" }) : mount;
@@ -104,7 +112,7 @@
   shadow.appendChild(style);
   shadow.appendChild(root);
 
-  // Étapes nommées (barre de progression).
+  // Étapes nommées (barre de progression + dispatch de rendu).
   var STEPS = [
     { key: "where", label: "Où" },
     { key: "what", label: "Quoi" },
@@ -117,73 +125,205 @@
     { key: "done", label: "Confirmé" },
   ];
 
-  // --- Rendu principal -------------------------------------------------------
-  function render() {
-    save();
-    root.innerHTML = "";
-    root.appendChild(progressBar());
-    var body = el('<div class="kn-body"></div>');
-    root.appendChild(body);
+  // Éléments persistants du « chrome » (montés une fois par mountShell()).
+  var scroller, progressFillEl, progressLabelEl, quoteBarSlot, stepObserver;
 
-    var step = state.step;
-    if (step === "where") renderWhere(body);
-    else if (step === "what") renderWhat(body);
-    else if (step === "details") renderDetails(body);
-    else if (step === "cart") renderCart(body);
-    else if (step === "intake") renderIntake(body);
-    else if (step === "contact") renderContact(body);
-    else if (step === "slot") renderSlot(body);
-    else if (step === "recap") renderRecap(body);
-    else if (step === "done") renderDone(body);
+  // --- Montage du chrome (barre de progression + scroller + panier) ---------
+  function mountShell() {
+    var progress = el('<div class="kn-progress" role="navigation" aria-label="Étapes"></div>');
+    var track = el('<div class="kn-progress-track"></div>');
+    progressFillEl = el('<div class="kn-progress-fill"></div>');
+    track.appendChild(progressFillEl);
+    progress.appendChild(track);
+    progressLabelEl = el('<div class="kn-progress-label"></div>');
+    progress.appendChild(progressLabelEl);
+    root.appendChild(progress);
 
-    if (state.cart && state.cart.item_count > 0 && step !== "done") {
-      root.appendChild(quoteBar());
-    }
+    scroller = el('<div class="kn-scroller"></div>');
+    root.appendChild(scroller);
+
+    quoteBarSlot = el('<div class="kn-quotebar-slot"></div>');
+    root.appendChild(quoteBarSlot);
+
+    setupStepObserver();
   }
 
-  function goto(step) {
-    state.step = step;
-    render();
-    root.scrollIntoView({ behavior: "smooth", block: "start" });
+  // Suit le panneau le plus visible pendant un défilement manuel : met à jour
+  // l'étape courante + la barre de progression sans jamais toucher au DOM des
+  // panneaux (défilement passif = non destructif, contrairement à goto()).
+  function setupStepObserver() {
+    if (!("IntersectionObserver" in window)) return;
+    var saveTimer = null;
+    stepObserver = new IntersectionObserver(
+      function (entries) {
+        var best = null;
+        entries.forEach(function (entry) {
+          if (entry.isIntersecting && (!best || entry.intersectionRatio > best.intersectionRatio)) {
+            best = entry;
+          }
+        });
+        if (best && best.target.dataset.step) {
+          state.step = best.target.dataset.step;
+          updateProgressBar(state.step);
+          // Persistance différée (pas à chaque callback pendant un flick rapide).
+          clearTimeout(saveTimer);
+          saveTimer = setTimeout(save, 400);
+        }
+      },
+      { root: scroller, threshold: [0.5] }
+    );
   }
 
-  function progressBar() {
+  function updateProgressBar(step) {
     var idx = STEPS.findIndex(function (s) {
-      return s.key === state.step;
+      return s.key === step;
     });
-    var wrap = el('<div class="kn-progress" role="navigation" aria-label="Étapes"></div>');
-    // Pastilles des choix déjà faits (cliquables pour revenir).
-    var pills = el('<div class="kn-pills"></div>');
-    if (state.mode) {
-      pills.appendChild(pill(state.mode === "onsite" ? "Chez vous" : "Atelier", "where"));
-    }
-    if (state.serviceId && catalog) {
-      var svc = catalog.services.find(function (s) {
-        return s.id === state.serviceId;
-      });
-      if (svc) pills.appendChild(pill(svc.name, "what"));
-    }
-    wrap.appendChild(pills);
-    // Barre de progression remplie + libellé de l'étape courante.
     var safeIdx = idx < 0 ? 0 : idx;
     var pct = Math.round(((safeIdx + 1) / STEPS.length) * 100);
-    var track = el('<div class="kn-progress-track"></div>');
-    var fill = el('<div class="kn-progress-fill"></div>');
-    fill.style.width = pct + "%";
-    track.appendChild(fill);
-    wrap.appendChild(track);
-    var cur = STEPS[safeIdx];
-    wrap.appendChild(
-      el('<div class="kn-progress-label">Étape ' + (safeIdx + 1) + "/" + STEPS.length + " · " + esc(cur.label) + "</div>")
-    );
-    return wrap;
+    progressFillEl.style.width = pct + "%";
+    progressLabelEl.textContent = "Étape " + (safeIdx + 1) + "/" + STEPS.length + " · " + STEPS[safeIdx].label;
   }
-  function pill(text, step) {
-    var p = el('<button class="kn-pill" type="button">' + esc(text) + " ✕</button>");
-    p.addEventListener("click", function () {
-      goto(step);
+
+  function updateQuoteBar() {
+    quoteBarSlot.innerHTML = "";
+    if (state.cart && state.cart.item_count > 0 && state.step !== "done") {
+      quoteBarSlot.appendChild(quoteBar());
+    }
+  }
+
+  // Dispatch d'étape : construit le contenu d'un step dans le panneau fourni.
+  function renderStepInto(panel, step) {
+    if (step === "where") renderWhere(panel);
+    else if (step === "what") renderWhat(panel);
+    else if (step === "details") renderDetails(panel);
+    else if (step === "cart") renderCart(panel);
+    else if (step === "intake") renderIntake(panel);
+    else if (step === "contact") renderContact(panel);
+    else if (step === "slot") renderSlot(panel);
+    else if (step === "recap") renderRecap(panel);
+    else if (step === "done") renderDone(panel);
+  }
+
+  function createPanel(step) {
+    var panel = el('<section class="kn-step-panel" data-step="' + step + '" tabindex="-1"></section>');
+    scroller.appendChild(panel);
+    if (stepObserver) stepObserver.observe(panel);
+    return panel;
+  }
+
+  function findPanel(step) {
+    return (
+      Array.prototype.filter.call(scroller.children, function (p) {
+        return p.dataset.step === step;
+      })[0] || null
+    );
+  }
+
+  function scrollToPanel(panel) {
+    panel.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "start" });
+  }
+
+  // Rend le focus clavier au panneau une fois le défilement stabilisé
+  // (uniquement après une navigation programmatique via goto(), jamais après
+  // un défilement manuel — on ne vole pas le focus pendant une consultation).
+  function focusPanelWhenSettled(panel) {
+    var done = false;
+    function doFocus() {
+      if (done) return;
+      done = true;
+      panel.focus({ preventScroll: true });
+    }
+    if ("onscrollend" in scroller) {
+      scroller.addEventListener("scrollend", doFocus, { once: true });
+    }
+    setTimeout(doFocus, 500);
+  }
+
+  // Retire du DOM tous les panneaux postérieurs à `step` (navigation arrière
+  // délibérée). Les étapes asynchrones (cart/slot/recap) refont déjà un appel
+  // API à chaque exécution : rien à mettre en cache, la troncature est gratuite.
+  function truncateAfter(step) {
+    var idx = STEPS.findIndex(function (s) {
+      return s.key === step;
     });
-    return p;
+    Array.prototype.slice.call(scroller.children).forEach(function (panel) {
+      var pIdx = STEPS.findIndex(function (s) {
+        return s.key === panel.dataset.step;
+      });
+      if (pIdx > idx) {
+        if (stepObserver) stepObserver.unobserve(panel);
+        panel.remove();
+      }
+    });
+  }
+
+  // --- Navigation entre étapes -------------------------------------------
+  // Seul point d'appel externe (~10 endroits, signature inchangée). Tout
+  // appel à goto() est un clic délibéré (le défilement passif à la souris/au
+  // doigt ne passe jamais par ici) : il peut donc trancher sans ambiguïté
+  // entre 3 cas selon la position du panneau ciblé par rapport au plus avancé.
+  function goto(step) {
+    var targetIdx = STEPS.findIndex(function (s) {
+      return s.key === step;
+    });
+    var panels = scroller.children;
+    var furthest = panels.length ? panels[panels.length - 1] : null;
+    var furthestIdx = furthest
+      ? STEPS.findIndex(function (s) {
+          return s.key === furthest.dataset.step;
+        })
+      : -1;
+    var existing = findPanel(step);
+
+    if (!existing) {
+      // Cas A — étape jamais atteinte : nouveau panneau, on avance.
+      var panel = createPanel(step);
+      renderStepInto(panel, step);
+      state.step = step;
+      save();
+      scrollToPanel(panel);
+      focusPanelWhenSettled(panel);
+    } else if (targetIdx === furthestIdx) {
+      // Cas B — auto-rafraîchissement de l'étape déjà la plus avancée
+      // (ex. suppression d'une ligne panier → goto("cart")).
+      renderStepInto(clear(existing), step);
+      state.step = step;
+      save();
+      scrollToPanel(existing);
+    } else {
+      // Cas C — retour arrière délibéré (backLink()) : on abandonne tout ce
+      // qui suit la cible, le panneau cible lui-même reste inchangé et valide.
+      truncateAfter(step);
+      state.step = step;
+      save();
+      scrollToPanel(existing);
+      focusPanelWhenSettled(existing);
+    }
+    updateProgressBar(state.step);
+    updateQuoteBar();
+  }
+
+  // Reconstruit l'historique des panneaux au chargement (reprise localStorage) :
+  // rejoue chaque étape de "where" jusqu'à l'étape sauvegardée, pour que le
+  // défilement arrière fonctionne aussi après un rechargement de page.
+  function replaySession() {
+    var targetIdx = STEPS.findIndex(function (s) {
+      return s.key === state.step;
+    });
+    if (targetIdx < 0) targetIdx = 0;
+    var lastPanel = null;
+    for (var i = 0; i <= targetIdx; i++) {
+      var panel = createPanel(STEPS[i].key);
+      renderStepInto(panel, STEPS[i].key);
+      lastPanel = panel;
+    }
+    updateProgressBar(state.step);
+    updateQuoteBar();
+    if (lastPanel) {
+      requestAnimationFrame(function () {
+        lastPanel.scrollIntoView({ behavior: "auto", block: "start" });
+      });
+    }
   }
 
   // --- Étape 1 : OÙ (mode d'abord ; code postal seulement pour le domicile) --
@@ -257,7 +397,7 @@
       body.appendChild(loading());
       api("/catalog").then(function (d) {
         catalog = d;
-        render();
+        renderStepInto(clear(body), state.step);
       });
       return;
     }
@@ -272,7 +412,7 @@
             choiceCard("📦", cat.name, cat.description || "", function () {
               state.categoryId = cat.id;
               // Descend d'un niveau si sous-catégories, sinon services.
-              render();
+              renderStepInto(clear(body), state.step);
             }, false, imgUrl(cat.image_path))
           );
         });
@@ -298,7 +438,7 @@
       });
       body.appendChild(backLink(function () {
         state.categoryId = null;
-        render();
+        renderStepInto(clear(body), state.step);
       }));
     }
     body.appendChild(cards);
@@ -336,7 +476,7 @@
       body.appendChild(loading());
       api("/services/" + state.serviceId).then(function (d) {
         state._serviceConfig = d;
-        render();
+        renderStepInto(clear(body), state.step);
       });
       return;
     }
@@ -350,7 +490,6 @@
           choiceCard("", v.label, "", function () {
             state.variantId = v.id;
             renderDetails(clear(body));
-            livePrice();
           }, state.variantId === v.id)
         );
       });
@@ -380,7 +519,7 @@
         );
         row.querySelector("input").addEventListener("change", function (e) {
           toggleExtra(x, e.target.checked, cfg);
-          livePrice();
+          livePrice(live);
         });
         list.appendChild(row);
       });
@@ -389,9 +528,9 @@
 
     body.appendChild(reassure("Prix ferme. Aucun supplément le jour de l'intervention."));
 
-    var live = el('<div class="kn-live" id="kn-live"></div>');
+    var live = el('<div class="kn-live"></div>');
     body.appendChild(live);
-    livePrice();
+    livePrice(live);
 
     var actions = el('<div class="kn-actions"></div>');
     var add = el('<button class="kn-btn kn-btn-primary" type="button">Ajouter au panier</button>');
@@ -420,9 +559,8 @@
       });
     }
   }
-  function livePrice() {
-    var box = shadow.getElementById("kn-live");
-    if (!box) return;
+  function livePrice(liveEl) {
+    if (!liveEl) return;
     var line = {
       service_id: state.serviceId,
       mode: state.mode,
@@ -432,7 +570,7 @@
     };
     api("/quote", { method: "POST", body: { lines: [line] } })
       .then(function (q) {
-        box.innerHTML =
+        liveEl.innerHTML =
           '<div class="kn-live-price">' +
           q.total_tvac_formatted +
           '</div><div class="kn-muted">TVAC · durée estimée ' +
@@ -440,7 +578,7 @@
           " min</div>";
       })
       .catch(function (err) {
-        box.innerHTML =
+        liveEl.innerHTML =
           '<p class="kn-muted">' +
           esc((err && err.data && err.data.error) || "Indisponible dans ce mode.") +
           "</p>";
@@ -546,18 +684,20 @@
     body.appendChild(el('<h2 class="kn-h">Quelques précisions</h2>'));
     if (!state._form) {
       body.appendChild(loading());
-      api("/form").then(function (f) {
-        state._form = f;
-        render();
-      }).catch(function () {
-        state._form = { fields: [], conditions: [] };
-        render();
-      });
+      api("/form")
+        .then(function (f) {
+          state._form = f;
+          renderStepInto(clear(body), state.step);
+        })
+        .catch(function () {
+          state._form = { fields: [], conditions: [] };
+          renderStepInto(clear(body), state.step);
+        });
       return;
     }
 
     var hasOnsite = cartHasMode("onsite");
-    var container = el('<div id="kn-form"></div>');
+    var container = el("<div></div>");
     body.appendChild(container);
     renderFormFields(container, hasOnsite);
 
@@ -614,11 +754,11 @@
     var st = formState(hasOnsite);
     state._form.fields.forEach(function (f) {
       if (!st[f.field_key].visible) return;
-      var node = fieldNode(f, st[f.field_key].required, hasOnsite);
+      var node = fieldNode(f, st[f.field_key].required, hasOnsite, container);
       if (node) container.appendChild(node);
     });
   }
-  function fieldNode(f, required, hasOnsite) {
+  function fieldNode(f, required, hasOnsite, container) {
     var label = f.label + (required ? " *" : "");
     if (f.field_type === "radio" || f.field_type === "select" || f.field_type === "cards") {
       var wrap = el('<div class="kn-field"><label>' + esc(label) + "</label></div>");
@@ -627,8 +767,7 @@
         var b = el('<button type="button" class="kn-chip ' + (state.answers[f.field_key] === o.value ? "on" : "") + '">' + esc(o.label) + "</button>");
         b.addEventListener("click", function () {
           state.answers[f.field_key] = o.value;
-          var host = root.querySelector("#kn-form");
-          if (host) renderFormFields(host, hasOnsite);
+          renderFormFields(container, hasOnsite);
         });
         row.appendChild(b);
       });
@@ -1035,22 +1174,27 @@
   }
 
   // --- Démarrage -------------------------------------------------------------
-  render();
+  mountShell();
+  replaySession();
 
   // --- CSS (tokens de marque inline, scopé au Shadow DOM) -------------------
   function CSS() {
     return (
       ".kn{--a:#586FF3;--ai:#3A4BC0;--blush:#F7D7E2;--ink:#141A2E;--muted:#5C6479;--paper:#FBFBFD;--surface:#fff;--line:#E4E6EF;--ok:#1D7A54;--alert:#B4322D;" +
-      "font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-size:16px;line-height:1.6;color:var(--ink);background:var(--paper);max-width:560px;margin:0 auto;padding:16px;box-sizing:border-box}" +
+      "font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-size:16px;line-height:1.6;color:var(--ink);background:var(--paper);max-width:560px;margin:0 auto;padding:16px;box-sizing:border-box;display:flex;flex-direction:column}" +
       ".kn *{box-sizing:border-box}" +
       ".kn-h{font-size:1.5rem;margin:8px 0 16px}.kn-h3{font-size:1.05rem;margin:16px 0 8px}" +
       ".kn-muted{color:var(--muted);font-size:.875rem}" +
-      ".kn-progress{margin-bottom:16px}" +
-      ".kn-pills{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}" +
-      ".kn-pill{background:var(--blush);color:var(--ai);border:0;border-radius:20px;padding:4px 12px;font-size:.8rem;cursor:pointer}" +
+      ".kn-progress{margin-bottom:16px;flex:0 0 auto}" +
       ".kn-progress-track{height:8px;background:var(--line);border-radius:999px;overflow:hidden}" +
       ".kn-progress-fill{height:100%;background:var(--a);border-radius:999px;transition:width .35s ease}" +
       ".kn-progress-label{font-size:.78rem;color:var(--muted);font-weight:600;margin-top:6px}" +
+      // Conteneur de défilement interne et autonome : un « Typeform en boîte »,
+      // pas une prise de contrôle du viewport du navigateur (widget embarqué
+      // en bloc normal dans une page hôte arbitraire, sans iframe).
+      ".kn-scroller{overflow-y:auto;scroll-snap-type:y mandatory;-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain;height:min(680px,88vh);position:relative}" +
+      "@supports (height:100dvh){.kn-scroller{height:min(680px,88dvh)}}" +
+      ".kn-step-panel{min-height:100%;scroll-snap-align:start;scroll-snap-stop:always;display:flex;flex-direction:column;justify-content:center;padding:8px 0;outline:none}" +
       ".kn-postal-wrap{display:flex;flex-direction:column;gap:8px;margin-top:4px}" +
       ".kn-postal-wrap[hidden]{display:none}" +
       ".kn-cards{display:grid;gap:12px;margin:12px 0}.kn-cards-sm{grid-template-columns:repeat(auto-fill,minmax(120px,1fr))}" +
@@ -1091,7 +1235,11 @@
       ".kn-slot-list{display:grid;gap:8px;margin-top:8px}" +
       ".kn-slot{min-height:48px;border:1px solid var(--line);border-radius:8px;background:var(--surface);font:inherit;cursor:pointer}" +
       ".kn-slot.on{border-color:var(--a);background:var(--a);color:#fff}" +
-      ".kn-quotebar{position:sticky;bottom:0;width:100%;display:flex;justify-content:space-between;align-items:center;min-height:56px;padding:0 16px;margin-top:16px;background:var(--ink);color:#fff;border:0;border-radius:12px;font:inherit;cursor:pointer}" +
+      // Barre panier : hors du scroller (frère normal-flow, pas de sticky à
+      // l'intérieur d'un conteneur scroll-snap — comportement incohérent
+      // inter-navigateurs sinon, la barre n'étant pas une cible de snap valide).
+      ".kn-quotebar-slot{flex:0 0 auto}" +
+      ".kn-quotebar{width:100%;display:flex;justify-content:space-between;align-items:center;min-height:56px;padding:0 16px;margin-top:16px;background:var(--ink);color:#fff;border:0;border-radius:12px;font:inherit;cursor:pointer}" +
       ".kn-quotebar-total{font-weight:700;font-size:1.15rem;font-variant-numeric:tabular-nums}" +
       ".kn-flash{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:12px 20px;border-radius:8px;z-index:9999}" +
       ".kn-done{text-align:center;padding:24px 0}.kn-done-mark{width:64px;height:64px;line-height:64px;border-radius:50%;background:var(--ok);color:#fff;font-size:2rem;margin:0 auto 16px}" +
