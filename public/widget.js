@@ -160,12 +160,18 @@
       if (svc) pills.appendChild(pill(svc.name, "what"));
     }
     wrap.appendChild(pills);
-    var bar = el('<div class="kn-steps"></div>');
-    STEPS.forEach(function (s, i) {
-      var b = el('<span class="kn-step ' + (i <= idx ? "on" : "") + '">' + esc(s.label) + "</span>");
-      bar.appendChild(b);
-    });
-    wrap.appendChild(bar);
+    // Barre de progression remplie + libellé de l'étape courante.
+    var safeIdx = idx < 0 ? 0 : idx;
+    var pct = Math.round(((safeIdx + 1) / STEPS.length) * 100);
+    var track = el('<div class="kn-progress-track"></div>');
+    var fill = el('<div class="kn-progress-fill"></div>');
+    fill.style.width = pct + "%";
+    track.appendChild(fill);
+    wrap.appendChild(track);
+    var cur = STEPS[safeIdx];
+    wrap.appendChild(
+      el('<div class="kn-progress-label">Étape ' + (safeIdx + 1) + "/" + STEPS.length + " · " + esc(cur.label) + "</div>")
+    );
     return wrap;
   }
   function pill(text, step) {
@@ -176,25 +182,14 @@
     return p;
   }
 
-  // --- Étape 1 : OÙ (code postal + mode) ------------------------------------
+  // --- Étape 1 : OÙ (mode d'abord ; code postal seulement pour le domicile) --
   function renderWhere(body) {
     body.appendChild(el('<h2 class="kn-h">Où souhaitez-vous être nettoyé ?</h2>'));
-    var field = el(
-      '<div class="kn-field"><label for="kn-postal">Votre code postal</label>' +
-        '<input id="kn-postal" inputmode="numeric" autocomplete="postal-code" maxlength="4" value="' +
-        esc(state.postal) +
-        '" placeholder="Ex. 4000"></div>'
-    );
-    body.appendChild(field);
-    var input = field.querySelector("input");
-    input.addEventListener("input", function () {
-      state.postal = input.value.replace(/\D/g, "").slice(0, 4);
-    });
 
     var cards = el('<div class="kn-cards"></div>');
     cards.appendChild(
       choiceCard("🏠", "Je veux qu'on vienne chez moi", "Un technicien se déplace à votre adresse.", function () {
-        pickMode("onsite");
+        showPostal();
       }, state.mode === "onsite")
     );
     cards.appendChild(
@@ -203,10 +198,43 @@
       }, state.mode === "workshop")
     );
     body.appendChild(cards);
+
+    // Le code postal ne concerne que le domicile (résolution de zone) : il
+    // n'est révélé qu'après le choix « chez moi », jamais pour l'atelier.
+    var postalWrap = el('<div class="kn-postal-wrap" hidden></div>');
+    var field = el(
+      '<div class="kn-field"><label for="kn-postal">Votre code postal</label>' +
+        '<input id="kn-postal" inputmode="numeric" autocomplete="postal-code" maxlength="4" value="' +
+        esc(state.postal) +
+        '" placeholder="Ex. 4000"></div>'
+    );
+    postalWrap.appendChild(field);
+    var cont = el('<button class="kn-btn kn-btn-primary" type="button">Continuer</button>');
+    cont.addEventListener("click", function () {
+      pickMode("onsite");
+    });
+    postalWrap.appendChild(cont);
+    body.appendChild(postalWrap);
+
+    var input = field.querySelector("input");
+    input.addEventListener("input", function () {
+      state.postal = input.value.replace(/\D/g, "").slice(0, 4);
+    });
+    input.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") pickMode("onsite");
+    });
+
+    function showPostal() {
+      postalWrap.hidden = false;
+      input.focus();
+    }
+    if (state.mode === "onsite") showPostal();
+
     body.appendChild(reassure("Oui, nous intervenons à Liège et dans un rayon de 25 km."));
   }
   function pickMode(mode) {
-    if (!state.postal || state.postal.length < 4) {
+    // Le code postal n'est requis que pour le domicile (zone) ; pas pour l'atelier.
+    if (mode === "onsite" && (!state.postal || state.postal.length < 4)) {
       flash("Indiquez d'abord votre code postal.");
       return;
     }
@@ -959,9 +987,10 @@
       ".kn-progress{margin-bottom:16px}" +
       ".kn-pills{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}" +
       ".kn-pill{background:var(--blush);color:var(--ai);border:0;border-radius:20px;padding:4px 12px;font-size:.8rem;cursor:pointer}" +
-      ".kn-steps{display:flex;gap:4px;flex-wrap:wrap}" +
-      ".kn-step{font-size:.72rem;color:var(--muted);padding:2px 6px;border-bottom:2px solid var(--line)}" +
-      ".kn-step.on{color:var(--a);border-color:var(--a);font-weight:700}" +
+      ".kn-progress-track{height:8px;background:var(--line);border-radius:999px;overflow:hidden}" +
+      ".kn-progress-fill{height:100%;background:var(--a);border-radius:999px;transition:width .35s ease}" +
+      ".kn-progress-label{font-size:.78rem;color:var(--muted);font-weight:600;margin-top:6px}" +
+      ".kn-postal-wrap{display:flex;flex-direction:column;gap:8px;margin-top:4px}" +
       ".kn-cards{display:grid;gap:12px;margin:12px 0}.kn-cards-sm{grid-template-columns:repeat(auto-fill,minmax(120px,1fr))}" +
       ".kn-card{display:flex;flex-direction:column;gap:4px;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;min-height:48px;cursor:pointer;font:inherit;color:inherit}" +
       ".kn-card.on{border-color:var(--a);box-shadow:0 0 0 2px var(--a) inset}" +
