@@ -179,6 +179,25 @@ final class CatalogRepository
      *
      * @param array{base_price_cents:int, base_duration_min:int, is_active:int} $data
      */
+    /**
+     * Met à jour l'identité d'une prestation : nom, catégorie, description
+     * courte (le slug unique reste inchangé pour ne pas casser les liens).
+     *
+     * @param array{name:string, category_id:int, short_description?:string} $data
+     */
+    public function updateServiceMeta(int $serviceId, array $data): void
+    {
+        $this->db->run(
+            'UPDATE services SET name = :name, category_id = :cat, short_description = :sd WHERE id = :id',
+            [
+                'name' => $data['name'],
+                'cat' => $data['category_id'],
+                'sd' => ($data['short_description'] ?? '') !== '' ? $data['short_description'] : null,
+                'id' => $serviceId,
+            ],
+        );
+    }
+
     public function updateServiceBase(int $serviceId, array $data, ?int $userId): void
     {
         $this->db->transaction(function (Database $db) use ($serviceId, $data, $userId): void {

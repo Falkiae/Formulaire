@@ -40,6 +40,28 @@ foreach ($data['modes'] as $m) {
             <?= $data['csrf'] ?>
 
             <section class="kn-card" style="margin-bottom:24px;">
+                <h2>Identité</h2>
+                <div class="kn-field">
+                    <label for="name">Nom de la prestation</label>
+                    <input type="text" id="name" name="name" value="<?= $e($service['name']) ?>" required>
+                </div>
+                <div class="kn-field">
+                    <label for="category_id">Catégorie</label>
+                    <select id="category_id" name="category_id" required>
+                        <?php foreach ($data['categories'] as $cat): ?>
+                            <option value="<?= (int) $cat['id'] ?>" <?= (int) $service['category_id'] === (int) $cat['id'] ? 'selected' : '' ?>>
+                                <?= $e($cat['name']) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="kn-field">
+                    <label for="short_description">Description courte</label>
+                    <input type="text" id="short_description" name="short_description" value="<?= $e($service['short_description'] ?? '') ?>">
+                </div>
+            </section>
+
+            <section class="kn-card" style="margin-bottom:24px;">
                 <h2>Prix et durée de base</h2>
                 <div class="kn-grid kn-grid-2">
                     <div class="kn-field">

@@ -65,6 +65,7 @@ final class CatalogController
         return $this->view->render('admin/catalog/service', [
             'csrf' => $this->csrf->field(),
             'service' => $service,
+            'categories' => $this->catalog->allCategories(),
             'modes' => $this->catalog->serviceModes($id),
             'variants' => $this->catalog->serviceVariants($id, false),
             'extras' => $this->catalog->serviceExtras($id, false),
@@ -87,6 +88,17 @@ final class CatalogController
         }
 
         $userId = $this->session->userId();
+
+        // Identité : renommage / recatégorisation (le slug reste stable).
+        $name = $request->string('name');
+        $categoryId = $request->int('category_id');
+        if ($name !== '' && $categoryId > 0) {
+            $this->catalog->updateServiceMeta($id, [
+                'name' => $name,
+                'category_id' => $categoryId,
+                'short_description' => $request->string('short_description'),
+            ]);
+        }
 
         // Prix en euros saisis côté formulaire → conversion en centimes.
         $this->catalog->updateServiceBase($id, [
