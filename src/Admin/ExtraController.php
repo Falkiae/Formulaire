@@ -10,6 +10,7 @@ use Keepnew\Core\Request;
 use Keepnew\Core\Response;
 use Keepnew\Core\Session;
 use Keepnew\Core\View;
+use Keepnew\Support\ImageUpload;
 
 /**
  * Catalogue central des extras + rattachement aux services (pivot).
@@ -21,7 +22,29 @@ final class ExtraController
         private readonly Session $session,
         private readonly Csrf $csrf,
         private readonly ExtraRepository $extras,
+        private readonly ImageUpload $images,
     ) {
+    }
+
+    /**
+     * Résout l'image après soumission (retrait / upload / conservation).
+     * Une image invalide est ignorée avec un flash.
+     */
+    private function handleImage(Request $request, ?string $current): ?string
+    {
+        if ($request->bool('remove_image')) {
+            $current = null;
+        }
+        $file = $request->file('image');
+        if ($file !== null) {
+            try {
+                $current = $this->images->store($file, 'catalog');
+            } catch (\RuntimeException $e) {
+                $this->session->flash('extras_ok', 'Image ignorée : ' . $e->getMessage());
+            }
+        }
+
+        return $current;
     }
 
     /**
@@ -49,7 +72,7 @@ final class ExtraController
             return Response::redirect('/admin/extras');
         }
 
-        $this->extras->create([
+        $id = $this->extras->create([
             'code' => null,
             'label' => $label,
             'description' => $request->string('description') ?: null,
@@ -57,6 +80,11 @@ final class ExtraController
             'default_duration_min' => max(0, $request->int('default_duration')),
             'is_active' => 1,
         ]);
+
+        $image = $this->handleImage($request, null);
+        if ($image !== null) {
+            $this->extras->setImage($id, $image);
+        }
 
         $this->session->flash('extras_ok', 'Extra créé.');
 
@@ -69,6 +97,7 @@ final class ExtraController
     public function update(Request $request): Response
     {
         $id = (int) $request->attribute('id');
+        $current = $this->extras->find($id);
         $this->extras->update($id, [
             'label' => $request->string('label'),
             'description' => $request->string('description') ?: null,
@@ -76,6 +105,8 @@ final class ExtraController
             'default_duration_min' => max(0, $request->int('default_duration')),
             'is_active' => $request->bool('is_active') ? 1 : 0,
         ]);
+
+        $this->extras->setImage($id, $this->handleImage($request, $current['image_path'] ?? null));
 
         $this->session->flash('extras_ok', 'Extra enregistré.');
 

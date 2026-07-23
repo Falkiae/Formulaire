@@ -72,6 +72,14 @@ final class ExtraRepository
     }
 
     /**
+     * Définit (ou retire, avec null) l'image d'un extra.
+     */
+    public function setImage(int $id, ?string $path): void
+    {
+        $this->db->run('UPDATE extras SET image_path = :p WHERE id = :id', ['p' => $path, 'id' => $id]);
+    }
+
+    /**
      * Un extra n'est supprimable que s'il n'est utilisé dans aucune commande.
      * Sinon on le désactive.
      */

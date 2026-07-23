@@ -69,6 +69,10 @@
   function euro(cents) {
     return (cents / 100).toFixed(2).replace(".", ",") + " €";
   }
+  // Construit l'URL publique d'une image du catalogue (servie sous /uploads).
+  function imgUrl(p) {
+    return p ? apiBase.replace(/\/$/, "") + "/uploads/" + p : null;
+  }
   function api(path, opts) {
     opts = opts || {};
     opts.headers = Object.assign({ "Content-Type": "application/json", Accept: "application/json" }, opts.headers || {});
@@ -265,7 +269,7 @@
             state.categoryId = cat.id;
             // Descend d'un niveau si sous-catégories, sinon services.
             render();
-          })
+          }, false, imgUrl(cat.image_path))
         );
       });
     } else {
@@ -284,7 +288,7 @@
                 setTimeout(function () {
                   goto("details");
                 }, 300);
-              })
+              }, false, imgUrl(svc.image_path))
             );
           });
       });
@@ -341,8 +345,13 @@
       var list = el('<div class="kn-extras"></div>');
       cfg.extras.forEach(function (x) {
         var checked = state.extraIds.indexOf(x.id) >= 0;
+        var thumb = imgUrl(x.image_path)
+          ? '<img class="kn-extra-img" src="' + esc(imgUrl(x.image_path)) + '" alt="" loading="lazy">'
+          : "";
         var row = el(
-          '<label class="kn-extra"><span>' +
+          '<label class="kn-extra">' +
+            thumb +
+            '<span class="kn-extra-txt">' +
             esc(x.label) +
             ' <span class="kn-muted">+' +
             euro(x.price_cents) +
@@ -894,16 +903,24 @@
   }
 
   // --- Composants réutilisables ---------------------------------------------
-  function choiceCard(icon, title, desc, onClick, active) {
+  function choiceCard(icon, title, desc, onClick, active, imageUrl) {
+    // Média à gauche : image (vignette) si disponible, sinon emoji/icône.
+    var media = imageUrl
+      ? '<img class="kn-card-img" src="' + esc(imageUrl) + '" alt="" loading="lazy">'
+      : icon
+      ? '<span class="kn-card-icon" aria-hidden="true">' + icon + "</span>"
+      : "";
     var c = el(
       '<button type="button" class="kn-card ' +
         (active ? "on" : "") +
         '">' +
-        (icon ? '<span class="kn-card-icon" aria-hidden="true">' + icon + "</span>" : "") +
+        (media ? '<span class="kn-card-media">' + media + "</span>" : "") +
+        '<span class="kn-card-body">' +
         '<span class="kn-card-title">' +
         esc(title) +
         "</span>" +
         (desc ? '<span class="kn-card-desc">' + esc(desc) + "</span>" : "") +
+        "</span>" +
         "</button>"
     );
     c.addEventListener("click", onClick);
@@ -992,9 +1009,13 @@
       ".kn-progress-label{font-size:.78rem;color:var(--muted);font-weight:600;margin-top:6px}" +
       ".kn-postal-wrap{display:flex;flex-direction:column;gap:8px;margin-top:4px}" +
       ".kn-cards{display:grid;gap:12px;margin:12px 0}.kn-cards-sm{grid-template-columns:repeat(auto-fill,minmax(120px,1fr))}" +
-      ".kn-card{display:flex;flex-direction:column;gap:4px;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;min-height:48px;cursor:pointer;font:inherit;color:inherit}" +
+      ".kn-card{display:flex;flex-direction:row;align-items:center;gap:14px;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;min-height:48px;cursor:pointer;font:inherit;color:inherit}" +
       ".kn-card.on{border-color:var(--a);box-shadow:0 0 0 2px var(--a) inset}" +
-      ".kn-card-icon{font-size:1.5rem}.kn-card-title{font-weight:700}.kn-card-desc{color:var(--muted);font-size:.85rem}" +
+      ".kn-card-media{flex:0 0 auto;display:flex;align-items:center;justify-content:center}" +
+      ".kn-card-img{width:64px;height:64px;object-fit:cover;border-radius:10px;display:block}" +
+      ".kn-card-body{display:flex;flex-direction:column;gap:2px;min-width:0}" +
+      ".kn-card-icon{font-size:1.6rem;width:44px;text-align:center}.kn-card-title{font-weight:700}.kn-card-desc{color:var(--muted);font-size:.85rem}" +
+      ".kn-extra-img{width:48px;height:48px;object-fit:cover;border-radius:8px;flex:0 0 auto}.kn-extra-txt{flex:1;min-width:0}" +
       ".kn-field{margin:12px 0}.kn-field label{display:block;font-size:.85rem;color:var(--muted);margin-bottom:4px}" +
       ".kn input[type=text],.kn input[type=email],.kn input[type=tel],.kn input:not([type]){width:100%;min-height:48px;padding:0 12px;font-size:16px;font-family:inherit;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink)}" +
       ".kn input:focus{outline:2px solid var(--a);outline-offset:2px}" +

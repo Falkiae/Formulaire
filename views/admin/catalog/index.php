@@ -52,7 +52,7 @@ $centsToEuros = static fn (int $c): string => number_format($c / 100, 2, ',', ' 
 
                 <details style="margin-top:16px;">
                     <summary>Ajouter une catégorie</summary>
-                    <form method="post" action="/admin/catalogue/categorie" style="margin-top:12px;">
+                    <form method="post" action="/admin/catalogue/categorie" style="margin-top:12px;" enctype="multipart/form-data">
                         <?= $data['csrf'] ?>
                         <div class="kn-field">
                             <label for="cat_name">Nom</label>
@@ -66,6 +66,10 @@ $centsToEuros = static fn (int $c): string => number_format($c / 100, 2, ',', ' 
                                     <option value="<?= (int) $c['id'] ?>"><?= $e($c['name']) ?></option>
                                 <?php endforeach; ?>
                             </select>
+                        </div>
+                        <div class="kn-field">
+                            <label for="cat_image">Image (optionnel)</label>
+                            <input type="file" id="cat_image" name="image" accept="image/jpeg,image/png,image/webp">
                         </div>
                         <label class="kn-check">
                             <input type="checkbox" name="is_visible" value="1" checked>

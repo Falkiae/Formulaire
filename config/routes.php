@@ -250,24 +250,31 @@ return static function (Router $router, Container $container): void {
         $c->get(UserRepository::class),
         $c->get(Database::class),
     ));
+    // Uploader d'images du catalogue : cible le webroot (public/uploads) car
+    // ces images sont publiques (affichées dans le widget), contrairement aux
+    // photos privées de l'app technicien (ImageUpload::class → storage/uploads).
+    $catalogImages = new ImageUpload(dirname(__DIR__) . '/public/uploads');
     $container->singleton(CatalogController::class, static fn (Container $c): CatalogController => new CatalogController(
         $c->get(View::class),
         $c->get(Session::class),
         $c->get(Csrf::class),
         $c->get(CatalogRepository::class),
         $c->get(ExtraRepository::class),
+        $catalogImages,
     ));
     $container->singleton(CategoryController::class, static fn (Container $c): CategoryController => new CategoryController(
         $c->get(View::class),
         $c->get(Session::class),
         $c->get(Csrf::class),
         $c->get(CatalogRepository::class),
+        $catalogImages,
     ));
     $container->singleton(ExtraController::class, static fn (Container $c): ExtraController => new ExtraController(
         $c->get(View::class),
         $c->get(Session::class),
         $c->get(Csrf::class),
         $c->get(ExtraRepository::class),
+        $catalogImages,
     ));
 
     // --- Dispatch / opérationnel (Phase 7) ---------------------------------

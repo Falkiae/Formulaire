@@ -23,7 +23,7 @@ $cat = $data['category'];
         <p><a href="/admin/catalogue">← Retour au catalogue</a></p>
         <h1>Catégorie</h1>
 
-        <form method="post" action="/admin/catalogue/categorie/<?= (int) $cat['id'] ?>" class="kn-card">
+        <form method="post" action="/admin/catalogue/categorie/<?= (int) $cat['id'] ?>" class="kn-card" enctype="multipart/form-data">
             <?= $data['csrf'] ?>
             <div class="kn-field">
                 <label for="name">Nom</label>
@@ -48,6 +48,15 @@ $cat = $data['category'];
             <div class="kn-field">
                 <label for="icon">Icône (nom du set SVG)</label>
                 <input type="text" id="icon" name="icon" value="<?= $e($cat['icon'] ?? '') ?>">
+            </div>
+            <div class="kn-field">
+                <label>Image (affichée dans le tunnel client)</label>
+                <?php if (($cat['image_path'] ?? '') !== ''): ?>
+                    <img src="/uploads/<?= $e($cat['image_path']) ?>" alt="" style="max-width:140px;border-radius:8px;display:block;margin-bottom:8px;">
+                    <label class="kn-check"><input type="checkbox" name="remove_image" value="1"> Retirer l'image</label>
+                <?php endif; ?>
+                <input type="file" name="image" accept="image/jpeg,image/png,image/webp">
+                <p class="kn-muted" style="font-size:.8rem;margin-top:4px;">JPEG, PNG ou WebP — recadrée et ré-encodée automatiquement.</p>
             </div>
             <label class="kn-check" style="margin-bottom:16px;">
                 <input type="checkbox" name="is_visible" value="1" <?= ((int) $cat['is_visible'] === 1) ? 'checked' : '' ?>>

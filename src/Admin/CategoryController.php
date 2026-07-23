@@ -11,6 +11,7 @@ use Keepnew\Core\Request;
 use Keepnew\Core\Response;
 use Keepnew\Core\Session;
 use Keepnew\Core\View;
+use Keepnew\Support\ImageUpload;
 
 /**
  * CRUD des catégories du catalogue.
@@ -22,7 +23,29 @@ final class CategoryController
         private readonly Session $session,
         private readonly Csrf $csrf,
         private readonly CatalogRepository $catalog,
+        private readonly ImageUpload $images,
     ) {
+    }
+
+    /**
+     * Résout l'image après soumission : retrait explicite, nouvel upload, ou
+     * conservation de l'existante. Une image invalide est ignorée avec un flash.
+     */
+    private function handleImage(Request $request, ?string $current): ?string
+    {
+        if ($request->bool('remove_image')) {
+            $current = null;
+        }
+        $file = $request->file('image');
+        if ($file !== null) {
+            try {
+                $current = $this->images->store($file, 'catalog');
+            } catch (\RuntimeException $e) {
+                $this->session->flash('catalog_ok', 'Image ignorée : ' . $e->getMessage());
+            }
+        }
+
+        return $current;
     }
 
     /**
@@ -37,13 +60,18 @@ final class CategoryController
             return Response::redirect('/admin/catalogue');
         }
 
-        $this->catalog->createCategory([
+        $id = $this->catalog->createCategory([
             'name' => $name,
             'parent_id' => $request->int('parent_id') > 0 ? $request->int('parent_id') : null,
             'description' => $request->string('description') ?: null,
             'icon' => $request->string('icon') ?: null,
             'is_visible' => $request->bool('is_visible', true) ? 1 : 0,
         ]);
+
+        $image = $this->handleImage($request, null);
+        if ($image !== null) {
+            $this->catalog->setCategoryImage($id, $image);
+        }
 
         $this->session->flash('catalog_ok', 'Catégorie créée.');
 
@@ -76,7 +104,8 @@ final class CategoryController
     public function update(Request $request): Response
     {
         $id = (int) $request->attribute('id');
-        if ($this->catalog->findCategory($id) === null) {
+        $current = $this->catalog->findCategory($id);
+        if ($current === null) {
             throw new NotFoundException('Catégorie introuvable.');
         }
 
@@ -93,6 +122,8 @@ final class CategoryController
             'icon' => $request->string('icon') ?: null,
             'is_visible' => $request->bool('is_visible') ? 1 : 0,
         ]);
+
+        $this->catalog->setCategoryImage($id, $this->handleImage($request, $current['image_path'] ?? null));
 
         $this->session->flash('catalog_ok', 'Catégorie enregistrée.');
 

@@ -253,6 +253,7 @@ CREATE TABLE extras (
     label               VARCHAR(190)    NOT NULL,
     description         VARCHAR(255)    NULL,
     icon                VARCHAR(120)    NULL,
+    image_path          VARCHAR(255)    NULL,
     -- Prix/durée par défaut de l'extra (surchargeables par service, voir pivot).
     default_price_cents INT             NOT NULL DEFAULT 0,
     default_duration_min SMALLINT       NOT NULL DEFAULT 0,

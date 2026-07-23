@@ -12,6 +12,7 @@ use Keepnew\Core\Request;
 use Keepnew\Core\Response;
 use Keepnew\Core\Session;
 use Keepnew\Core\View;
+use Keepnew\Support\ImageUpload;
 
 /**
  * Back-office catalogue : liste des catégories/services, fiche service éditable
@@ -26,6 +27,7 @@ final class CatalogController
         private readonly Csrf $csrf,
         private readonly CatalogRepository $catalog,
         private readonly ExtraRepository $extras,
+        private readonly ImageUpload $images,
     ) {
     }
 
@@ -121,6 +123,21 @@ final class CatalogController
                 $userId,
             );
         }
+
+        // Image de la prestation (upload optionnel ou retrait).
+        $image = $service['image_path'] ?? null;
+        if ($request->bool('remove_image')) {
+            $image = null;
+        }
+        $file = $request->file('image');
+        if ($file !== null) {
+            try {
+                $image = $this->images->store($file, 'catalog');
+            } catch (\RuntimeException $e) {
+                $this->session->flash('catalog_ok', 'Image ignorée : ' . $e->getMessage());
+            }
+        }
+        $this->catalog->setServiceImage($id, $image);
 
         $this->session->flash('catalog_ok', 'Prestation enregistrée.');
 

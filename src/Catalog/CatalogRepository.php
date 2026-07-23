@@ -145,6 +145,7 @@ final class CatalogRepository
                 e.id             AS extra_id,
                 e.code,
                 e.label,
+                e.image_path,
                 COALESCE(se.price_cents, e.default_price_cents)   AS eff_price_cents,
                 COALESCE(se.duration_min, e.default_duration_min) AS eff_duration_min,
                 se.selection_type,
@@ -196,6 +197,22 @@ final class CatalogRepository
                 'id' => $serviceId,
             ],
         );
+    }
+
+    /**
+     * Définit (ou retire, avec null) l'image d'une catégorie.
+     */
+    public function setCategoryImage(int $categoryId, ?string $path): void
+    {
+        $this->db->run('UPDATE service_categories SET image_path = :p WHERE id = :id', ['p' => $path, 'id' => $categoryId]);
+    }
+
+    /**
+     * Définit (ou retire, avec null) l'image d'une prestation.
+     */
+    public function setServiceImage(int $serviceId, ?string $path): void
+    {
+        $this->db->run('UPDATE services SET image_path = :p WHERE id = :id', ['p' => $path, 'id' => $serviceId]);
     }
 
     public function updateServiceBase(int $serviceId, array $data, ?int $userId): void

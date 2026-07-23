@@ -31,6 +31,7 @@ final class CatalogApiController
                 'short_description' => $s['short_description'],
                 'variant_type' => $s['variant_type'],
                 'base_price_cents' => (int) $s['base_price_cents'],
+                'image_path' => $s['image_path'] ?? null,
             ],
             $this->catalog->allServices(onlyActive: true),
         );
@@ -68,6 +69,7 @@ final class CatalogApiController
                     'price_cents' => (int) $e['eff_price_cents'],
                     'selection_type' => $e['selection_type'],
                     'exclusive_group' => $e['exclusive_group'],
+                    'image_path' => $e['image_path'] ?? null,
                 ],
                 $this->catalog->serviceExtras($id),
             ),

@@ -36,7 +36,7 @@ foreach ($data['modes'] as $m) {
         <h1><?= $e($service['name']) ?></h1>
         <p class="kn-muted"><?= $e($service['short_description'] ?? '') ?></p>
 
-        <form method="post" action="/admin/catalogue/service/<?= (int) $service['id'] ?>">
+        <form method="post" action="/admin/catalogue/service/<?= (int) $service['id'] ?>" enctype="multipart/form-data">
             <?= $data['csrf'] ?>
 
             <section class="kn-card" style="margin-bottom:24px;">
@@ -58,6 +58,15 @@ foreach ($data['modes'] as $m) {
                 <div class="kn-field">
                     <label for="short_description">Description courte</label>
                     <input type="text" id="short_description" name="short_description" value="<?= $e($service['short_description'] ?? '') ?>">
+                </div>
+                <div class="kn-field">
+                    <label>Image (affichée dans le tunnel client)</label>
+                    <?php if (($service['image_path'] ?? '') !== ''): ?>
+                        <img src="/uploads/<?= $e($service['image_path']) ?>" alt="" style="max-width:140px;border-radius:8px;display:block;margin-bottom:8px;">
+                        <label class="kn-check"><input type="checkbox" name="remove_image" value="1"> Retirer l'image</label>
+                    <?php endif; ?>
+                    <input type="file" name="image" accept="image/jpeg,image/png,image/webp">
+                    <p class="kn-muted" style="font-size:.8rem;margin-top:4px;">JPEG, PNG ou WebP — recadrée et ré-encodée automatiquement.</p>
                 </div>
             </section>
 
