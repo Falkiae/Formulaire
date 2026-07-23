@@ -219,6 +219,52 @@ final class TechnicianRepository
         );
     }
 
+    // --- Zones de service (chalandise) -----------------------------------------
+
+    /**
+     * @return list<int>
+     */
+    public function zoneIdsFor(int $technicianId): array
+    {
+        $rows = $this->db->select(
+            'SELECT zone_id FROM technician_zones WHERE technician_id = :t',
+            ['t' => $technicianId],
+        );
+
+        return array_map(static fn (array $r): int => (int) $r['zone_id'], $rows);
+    }
+
+    /**
+     * Remplace l'ensemble des zones couvertes par un technicien (même table
+     * technician_zones que ZoneRepository::syncTechnicians, sens inverse).
+     *
+     * @param list<int> $zoneIds
+     */
+    public function syncZones(int $technicianId, array $zoneIds): void
+    {
+        $this->db->transaction(function (Database $db) use ($technicianId, $zoneIds): void {
+            $db->run('DELETE FROM technician_zones WHERE technician_id = :t', ['t' => $technicianId]);
+            foreach (array_unique($zoneIds) as $zoneId) {
+                $db->run(
+                    'INSERT INTO technician_zones (technician_id, zone_id) VALUES (:t, :z)',
+                    ['t' => $technicianId, 'z' => (int) $zoneId],
+                );
+            }
+        });
+    }
+
+    /**
+     * Zones actives (pour la checklist « zones couvertes » de la fiche technicien).
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function activeZones(): array
+    {
+        return $this->db->select(
+            'SELECT id, name FROM service_zones WHERE is_active = 1 ORDER BY priority, name',
+        );
+    }
+
     // --- Ressources annexes ----------------------------------------------------
 
     /**

@@ -9,6 +9,7 @@ $tech = $data['tech'];
 $isNew = $tech === null;
 $techId = $isNew ? 0 : (int) $tech['id'];
 $skillIds = $data['tech_skill_ids'];
+$zoneIds = $data['tech_zone_ids'];
 $weekdays = [1 => 'Lundi', 2 => 'Mardi', 3 => 'Mercredi', 4 => 'Jeudi', 5 => 'Vendredi', 6 => 'Samedi', 0 => 'Dimanche'];
 ?>
 <!doctype html>
@@ -92,6 +93,28 @@ $weekdays = [1 => 'Lundi', 2 => 'Mardi', 3 => 'Mercredi', 4 => 'Jeudi', 5 => 'Ve
                             <?php endforeach; ?>
                         </div>
                         <button type="submit" class="kn-btn kn-btn-ghost">Enregistrer les compétences</button>
+                    </form>
+                <?php endif; ?>
+            </section>
+
+            <!-- Zones de service couvertes -->
+            <section class="kn-card" style="margin-top:24px;">
+                <h2>Zones couvertes</h2>
+                <p class="kn-muted">Détermine dans quelles zones de chalandise ce technicien peut être proposé. Gérable aussi depuis chaque <a href="/admin/zones">fiche zone</a>.</p>
+                <?php if ($data['zones'] === []): ?>
+                    <p class="kn-muted">Aucune zone active. <a href="/admin/zones/nouvelle">En créer</a>.</p>
+                <?php else: ?>
+                    <form method="post" action="/admin/techniciens/<?= $techId ?>/zones">
+                        <?= $data['csrf'] ?>
+                        <div style="display:flex;flex-wrap:wrap;gap:8px 20px;margin-bottom:16px;">
+                            <?php foreach ($data['zones'] as $z): ?>
+                                <label class="kn-check" style="margin:0;">
+                                    <input type="checkbox" name="zones[]" value="<?= (int) $z['id'] ?>" <?= in_array((int) $z['id'], $zoneIds, true) ? 'checked' : '' ?>>
+                                    <?= $e($z['name']) ?>
+                                </label>
+                            <?php endforeach; ?>
+                        </div>
+                        <button type="submit" class="kn-btn kn-btn-ghost">Enregistrer les zones</button>
                     </form>
                 <?php endif; ?>
             </section>

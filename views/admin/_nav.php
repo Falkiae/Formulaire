@@ -25,6 +25,7 @@ $_knItems = [
     ['href' => '/admin/extras',        'label' => 'Extras',       'match' => '/admin/extras',       'roles' => ['admin']],
     ['href' => '/admin/formulaire',    'label' => 'Formulaire',   'match' => '/admin/formulaire',   'roles' => ['admin']],
     ['href' => '/admin/techniciens',   'label' => 'Techniciens',  'match' => '/admin/technicien',   'roles' => ['admin', 'dispatcher']],
+    ['href' => '/admin/zones',         'label' => 'Zones',        'match' => '/admin/zones',        'roles' => ['admin']],
     ['href' => '/admin/ateliers',      'label' => 'Ateliers',     'match' => '/admin/ateliers',     'roles' => ['admin', 'dispatcher']],
     ['href' => '/admin/simulateur',    'label' => 'Simulateur',   'match' => '/admin/simulateur',   'roles' => ['admin', 'dispatcher']],
     ['href' => '/admin/utilisateurs',  'label' => 'Utilisateurs', 'match' => '/admin/utilisateurs', 'roles' => ['admin']],

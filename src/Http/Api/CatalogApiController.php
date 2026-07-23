@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Keepnew\Http\Api;
 
 use Keepnew\Catalog\CatalogRepository;
+use Keepnew\Core\Database;
 use Keepnew\Core\Request;
 use Keepnew\Core\Response;
 
@@ -13,8 +14,10 @@ use Keepnew\Core\Response;
  */
 final class CatalogApiController
 {
-    public function __construct(private readonly CatalogRepository $catalog)
-    {
+    public function __construct(
+        private readonly CatalogRepository $catalog,
+        private readonly Database $db,
+    ) {
     }
 
     /**
@@ -41,9 +44,23 @@ final class CatalogApiController
             $this->catalog->allServices(onlyActive: true),
         );
 
+        $contact = $this->db->select(
+            "SELECT `key`, `value` FROM settings WHERE `key` IN ('company.phone', 'company.email')",
+        );
+        $contactByKey = [];
+        foreach ($contact as $row) {
+            $contactByKey[$row['key']] = $row['value'];
+        }
+
         return Response::json([
             'categories' => $this->catalog->categoryTree(),
             'services' => $services,
+            // Coordonnées publiques de l'entreprise — utilisées pour orienter vers
+            // un devis sur mesure quand une adresse est hors zone de service.
+            'contact' => [
+                'phone' => $contactByKey['company.phone'] ?? null,
+                'email' => $contactByKey['company.email'] ?? null,
+            ],
         ]);
     }
 

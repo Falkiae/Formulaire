@@ -179,6 +179,19 @@ final class TechnicianController
         return Response::redirect('/admin/techniciens/' . (int) $tech['id']);
     }
 
+    /**
+     * POST /admin/techniciens/{id}/zones — synchronise les zones couvertes.
+     */
+    public function syncZones(Request $request): Response
+    {
+        $tech = $this->requireTech($request);
+        $zoneIds = array_map('intval', $request->array('zones'));
+        $this->techs->syncZones((int) $tech['id'], $zoneIds);
+        $this->session->flash('tech_ok', 'Zones mises à jour.');
+
+        return Response::redirect('/admin/techniciens/' . (int) $tech['id']);
+    }
+
     // --- Catalogue des compétences (skills) ------------------------------------
 
     /**
@@ -274,6 +287,8 @@ final class TechnicianController
             'tech' => $tech,
             'skills' => $this->techs->allSkills(),
             'tech_skill_ids' => $techId > 0 ? $this->techs->skillIdsFor($techId) : [],
+            'zones' => $this->techs->activeZones(),
+            'tech_zone_ids' => $techId > 0 ? $this->techs->zoneIdsFor($techId) : [],
             'availability' => $techId > 0 ? $this->techs->availabilityFor($techId) : [],
             'time_off' => $techId > 0 ? $this->techs->timeOffFor($techId) : [],
             'locations' => $this->techs->activeLocations(),

@@ -22,6 +22,7 @@ use Keepnew\Admin\LocationController;
 use Keepnew\Admin\SimulatorController;
 use Keepnew\Admin\TechnicianController;
 use Keepnew\Admin\UserController;
+use Keepnew\Admin\ZoneController;
 use Keepnew\Availability\EngineConfig;
 use Keepnew\Auth\UserRepository;
 use Keepnew\Catalog\CatalogRepository;
@@ -76,6 +77,7 @@ use Keepnew\Notification\TwilioSmsProvider;
 use Keepnew\Tech\TechController;
 use Keepnew\Tech\TimeEntryService;
 use Keepnew\Technician\TechnicianRepository;
+use Keepnew\Zone\ZoneRepository;
 use Keepnew\Support\ImageUpload;
 use Keepnew\Admin\ReportController;
 use Keepnew\Tracking\MetaCapiClient;
@@ -142,7 +144,10 @@ return static function (Router $router, Container $container): void {
     ));
 
     // --- Contrôleurs API ---------------------------------------------------
-    $container->singleton(CatalogApiController::class, static fn (Container $c): CatalogApiController => new CatalogApiController($c->get(CatalogRepository::class)));
+    $container->singleton(CatalogApiController::class, static fn (Container $c): CatalogApiController => new CatalogApiController(
+        $c->get(CatalogRepository::class),
+        $c->get(Database::class),
+    ));
     $container->singleton(CartApiController::class, static fn (Container $c): CartApiController => new CartApiController(
         $c->get(CartService::class),
         $c->get(\Keepnew\Catalog\CartPricingService::class),
@@ -328,6 +333,13 @@ return static function (Router $router, Container $container): void {
         $c->get(Csrf::class),
         $c->get(TechnicianRepository::class),
     ));
+    $container->singleton(ZoneRepository::class, static fn (Container $c): ZoneRepository => new ZoneRepository($c->get(Database::class)));
+    $container->singleton(ZoneController::class, static fn (Container $c): ZoneController => new ZoneController(
+        $c->get(View::class),
+        $c->get(Session::class),
+        $c->get(Csrf::class),
+        $c->get(ZoneRepository::class),
+    ));
     $container->singleton(SimulatorController::class, static fn (Container $c): SimulatorController => new SimulatorController(
         $c->get(View::class),
         $c->get(Session::class),
@@ -420,6 +432,17 @@ return static function (Router $router, Container $container): void {
             $r->get('/competences', [TechnicianController::class, 'skillsIndex']);
             $r->post('/competences', [TechnicianController::class, 'createSkill'], [CsrfMiddleware::class]);
             $r->post('/competences/{id}', [TechnicianController::class, 'updateSkill'], [CsrfMiddleware::class]);
+
+            // Zones de service (chalandise) : couverture, règles tarifaires, techniciens
+            $r->get('/zones', [ZoneController::class, 'index']);
+            $r->get('/zones/nouvelle', [ZoneController::class, 'createForm']);
+            $r->post('/zones', [ZoneController::class, 'create'], [CsrfMiddleware::class]);
+            $r->get('/zones/{id}', [ZoneController::class, 'edit']);
+            $r->post('/zones/{id}', [ZoneController::class, 'update'], [CsrfMiddleware::class]);
+            $r->post('/zones/{id}/supprimer', [ZoneController::class, 'delete'], [CsrfMiddleware::class]);
+            $r->post('/zones/{id}/regle', [ZoneController::class, 'addModifier'], [CsrfMiddleware::class]);
+            $r->post('/zones/{id}/regle/{modifierId}/supprimer', [ZoneController::class, 'deleteModifier'], [CsrfMiddleware::class]);
+            $r->post('/zones/{id}/techniciens', [ZoneController::class, 'syncTechnicians'], [CsrfMiddleware::class]);
         });
 
         // ===== Opérationnel (admin + dispatcher) =====
@@ -454,6 +477,7 @@ return static function (Router $router, Container $container): void {
             $r->get('/techniciens/{id}', [TechnicianController::class, 'edit']);
             $r->post('/techniciens/{id}', [TechnicianController::class, 'update'], [CsrfMiddleware::class]);
             $r->post('/techniciens/{id}/competences', [TechnicianController::class, 'syncSkills'], [CsrfMiddleware::class]);
+            $r->post('/techniciens/{id}/zones', [TechnicianController::class, 'syncZones'], [CsrfMiddleware::class]);
             $r->post('/techniciens/{id}/disponibilite', [TechnicianController::class, 'addAvailability'], [CsrfMiddleware::class]);
             $r->post('/techniciens/{id}/disponibilite/{availId}/supprimer', [TechnicianController::class, 'deleteAvailability'], [CsrfMiddleware::class]);
             $r->post('/techniciens/{id}/absence', [TechnicianController::class, 'addTimeOff'], [CsrfMiddleware::class]);

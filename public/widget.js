@@ -739,7 +739,7 @@
         var block = av[mode];
         if (!block) return;
         if (block.status === "out_of_zone") {
-          body.appendChild(el('<p class="kn-alert">Nous n\'intervenons pas encore à cette adresse. Laissez-nous vos coordonnées, nous vous recontactons.</p>'));
+          body.appendChild(outOfZoneMessage());
           return;
         }
         if (block.status !== "ok" || !block.slots || !block.slots.length) {
@@ -953,6 +953,25 @@
   }
   function reassure(text) {
     return el('<p class="kn-reassure">' + esc(text) + "</p>");
+  }
+  // Message affiché quand l'adresse est hors zone de service : au lieu d'un
+  // cul-de-sac, propose un contact réel (téléphone/email) pour un devis sur
+  // mesure. Les coordonnées viennent de /api/catalog (catalog.contact).
+  function outOfZoneMessage() {
+    var contact = (catalog && catalog.contact) || {};
+    var links = "";
+    if (contact.phone) {
+      links += '<a class="kn-link" href="tel:' + esc(contact.phone.replace(/\s+/g, "")) + '">' + esc(contact.phone) + "</a>";
+    }
+    if (contact.email) {
+      links += (links ? " · " : "") + '<a class="kn-link" href="mailto:' + esc(contact.email) + '">' + esc(contact.email) + "</a>";
+    }
+    var wrap = el('<div class="kn-alert"></div>');
+    wrap.appendChild(
+      el('<p style="margin:0 0 8px;">Nous n\'intervenons pas encore automatiquement à cette adresse. Contactez-nous pour un devis sur mesure :</p>')
+    );
+    wrap.appendChild(el("<p style=\"margin:0;\">" + (links || "Contactez-nous depuis notre site.") + "</p>"));
+    return wrap;
   }
   function backLink(onClick) {
     var b = el('<button type="button" class="kn-back">← Revenir</button>');
