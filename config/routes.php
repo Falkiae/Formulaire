@@ -19,6 +19,7 @@ use Keepnew\Admin\ExtraController;
 use Keepnew\Admin\JobController;
 use Keepnew\Admin\LocationController;
 use Keepnew\Admin\SimulatorController;
+use Keepnew\Admin\TechnicianController;
 use Keepnew\Admin\UserController;
 use Keepnew\Availability\EngineConfig;
 use Keepnew\Auth\UserRepository;
@@ -72,6 +73,7 @@ use Keepnew\Notification\TemplateRenderer;
 use Keepnew\Notification\TwilioSmsProvider;
 use Keepnew\Tech\TechController;
 use Keepnew\Tech\TimeEntryService;
+use Keepnew\Technician\TechnicianRepository;
 use Keepnew\Support\ImageUpload;
 use Keepnew\Admin\ReportController;
 use Keepnew\Tracking\MetaCapiClient;
@@ -302,6 +304,13 @@ return static function (Router $router, Container $container): void {
         $c->get(Csrf::class),
         $c->get(UserRepository::class),
     ));
+    $container->singleton(TechnicianRepository::class, static fn (Container $c): TechnicianRepository => new TechnicianRepository($c->get(Database::class)));
+    $container->singleton(TechnicianController::class, static fn (Container $c): TechnicianController => new TechnicianController(
+        $c->get(View::class),
+        $c->get(Session::class),
+        $c->get(Csrf::class),
+        $c->get(TechnicianRepository::class),
+    ));
     $container->singleton(SimulatorController::class, static fn (Container $c): SimulatorController => new SimulatorController(
         $c->get(View::class),
         $c->get(Session::class),
@@ -389,6 +398,11 @@ return static function (Router $router, Container $container): void {
             $r->get('/utilisateurs/{id}', [UserController::class, 'edit']);
             $r->post('/utilisateurs/{id}', [UserController::class, 'update'], [CsrfMiddleware::class]);
             $r->post('/utilisateurs/{id}/actif', [UserController::class, 'toggleActive'], [CsrfMiddleware::class]);
+
+            // Catalogue des compétences (skills)
+            $r->get('/competences', [TechnicianController::class, 'skillsIndex']);
+            $r->post('/competences', [TechnicianController::class, 'createSkill'], [CsrfMiddleware::class]);
+            $r->post('/competences/{id}', [TechnicianController::class, 'updateSkill'], [CsrfMiddleware::class]);
         });
 
         // ===== Opérationnel (admin + dispatcher) =====
@@ -404,6 +418,18 @@ return static function (Router $router, Container $container): void {
             $r->get('/ateliers', [LocationController::class, 'index']);
             $r->post('/ateliers/{id}/poste', [LocationController::class, 'addBay'], [CsrfMiddleware::class]);
             $r->post('/ateliers/{id}/fermeture', [LocationController::class, 'addClosure'], [CsrfMiddleware::class]);
+
+            // Techniciens (fiches, compétences, disponibilités, absences)
+            $r->get('/techniciens', [TechnicianController::class, 'index']);
+            $r->get('/techniciens/nouveau', [TechnicianController::class, 'createForm']);
+            $r->post('/techniciens', [TechnicianController::class, 'create'], [CsrfMiddleware::class]);
+            $r->get('/techniciens/{id}', [TechnicianController::class, 'edit']);
+            $r->post('/techniciens/{id}', [TechnicianController::class, 'update'], [CsrfMiddleware::class]);
+            $r->post('/techniciens/{id}/competences', [TechnicianController::class, 'syncSkills'], [CsrfMiddleware::class]);
+            $r->post('/techniciens/{id}/disponibilite', [TechnicianController::class, 'addAvailability'], [CsrfMiddleware::class]);
+            $r->post('/techniciens/{id}/disponibilite/{availId}/supprimer', [TechnicianController::class, 'deleteAvailability'], [CsrfMiddleware::class]);
+            $r->post('/techniciens/{id}/absence', [TechnicianController::class, 'addTimeOff'], [CsrfMiddleware::class]);
+            $r->post('/techniciens/{id}/absence/{offId}/supprimer', [TechnicianController::class, 'deleteTimeOff'], [CsrfMiddleware::class]);
 
             // Simulateur
             $r->get('/simulateur', [SimulatorController::class, 'index']);
