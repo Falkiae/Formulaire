@@ -22,6 +22,7 @@ final class CatalogApiController
      */
     public function index(Request $request): Response
     {
+        $modesByService = $this->catalog->allServiceModesByService();
         $services = array_map(
             static fn (array $s): array => [
                 'id' => (int) $s['id'],
@@ -32,6 +33,10 @@ final class CatalogApiController
                 'variant_type' => $s['variant_type'],
                 'base_price_cents' => (int) $s['base_price_cents'],
                 'image_path' => $s['image_path'] ?? null,
+                // Modes ('onsite'/'workshop') que cette prestation supporte —
+                // permet au widget de ne proposer que les prestations compatibles
+                // avec le mode déjà choisi (ex. les véhicules ne sont qu'à domicile).
+                'modes' => $modesByService[(int) $s['id']] ?? [],
             ],
             $this->catalog->allServices(onlyActive: true),
         );

@@ -98,6 +98,31 @@ final class CatalogRepository
     }
 
     /**
+     * Modes ('onsite'/'workshop') supportés par chaque prestation active, en une
+     * seule requête groupée — évite le N+1 de serviceModes() appelée par service.
+     * Utilisé par l'API publique pour permettre au widget de filtrer les
+     * prestations proposées selon le mode déjà choisi par le client.
+     *
+     * @return array<int, list<string>> service_id => ['onsite', 'workshop', ...]
+     */
+    public function allServiceModesByService(): array
+    {
+        $rows = $this->db->select(
+            "SELECT sdm.service_id, sdm.mode
+               FROM service_delivery_modes sdm
+               JOIN services s ON s.id = sdm.service_id
+              WHERE s.is_active = 1 AND sdm.is_active = 1",
+        );
+
+        $out = [];
+        foreach ($rows as $row) {
+            $out[(int) $row['service_id']][] = (string) $row['mode'];
+        }
+
+        return $out;
+    }
+
+    /**
      * @return array<string, mixed>|null
      */
     public function serviceMode(int $serviceId, string $mode): ?array

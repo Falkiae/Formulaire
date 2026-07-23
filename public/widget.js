@@ -263,21 +263,25 @@
     }
     var cards = el('<div class="kn-cards"></div>');
     if (!state.categoryId) {
-      catalog.categories.forEach(function (cat) {
-        cards.appendChild(
-          choiceCard("📦", cat.name, cat.description || "", function () {
-            state.categoryId = cat.id;
-            // Descend d'un niveau si sous-catégories, sinon services.
-            render();
-          }, false, imgUrl(cat.image_path))
-        );
-      });
+      catalog.categories
+        .filter(function (cat) {
+          return categoryHasCompatibleService(cat);
+        })
+        .forEach(function (cat) {
+          cards.appendChild(
+            choiceCard("📦", cat.name, cat.description || "", function () {
+              state.categoryId = cat.id;
+              // Descend d'un niveau si sous-catégories, sinon services.
+              render();
+            }, false, imgUrl(cat.image_path))
+          );
+        });
     } else {
       var cat = findCategory(state.categoryId);
       (cat && cat.children && cat.children.length ? cat.children : [cat]).forEach(function (c) {
         catalog.services
           .filter(function (s) {
-            return s.category_id === c.id;
+            return s.category_id === c.id && serviceSupportsMode(s, state.mode);
           })
           .forEach(function (svc) {
             cards.appendChild(
@@ -298,6 +302,20 @@
       }));
     }
     body.appendChild(cards);
+  }
+  // Une prestation sans info de mode (API pas encore à jour) est considérée
+  // compatible par défaut, pour ne jamais masquer le catalogue par erreur.
+  function serviceSupportsMode(svc, mode) {
+    return !svc.modes || svc.modes.length === 0 || svc.modes.indexOf(mode) >= 0;
+  }
+  // Une catégorie n'est affichée que si elle (ou l'une de ses sous-catégories)
+  // contient au moins une prestation compatible avec le mode choisi.
+  function categoryHasCompatibleService(cat) {
+    var direct = catalog.services.some(function (s) {
+      return s.category_id === cat.id && serviceSupportsMode(s, state.mode);
+    });
+    if (direct) return true;
+    return (cat.children || []).some(categoryHasCompatibleService);
   }
   function findCategory(id) {
     var found = null;
@@ -421,8 +439,11 @@
           q.total_active_duration_min +
           " min</div>";
       })
-      .catch(function () {
-        box.innerHTML = "";
+      .catch(function (err) {
+        box.innerHTML =
+          '<p class="kn-muted">' +
+          esc((err && err.data && err.data.error) || "Indisponible dans ce mode.") +
+          "</p>";
       });
   }
   function addToCart() {
@@ -434,16 +455,20 @@
       quantity: state.quantity,
     };
     ensureCart().then(function () {
-      api("/cart/" + state.token + "/items", { method: "POST", body: body }).then(function (snap) {
-        state.cart = snap;
-        var p = snap.pricing;
-        dl("add_to_cart", { currency: "EUR", value: p ? p.total_tvac_cents / 100 : undefined, items: cartItemsForTracking() });
-        state.serviceId = null;
-        state.variantId = null;
-        state.extraIds = [];
-        state._serviceConfig = null;
-        goto("cart");
-      });
+      api("/cart/" + state.token + "/items", { method: "POST", body: body })
+        .then(function (snap) {
+          state.cart = snap;
+          var p = snap.pricing;
+          dl("add_to_cart", { currency: "EUR", value: p ? p.total_tvac_cents / 100 : undefined, items: cartItemsForTracking() });
+          state.serviceId = null;
+          state.variantId = null;
+          state.extraIds = [];
+          state._serviceConfig = null;
+          goto("cart");
+        })
+        .catch(function (err) {
+          flash((err && err.data && err.data.error) || "Impossible d'ajouter cette prestation au panier.");
+        });
     });
   }
 
@@ -1008,6 +1033,7 @@
       ".kn-progress-fill{height:100%;background:var(--a);border-radius:999px;transition:width .35s ease}" +
       ".kn-progress-label{font-size:.78rem;color:var(--muted);font-weight:600;margin-top:6px}" +
       ".kn-postal-wrap{display:flex;flex-direction:column;gap:8px;margin-top:4px}" +
+      ".kn-postal-wrap[hidden]{display:none}" +
       ".kn-cards{display:grid;gap:12px;margin:12px 0}.kn-cards-sm{grid-template-columns:repeat(auto-fill,minmax(120px,1fr))}" +
       ".kn-card{display:flex;flex-direction:row;align-items:center;gap:14px;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;min-height:48px;cursor:pointer;font:inherit;color:inherit}" +
       ".kn-card.on{border-color:var(--a);box-shadow:0 0 0 2px var(--a) inset}" +

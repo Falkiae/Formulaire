@@ -73,14 +73,18 @@ final class CartApiController
             throw new HttpException(422, 'Prestation ou mode invalide.');
         }
 
-        $this->cart->addItem(
-            $token,
-            $serviceId,
-            $mode,
-            $request->int('variant_id') > 0 ? $request->int('variant_id') : null,
-            array_map('intval', $request->array('extra_ids')),
-            max(1, $request->int('quantity', 1)),
-        );
+        try {
+            $this->cart->addItem(
+                $token,
+                $serviceId,
+                $mode,
+                $request->int('variant_id') > 0 ? $request->int('variant_id') : null,
+                array_map('intval', $request->array('extra_ids')),
+                max(1, $request->int('quantity', 1)),
+            );
+        } catch (\InvalidArgumentException $e) {
+            return Response::json(['error' => $e->getMessage()], 422);
+        }
 
         return Response::json($this->cart->snapshot($token), 201);
     }
