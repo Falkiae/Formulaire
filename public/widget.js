@@ -1160,28 +1160,29 @@
   // --- CSS (tokens de marque inline, scopé au Shadow DOM) -------------------
   function CSS() {
     return (
+      // Plein écran : .kn occupe toute la hauteur du viewport (embarquement
+      // dédié, page hôte réduite au strict minimum — voir widget-demo.html).
+      // La colonne de contenu reste lisible (max-width) mais le fond et le
+      // défilement, eux, couvrent tout l'écran, sans hauteur plafonnée
+      // arbitraire : chaque étape dispose de tout l'espace disponible.
       ".kn{--a:#586FF3;--ai:#3A4BC0;--blush:#F7D7E2;--ink:#141A2E;--muted:#5C6479;--paper:#FBFBFD;--surface:#fff;--line:#E4E6EF;--ok:#1D7A54;--alert:#B4322D;" +
-      // padding-top tient compte de la zone système du téléphone (encoche,
-      // heure, batterie…) : évite que la barre de progression soit masquée
-      // en haut d'écran sur mobile, sans changer l'espacement ailleurs.
-      "font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-size:16px;line-height:1.6;color:var(--ink);background:var(--paper);max-width:560px;margin:0 auto;padding:max(16px,env(safe-area-inset-top)) 16px 16px;box-sizing:border-box;display:flex;flex-direction:column}" +
+      "font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-size:16px;line-height:1.6;color:var(--ink);background:var(--paper);" +
+      "width:100%;height:100vh;margin:0;padding:max(16px,env(safe-area-inset-top)) 16px max(16px,env(safe-area-inset-bottom));box-sizing:border-box;display:flex;flex-direction:column}" +
+      "@supports (height:100dvh){.kn{height:100dvh}}" +
       ".kn *{box-sizing:border-box}" +
       ".kn-h{font-size:1.5rem;margin:8px 0 16px}.kn-h3{font-size:1.05rem;margin:16px 0 8px}" +
       ".kn-muted{color:var(--muted);font-size:.875rem}" +
-      ".kn-progress{margin-bottom:16px;flex:0 0 auto}" +
+      ".kn-progress{margin:0 auto 16px;flex:0 0 auto;width:100%;max-width:560px}" +
       ".kn-progress-track{height:8px;background:var(--line);border-radius:999px;overflow:hidden}" +
       ".kn-progress-fill{height:100%;background:var(--a);border-radius:999px;transition:width .35s ease}" +
       ".kn-progress-label{font-size:.78rem;color:var(--muted);font-weight:600;margin-top:6px}" +
-      // Conteneur de défilement interne et autonome : un « Typeform en boîte »,
-      // pas une prise de contrôle du viewport du navigateur (widget embarqué
-      // en bloc normal dans une page hôte arbitraire, sans iframe).
-      // scroll-snap-type "proximity" (pas "mandatory") : aimante seulement
-      // quand on est déjà proche d'un point d'ancrage, laisse le défilement
-      // libre sur un panneau plus grand que la boîte — "mandatory" empêchait
-      // d'atteindre le bas d'une étape plus haute que le conteneur.
-      ".kn-scroller{overflow-y:auto;scroll-snap-type:y proximity;-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain;height:min(760px,90vh);position:relative}" +
-      "@supports (height:100dvh){.kn-scroller{height:min(760px,90dvh)}}" +
-      ".kn-step-panel{min-height:100%;scroll-snap-align:start;display:flex;flex-direction:column;justify-content:center;padding:8px 0;outline:none}" +
+      // Conteneur de défilement : occupe tout l'espace restant sous la barre
+      // de progression (flex:1, pas de hauteur plafonnée). scroll-snap-type
+      // "proximity" (pas "mandatory") : aimante seulement quand on est déjà
+      // proche d'un point d'ancrage, laisse le défilement libre sur un
+      // panneau plus grand que l'espace visible.
+      ".kn-scroller{flex:1 1 auto;min-height:0;overflow-y:auto;scroll-snap-type:y proximity;-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain;position:relative}" +
+      ".kn-step-panel{min-height:100%;scroll-snap-align:start;display:flex;flex-direction:column;justify-content:center;padding:8px 0;margin:0 auto;width:100%;max-width:560px;outline:none}" +
       ".kn-postal-wrap{display:flex;flex-direction:column;gap:8px;margin-top:4px}" +
       ".kn-postal-wrap[hidden]{display:none}" +
       ".kn-cards{display:grid;gap:12px;margin:12px 0}.kn-cards-sm{grid-template-columns:repeat(auto-fill,minmax(120px,1fr))}" +
@@ -1225,7 +1226,9 @@
       // Barre panier : hors du scroller (frère normal-flow, pas de sticky à
       // l'intérieur d'un conteneur scroll-snap — comportement incohérent
       // inter-navigateurs sinon, la barre n'étant pas une cible de snap valide).
-      ".kn-quotebar-slot{flex:0 0 auto;padding-bottom:env(safe-area-inset-bottom)}" +
+      // La zone de sécurité en bas d'écran est déjà gérée par le padding de
+      // .kn (évite un double espacement avec la zone de sécurité du téléphone).
+      ".kn-quotebar-slot{flex:0 0 auto;margin:0 auto;width:100%;max-width:560px}" +
       ".kn-quotebar{width:100%;display:flex;justify-content:space-between;align-items:center;min-height:56px;padding:0 16px;margin-top:16px;background:var(--ink);color:#fff;border:0;border-radius:12px;font:inherit;cursor:pointer}" +
       ".kn-quotebar-total{font-weight:700;font-size:1.15rem;font-variant-numeric:tabular-nums}" +
       ".kn-flash{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:12px 20px;border-radius:8px;z-index:9999}" +
