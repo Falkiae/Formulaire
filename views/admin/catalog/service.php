@@ -86,7 +86,7 @@ foreach ($data['modes'] as $m) {
                 <h2>Prix et durée de base</h2>
                 <div class="kn-grid kn-grid-2">
                     <div class="kn-field">
-                        <label for="base_price">Prix de base (€)</label>
+                        <label for="base_price">Prix de base (€ HT)</label>
                         <input type="text" id="base_price" name="base_price" inputmode="decimal"
                                value="<?= $e($centsToEuros((int) $service['base_price_cents'])) ?>">
                     </div>
@@ -119,7 +119,7 @@ foreach ($data['modes'] as $m) {
                         </label>
                         <div class="kn-grid kn-grid-2">
                             <div class="kn-field">
-                                <label for="price_<?= $mode ?>">Prix (€)</label>
+                                <label for="price_<?= $mode ?>">Prix (€ HT)</label>
                                 <input type="text" id="price_<?= $mode ?>" name="price_<?= $mode ?>" inputmode="decimal"
                                        value="<?= ($m && $m['price_cents'] !== null) ? $e($centsToEuros((int) $m['price_cents'])) : '' ?>">
                             </div>
@@ -156,7 +156,7 @@ foreach ($data['modes'] as $m) {
                           style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;">
                         <?= $data['csrf'] ?>
                         <div class="kn-field" style="margin:0;"><label>Libellé <?= ((int) $v['is_default'] === 1) ? '<span class="kn-badge">★ Par défaut</span>' : '' ?></label><input type="text" name="label" value="<?= $e($v['label']) ?>" style="max-width:180px;"></div>
-                        <div class="kn-field" style="margin:0;"><label>Δ prix (€)</label><input type="text" name="price_delta" value="<?= $e($centsToEuros((int) $v['price_delta_cents'])) ?>" inputmode="decimal" style="max-width:100px;"></div>
+                        <div class="kn-field" style="margin:0;"><label>Δ prix (€ HT)</label><input type="text" name="price_delta" value="<?= $e($centsToEuros((int) $v['price_delta_cents'])) ?>" inputmode="decimal" style="max-width:100px;"></div>
                         <div class="kn-field" style="margin:0;"><label>Δ durée (min)</label><input type="number" name="duration_delta" value="<?= (int) $v['duration_delta_min'] ?>" style="max-width:90px;"></div>
                         <label class="kn-check" style="margin-bottom:12px;">
                             <input type="checkbox" name="is_active" value="1" <?= ((int) $v['is_active'] === 1) ? 'checked' : '' ?>> active
@@ -180,7 +180,7 @@ foreach ($data['modes'] as $m) {
                       style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin-top:12px;">
                     <?= $data['csrf'] ?>
                     <div class="kn-field" style="margin:0;"><label>Libellé</label><input type="text" name="label" required style="max-width:200px;"></div>
-                    <div class="kn-field" style="margin:0;"><label>Δ prix (€)</label><input type="text" name="price_delta" inputmode="decimal" value="0" style="max-width:100px;"></div>
+                    <div class="kn-field" style="margin:0;"><label>Δ prix (€ HT)</label><input type="text" name="price_delta" inputmode="decimal" value="0" style="max-width:100px;"></div>
                     <div class="kn-field" style="margin:0;"><label>Δ durée (min)</label><input type="number" name="duration_delta" value="0" style="max-width:90px;"></div>
                     <button type="submit" class="kn-btn kn-btn-ghost">Ajouter</button>
                 </form>
@@ -191,7 +191,7 @@ foreach ($data['modes'] as $m) {
             <h2>Extras rattachés</h2>
             <div class="kn-table-wrap">
                 <table class="kn-table">
-                    <thead><tr><th>Extra</th><th>Sélection</th><th class="kn-num">Prix effectif</th><th class="kn-num">Durée</th><th></th></tr></thead>
+                    <thead><tr><th>Extra</th><th>Sélection</th><th class="kn-num">Prix effectif (HT)</th><th class="kn-num">Durée</th><th></th></tr></thead>
                     <tbody>
                         <?php foreach ($data['extras'] as $x): ?>
                             <tr>
@@ -229,7 +229,7 @@ foreach ($data['modes'] as $m) {
                             </select>
                         </div>
                         <div class="kn-field" style="margin:0;">
-                            <label>Prix surchargé (€, vide = défaut)</label>
+                            <label>Prix surchargé (€ HT, vide = défaut)</label>
                             <input type="text" name="price" inputmode="decimal" style="max-width:120px;">
                         </div>
                         <div class="kn-field" style="margin:0;">

@@ -89,7 +89,7 @@ $centsToEuros = static fn (int $c): string => number_format($c / 100, 2, ',', ' 
                             <tr>
                                 <th>Prestation</th>
                                 <th>Catégorie</th>
-                                <th class="kn-num">Prix base</th>
+                                <th class="kn-num">Prix base (HT)</th>
                                 <th class="kn-num">Durée</th>
                                 <th>État</th>
                                 <th></th>
@@ -139,7 +139,7 @@ $centsToEuros = static fn (int $c): string => number_format($c / 100, 2, ',', ' 
                         </div>
                         <div class="kn-grid kn-grid-2">
                             <div class="kn-field">
-                                <label for="svc_price">Prix de base (€)</label>
+                                <label for="svc_price">Prix de base (€ HT)</label>
                                 <input type="text" id="svc_price" name="base_price" inputmode="decimal" value="0">
                             </div>
                             <div class="kn-field">

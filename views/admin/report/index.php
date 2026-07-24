@@ -21,6 +21,7 @@ $t = $data['totals'];
 
     <main class="kn-wrap">
         <h1>Rapports</h1>
+        <p class="kn-muted">Tous les montants sont TVAC.</p>
 
         <div class="kn-kpis">
             <div class="kn-kpi"><div class="v"><?= $e($eur((int) $t['revenue_cents'])) ?> €</div><div class="l">Chiffre d'affaires</div></div>

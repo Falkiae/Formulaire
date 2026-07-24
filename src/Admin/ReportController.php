@@ -44,22 +44,36 @@ final class ReportController
         $conversionRate = $totals['carts'] > 0 ? round($totals['converted'] / $totals['carts'] * 100, 1) : 0.0;
         $cancelRate = $totals['total_bookings'] > 0 ? round($totals['cancelled'] / $totals['total_bookings'] * 100, 1) : 0.0;
 
+        // booking_items.line_total_cents est HT (prix catalogue avant remise
+        // panier/TVA) ; bookings.total_cents est TVAC (après remise + TVA).
+        // Pour que "par service"/"par technicien" reste comparable au "chiffre
+        // d'affaires" (TVAC) ci-dessus, chaque ligne est ramenée à sa part
+        // proportionnelle du total TVAC réellement facturé sur sa commande —
+        // ceci convertit la TVA ET répercute la remise groupée éventuelle,
+        // contrairement à une simple multiplication par le taux de TVA qui
+        // ignorerait la remise. La somme des lignes d'une commande retombe
+        // ainsi exactement sur bookings.total_cents de cette commande.
+        $bookingHtTotals = '(SELECT booking_id, SUM(line_total_cents) AS ht_sum FROM booking_items GROUP BY booking_id)';
+
         $byService = $this->db->select(
-            "SELECT s.name, COUNT(*) AS lines_count, COALESCE(SUM(bi.line_total_cents),0) AS revenue_cents
+            "SELECT s.name, COUNT(*) AS lines_count,
+                    COALESCE(SUM(ROUND(bi.line_total_cents * b.total_cents / NULLIF(bt.ht_sum, 0))),0) AS revenue_cents
              FROM booking_items bi
              JOIN services s ON s.id = bi.service_id
              JOIN bookings b ON b.id = bi.booking_id
+             JOIN {$bookingHtTotals} bt ON bt.booking_id = b.id
              WHERE b.status <> 'cancelled'
              GROUP BY s.id ORDER BY revenue_cents DESC",
         );
 
         $byTechnician = $this->db->select(
             "SELECT t.first_name, t.last_name, COUNT(DISTINCT j.id) AS jobs_count,
-                    COALESCE(SUM(bi.line_total_cents),0) AS revenue_cents
+                    COALESCE(SUM(ROUND(bi.line_total_cents * b.total_cents / NULLIF(bt.ht_sum, 0))),0) AS revenue_cents
              FROM jobs j
              JOIN technicians t ON t.id = j.technician_id
              JOIN bookings b ON b.id = j.booking_id
              LEFT JOIN booking_items bi ON bi.job_id = j.id
+             LEFT JOIN {$bookingHtTotals} bt ON bt.booking_id = b.id
              WHERE b.status <> 'cancelled' AND j.status <> 'cancelled'
              GROUP BY t.id ORDER BY revenue_cents DESC",
         );

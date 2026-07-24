@@ -43,6 +43,7 @@ $eur = static fn (int $c): string => number_format($c / 100, 2, ',', ' ');
 
             <section class="kn-card">
                 <h2>Prestations</h2>
+                <p class="kn-muted" style="font-size:.8rem;">Prix catalogue HT (hors remise/TVA — le montant facturé est sur la fiche client/facture).</p>
                 <div class="kn-table-wrap">
                     <table class="kn-table">
                         <?php foreach ($data['items'] as $it): ?>

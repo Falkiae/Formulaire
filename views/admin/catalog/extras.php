@@ -31,7 +31,7 @@ $centsToEuros = static fn (int $c): string => number_format($c / 100, 2, ',', ' 
             <div class="kn-table-wrap">
                 <table class="kn-table">
                     <thead>
-                        <tr><th>Extra</th><th class="kn-num">Prix défaut</th><th class="kn-num">Durée</th><th>État</th><th></th></tr>
+                        <tr><th>Extra</th><th class="kn-num">Prix défaut (HT)</th><th class="kn-num">Durée</th><th>État</th><th></th></tr>
                     </thead>
                     <tbody>
                         <?php foreach ($data['extras'] as $x): ?>
@@ -43,7 +43,7 @@ $centsToEuros = static fn (int $c): string => number_format($c / 100, 2, ',', ' 
                                             <img src="/uploads/<?= $e($x['image_path']) ?>" alt="" style="width:40px;height:40px;object-fit:cover;border-radius:6px;">
                                         <?php endif; ?>
                                         <input type="text" name="label" value="<?= $e($x['label']) ?>" style="max-width:200px;">
-                                        <input type="text" name="default_price" value="<?= $e($centsToEuros((int) $x['default_price_cents'])) ?>" inputmode="decimal" style="max-width:90px;" aria-label="Prix">
+                                        <input type="text" name="default_price" value="<?= $e($centsToEuros((int) $x['default_price_cents'])) ?>" inputmode="decimal" style="max-width:90px;" aria-label="Prix (HT)">
                                         <input type="number" name="default_duration" value="<?= (int) $x['default_duration_min'] ?>" min="0" style="max-width:80px;" aria-label="Durée">
                                         <label class="kn-check">
                                             <input type="checkbox" name="is_active" value="1" <?= ((int) $x['is_active'] === 1) ? 'checked' : '' ?>> actif
@@ -85,7 +85,7 @@ $centsToEuros = static fn (int $c): string => number_format($c / 100, 2, ',', ' 
                 </div>
                 <div class="kn-grid kn-grid-2">
                     <div class="kn-field">
-                        <label for="default_price">Prix par défaut (€)</label>
+                        <label for="default_price">Prix par défaut (€ HT)</label>
                         <input type="text" id="default_price" name="default_price" inputmode="decimal" value="0">
                     </div>
                     <div class="kn-field">
