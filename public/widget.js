@@ -131,12 +131,14 @@
   // --- Montage du chrome (barre de progression + scroller + panier) ---------
   function mountShell() {
     var progress = el('<div class="kn-progress" role="navigation" aria-label="Étapes"></div>');
+    var progressInner = el('<div class="kn-progress-inner"></div>');
     var track = el('<div class="kn-progress-track"></div>');
     progressFillEl = el('<div class="kn-progress-fill"></div>');
     track.appendChild(progressFillEl);
-    progress.appendChild(track);
+    progressInner.appendChild(track);
     progressLabelEl = el('<div class="kn-progress-label"></div>');
-    progress.appendChild(progressLabelEl);
+    progressInner.appendChild(progressLabelEl);
+    progress.appendChild(progressInner);
     root.appendChild(progress);
 
     scroller = el('<div class="kn-scroller"></div>');
@@ -170,7 +172,7 @@
           saveTimer = setTimeout(save, 400);
         }
       },
-      { root: scroller, threshold: [0.5] }
+      { root: null, threshold: [0.5] }
     );
   }
 
@@ -186,7 +188,9 @@
 
   function updateQuoteBar() {
     quoteBarSlot.innerHTML = "";
-    if (state.cart && state.cart.item_count > 0 && state.step !== "done") {
+    var show = !!(state.cart && state.cart.item_count > 0 && state.step !== "done");
+    root.classList.toggle("has-quotebar", show);
+    if (show) {
       quoteBarSlot.appendChild(quoteBar());
     }
   }
@@ -233,8 +237,8 @@
       done = true;
       panel.focus({ preventScroll: true });
     }
-    if ("onscrollend" in scroller) {
-      scroller.addEventListener("scrollend", doFocus, { once: true });
+    if ("onscrollend" in window) {
+      window.addEventListener("scrollend", doFocus, { once: true });
     }
     setTimeout(doFocus, 500);
   }
@@ -1160,29 +1164,42 @@
   // --- CSS (tokens de marque inline, scopé au Shadow DOM) -------------------
   function CSS() {
     return (
-      // Plein écran : .kn occupe toute la hauteur du viewport (embarquement
-      // dédié, page hôte réduite au strict minimum — voir widget-demo.html).
-      // La colonne de contenu reste lisible (max-width) mais le fond et le
-      // défilement, eux, couvrent tout l'écran, sans hauteur plafonnée
-      // arbitraire : chaque étape dispose de tout l'espace disponible.
+      // Plein écran, mais avec défilement NATIF de la page (pas de conteneur
+      // interne overflow:auto) : c'est le seul modèle sur lequel Safari iOS
+      // rétracte fiablement sa barre d'adresse/outils (le rétractement est
+      // câblé au défilement du document, pas à celui d'un enfant en scroll
+      // propre) — un conteneur interne empêchait ce rétractement, ce qui
+      // provoquait un chrome Safari toujours présent, mal comptabilisé par
+      // 100dvh, avec un bouton panier parfois masqué par la barre d'URL.
+      // La barre de progression et le bouton panier sont donc en
+      // position:fixed, ancrés au vrai viewport, indépendants de tout calcul
+      // de hauteur — .kn lui-même n'est plus qu'un conteneur en flux normal.
       ".kn{--a:#586FF3;--ai:#3A4BC0;--blush:#F7D7E2;--ink:#141A2E;--muted:#5C6479;--paper:#FBFBFD;--surface:#fff;--line:#E4E6EF;--ok:#1D7A54;--alert:#B4322D;" +
       "font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-size:16px;line-height:1.6;color:var(--ink);background:var(--paper);" +
-      "width:100%;height:100vh;margin:0;padding:max(16px,env(safe-area-inset-top)) 16px max(16px,env(safe-area-inset-bottom));box-sizing:border-box;display:flex;flex-direction:column}" +
-      "@supports (height:100dvh){.kn{height:100dvh}}" +
+      "display:block;width:100%;min-height:100vh;margin:0;position:relative}" +
+      "@supports (height:100dvh){.kn{min-height:100dvh}}" +
       ".kn *{box-sizing:border-box}" +
       ".kn-h{font-size:1.5rem;margin:8px 0 16px}.kn-h3{font-size:1.05rem;margin:16px 0 8px}" +
       ".kn-muted{color:var(--muted);font-size:.875rem}" +
-      ".kn-progress{margin:0 auto 16px;flex:0 0 auto;width:100%;max-width:560px}" +
+      // Barre de progression : fixe en haut du vrai viewport (jamais dans le
+      // flux du défilement de page), fond opaque pour ne rien laisser passer
+      // dessous, padding sensible à l'encoche/notch (viewport-fit=cover côté
+      // page hôte).
+      ".kn-progress{position:fixed;top:0;left:0;right:0;z-index:20;background:var(--paper);border-bottom:1px solid var(--line);" +
+      "padding:max(12px,env(safe-area-inset-top)) 16px 12px}" +
+      ".kn-progress-inner{margin:0 auto;width:100%;max-width:560px}" +
       ".kn-progress-track{height:8px;background:var(--line);border-radius:999px;overflow:hidden}" +
       ".kn-progress-fill{height:100%;background:var(--a);border-radius:999px;transition:width .35s ease}" +
       ".kn-progress-label{font-size:.78rem;color:var(--muted);font-weight:600;margin-top:6px}" +
-      // Conteneur de défilement : occupe tout l'espace restant sous la barre
-      // de progression (flex:1, pas de hauteur plafonnée). scroll-snap-type
-      // "proximity" (pas "mandatory") : aimante seulement quand on est déjà
-      // proche d'un point d'ancrage, laisse le défilement libre sur un
-      // panneau plus grand que l'espace visible.
-      ".kn-scroller{flex:1 1 auto;min-height:0;overflow-y:auto;scroll-snap-type:y proximity;-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain;position:relative}" +
-      ".kn-step-panel{min-height:100%;scroll-snap-align:start;display:flex;flex-direction:column;justify-content:center;padding:8px 0;margin:0 auto;width:100%;max-width:560px;outline:none}" +
+      // Le "scroller" n'est plus un conteneur de défilement : simple bloc en
+      // flux normal, la page défile nativement. padding-top réserve l'espace
+      // sous la barre de progression fixe ; padding-bottom réserve l'espace
+      // au-dessus du bouton panier fixe uniquement quand il est affiché
+      // (classe .has-quotebar posée/retirée par updateQuoteBar()).
+      ".kn-scroller{display:block;padding:96px 16px 24px}" +
+      ".kn.has-quotebar .kn-scroller{padding-bottom:96px}" +
+      ".kn-step-panel{min-height:calc(100vh - 96px);display:flex;flex-direction:column;justify-content:center;padding:8px 0;margin:0 auto;width:100%;max-width:560px;outline:none}" +
+      "@supports (height:100dvh){.kn-step-panel{min-height:calc(100dvh - 96px)}}" +
       ".kn-postal-wrap{display:flex;flex-direction:column;gap:8px;margin-top:4px}" +
       ".kn-postal-wrap[hidden]{display:none}" +
       ".kn-cards{display:grid;gap:12px;margin:12px 0}.kn-cards-sm{grid-template-columns:repeat(auto-fill,minmax(120px,1fr))}" +
@@ -1223,13 +1240,13 @@
       ".kn-slot-list{display:grid;gap:8px;margin-top:8px}" +
       ".kn-slot{min-height:48px;border:1px solid var(--line);border-radius:8px;background:var(--surface);font:inherit;cursor:pointer}" +
       ".kn-slot.on{border-color:var(--a);background:var(--a);color:#fff}" +
-      // Barre panier : hors du scroller (frère normal-flow, pas de sticky à
-      // l'intérieur d'un conteneur scroll-snap — comportement incohérent
-      // inter-navigateurs sinon, la barre n'étant pas une cible de snap valide).
-      // La zone de sécurité en bas d'écran est déjà gérée par le padding de
-      // .kn (évite un double espacement avec la zone de sécurité du téléphone).
-      ".kn-quotebar-slot{flex:0 0 auto;margin:0 auto;width:100%;max-width:560px}" +
-      ".kn-quotebar{width:100%;display:flex;justify-content:space-between;align-items:center;min-height:56px;padding:0 16px;margin-top:16px;background:var(--ink);color:#fff;border:0;border-radius:12px;font:inherit;cursor:pointer}" +
+      // Barre panier : fixe en bas du vrai viewport, ancrée indépendamment de
+      // tout calcul de hauteur (voir note .kn-scroller ci-dessus). pointer-
+      // events:none sur le conteneur (vide la plupart du temps) pour ne
+      // jamais bloquer de clics sous lui ; ré-activés sur le bouton lui-même.
+      ".kn-quotebar-slot{position:fixed;left:0;right:0;bottom:0;z-index:20;padding:8px 16px max(8px,env(safe-area-inset-bottom));pointer-events:none}" +
+      ".kn-quotebar-slot:empty{display:none}" +
+      ".kn-quotebar{pointer-events:auto;width:100%;max-width:560px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;min-height:56px;padding:0 16px;background:var(--ink);color:#fff;border:0;border-radius:12px;font:inherit;cursor:pointer;box-shadow:0 4px 16px rgba(20,26,46,.25)}" +
       ".kn-quotebar-total{font-weight:700;font-size:1.15rem;font-variant-numeric:tabular-nums}" +
       ".kn-flash{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:12px 20px;border-radius:8px;z-index:9999}" +
       ".kn-done{text-align:center;padding:24px 0}.kn-done-mark{width:64px;height:64px;line-height:64px;border-radius:50%;background:var(--ok);color:#fff;font-size:2rem;margin:0 auto 16px}" +
