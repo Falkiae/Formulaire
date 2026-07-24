@@ -967,6 +967,17 @@
       });
       actions.appendChild(cont);
       body.appendChild(actions);
+    })
+    .catch(function (err) {
+      clear(body);
+      body.appendChild(el('<h2 class="kn-h">Choisissez votre créneau</h2>'));
+      body.appendChild(el('<p class="kn-alert">Impossible de vérifier les disponibilités pour le moment.</p>'));
+      var retry = el('<button class="kn-btn kn-btn-ghost" type="button">Réessayer</button>');
+      retry.addEventListener("click", function () {
+        goto("slot");
+      });
+      body.appendChild(retry);
+      flash(err && err.data && err.data.error ? err.data.error : "Une erreur est survenue.");
     });
   }
   function slotPicker(mode, slots) {

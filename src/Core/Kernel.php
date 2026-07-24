@@ -102,7 +102,19 @@ final class Kernel
                 : Response::html('<pre>' . htmlspecialchars($message, ENT_QUOTES, 'UTF-8') . '</pre>', 500);
         }
 
-        // TODO(phase notifications) : brancher le logger d'audit ici.
+        // Pas de logger d'audit dédié pour l'instant : au minimum, tracer dans le
+        // journal d'erreurs PHP du serveur pour ne jamais perdre une exception
+        // silencieusement (une 500 muette était auparavant invisible même côté
+        // hébergeur).
+        error_log(sprintf(
+            '[500] %s %s — %s in %s:%d',
+            $request->method(),
+            $request->path(),
+            $e->getMessage(),
+            $e->getFile(),
+            $e->getLine(),
+        ));
+
         return $this->errorResponse(500, 'Une erreur inattendue est survenue.', $request);
     }
 
