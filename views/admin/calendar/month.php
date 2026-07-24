@@ -23,6 +23,7 @@ foreach ($data['technicians'] as $t) {
     <title>Calendrier — Keepnew</title>
     <link rel="stylesheet" href="/assets/design-tokens.css">
     <link rel="stylesheet" href="/assets/admin.css">
+    <link rel="stylesheet" href="/assets/vendor/leaflet/leaflet.css">
 </head>
 <body>
     <?php include dirname(__DIR__) . '/_nav.php'; ?>
@@ -73,5 +74,8 @@ foreach ($data['technicians'] as $t) {
             </div>
         </div>
     </main>
+    <script src="/assets/vendor/leaflet/leaflet.js"></script>
+    <script src="/assets/admin-job-panel.js"></script>
+    <script src="/assets/admin-reschedule.js"></script>
 </body>
 </html>

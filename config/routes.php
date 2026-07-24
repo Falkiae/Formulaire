@@ -19,6 +19,7 @@ use Keepnew\Admin\DispatchService;
 use Keepnew\Admin\ExtraController;
 use Keepnew\Admin\JobController;
 use Keepnew\Admin\LocationController;
+use Keepnew\Admin\RescheduleAvailabilityService;
 use Keepnew\Admin\SimulatorController;
 use Keepnew\Admin\TechnicianController;
 use Keepnew\Admin\UserController;
@@ -306,12 +307,20 @@ return static function (Router $router, Container $container): void {
         $c->get(Csrf::class),
         $c->get(DispatchService::class),
     ));
+    $container->singleton(RescheduleAvailabilityService::class, static fn (Container $c): RescheduleAvailabilityService => new RescheduleAvailabilityService(
+        $c->get(Database::class),
+        $c->get(AvailabilityRepository::class),
+        $c->get(CatalogRepository::class),
+        $c->get(ZoneResolver::class),
+        $c->get(GeoProviderInterface::class),
+    ));
     $container->singleton(JobController::class, static fn (Container $c): JobController => new JobController(
         $c->get(View::class),
         $c->get(Session::class),
         $c->get(Csrf::class),
         $c->get(Database::class),
         $c->get(DispatchService::class),
+        $c->get(RescheduleAvailabilityService::class),
     ));
     $container->singleton(CalendarController::class, static fn (Container $c): CalendarController => new CalendarController(
         $c->get(View::class),
@@ -468,6 +477,8 @@ return static function (Router $router, Container $container): void {
             $r->post('/job/{id}/statut', [JobController::class, 'updateStatus'], [CsrfMiddleware::class]);
             $r->post('/job/{id}/note', [JobController::class, 'addNote'], [CsrfMiddleware::class]);
             $r->post('/job/{id}/planifier', [JobController::class, 'updateSchedule'], [CsrfMiddleware::class]);
+            $r->get('/job/{id}/creneaux/mois', [JobController::class, 'slotDates']);
+            $r->get('/job/{id}/creneaux', [JobController::class, 'slotsForDate']);
 
             // Ateliers
             $r->get('/ateliers', [LocationController::class, 'index']);

@@ -28,15 +28,37 @@ final class JobController
         private readonly Csrf $csrf,
         private readonly Database $db,
         private readonly DispatchService $dispatch,
+        private readonly RescheduleAvailabilityService $availability,
     ) {
     }
 
+    /**
+     * GET /admin/job/{id}[?partial=1] — la fiche job. En partiel (appelée en
+     * fetch() depuis le panneau coulissant du calendrier/dispatch), ne rend
+     * que le contenu (admin/job/_panel), sans le châssis de page — même
+     * template que la page complète, réutilisé aux deux endroits pour ne rien
+     * dupliquer. Repli naturel sans JS ou sur mobile : la page complète.
+     */
     public function show(Request $request): Response
     {
         $id = (int) $request->attribute('id');
+        $data = $this->jobData($id);
+
+        if ($request->bool('partial')) {
+            return Response::html($this->view->capture('admin/job/_panel', $data));
+        }
+
+        return $this->view->render('admin/job', $data);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function jobData(int $id): array
+    {
         $job = $this->db->selectOne(
             'SELECT j.*, b.reference, b.id AS booking_id, c.id AS customer_id, c.first_name, c.last_name, c.phone, c.email,
-                    a.street, a.number, a.postal_code, a.city, a.access_notes,
+                    a.street, a.number, a.postal_code, a.city, a.access_notes, a.lat, a.lng,
                     t.first_name AS tech_first, t.last_name AS tech_last
              FROM jobs j
              JOIN bookings b ON b.id = j.booking_id
@@ -57,8 +79,9 @@ final class JobController
             ? Clock::format(new \DateTimeImmutable((string) $job['scheduled_start'] . ' UTC'), 'Y-m-d\TH:i')
             : '';
 
-        return $this->view->render('admin/job', [
+        return [
             'csrf' => $this->csrf->field(),
+            'csrf_token' => $this->csrf->token(),
             'job' => $job,
             'statuses' => self::STATUSES,
             'technicians' => $this->dispatch->activeTechnicians(),
@@ -75,7 +98,37 @@ final class JobController
             'notes' => $this->db->select('SELECT n.body, n.created_at, u.first_name FROM customer_notes n LEFT JOIN users u ON u.id = n.author_id WHERE n.customer_id = :c ORDER BY n.id DESC', ['c' => (int) $job['customer_id']]),
             'user_name' => $this->session->get('user_name'),
             'flash' => $this->session->pullFlash('job_ok'),
-        ]);
+        ];
+    }
+
+    /**
+     * GET /admin/job/{id}/creneaux/mois?month=YYYY-MM — dates du mois ayant au
+     * moins un créneau réellement libre (JSON, pour griser le mini-calendrier).
+     */
+    public function slotDates(Request $request): Response
+    {
+        $id = (int) $request->attribute('id');
+        $month = $request->string('month');
+        if (!preg_match('/^\d{4}-\d{2}$/', $month)) {
+            $month = Clock::format(Clock::nowUtc(), 'Y-m');
+        }
+
+        return Response::json(['dates' => $this->availability->datesWithSlots($id, $month)]);
+    }
+
+    /**
+     * GET /admin/job/{id}/creneaux?date=YYYY-MM-DD — créneaux réellement
+     * libres de ce jour, groupés par heure avec les techniciens disponibles.
+     */
+    public function slotsForDate(Request $request): Response
+    {
+        $id = (int) $request->attribute('id');
+        $date = $request->string('date');
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+            return Response::json(['error' => 'Date invalide.'], 422);
+        }
+
+        return Response::json(['slots' => $this->availability->slotsForDate($id, $date)]);
     }
 
     public function updateStatus(Request $request): Response
@@ -85,7 +138,7 @@ final class JobController
         if (!in_array($status, self::STATUSES, true)) {
             $this->session->flash('job_ok', 'Statut invalide.');
 
-            return Response::redirect("/admin/job/{$id}");
+            return $this->finish($request, $id);
         }
 
         $job = $this->db->selectOne('SELECT status, booking_id FROM jobs WHERE id = :id', ['id' => $id]);
@@ -107,7 +160,7 @@ final class JobController
 
         $this->session->flash('job_ok', 'Statut mis à jour.');
 
-        return Response::redirect("/admin/job/{$id}");
+        return $this->finish($request, $id);
     }
 
     /**
@@ -127,7 +180,7 @@ final class JobController
         if ($technicianId <= 0 || $local === '') {
             $this->session->flash('job_ok', 'Indiquez une date/heure et un technicien.');
 
-            return Response::redirect("/admin/job/{$id}");
+            return $this->finish($request, $id);
         }
 
         // Heure belge saisie → instant UTC non ambigu (offset explicite).
@@ -151,7 +204,7 @@ final class JobController
                 $this->session->flash('job_ok', 'Rendez-vous déplacé et réassigné.');
             }
 
-            return Response::redirect("/admin/job/{$id}");
+            return $this->finish($request, $id);
         }
 
         // Changement de mode : garde-fous ressources.
@@ -160,12 +213,12 @@ final class JobController
         if ($targetMode === 'workshop' && $bayId <= 0) {
             $this->session->flash('job_ok', 'Passage en atelier : choisissez un poste de travail.');
 
-            return Response::redirect("/admin/job/{$id}");
+            return $this->finish($request, $id);
         }
         if ($targetMode === 'onsite' && $addressId <= 0) {
             $this->session->flash('job_ok', 'Passage à domicile : choisissez une adresse (ajoutez-en une sur la fiche client si besoin).');
 
-            return Response::redirect("/admin/job/{$id}");
+            return $this->finish($request, $id);
         }
 
         $result = $this->dispatch->reschedule(
@@ -192,7 +245,7 @@ final class JobController
             $this->session->flash('job_ok', 'Mode changé (' . ($targetMode === 'workshop' ? 'atelier' : 'domicile') . ') et rendez-vous replanifié. Prix inchangé.');
         }
 
-        return Response::redirect("/admin/job/{$id}");
+        return $this->finish($request, $id);
     }
 
     public function addNote(Request $request): Response
@@ -207,6 +260,21 @@ final class JobController
                 'body' => $body,
             ]);
             $this->session->flash('job_ok', 'Note ajoutée.');
+        }
+
+        return $this->finish($request, $id);
+    }
+
+    /**
+     * Après une mutation (statut, replanification, note) : si la requête vient
+     * du panneau coulissant (`ajax=1`), renvoie le panneau fraîchement rendu
+     * (le flash qu'on vient de poser y est déjà inclus) pour un rafraîchissement
+     * en place ; sinon repli classique POST-redirect-GET sur la page complète.
+     */
+    private function finish(Request $request, int $id): Response
+    {
+        if ($request->bool('ajax')) {
+            return Response::html($this->view->capture('admin/job/_panel', $this->jobData($id)));
         }
 
         return Response::redirect("/admin/job/{$id}");

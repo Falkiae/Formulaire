@@ -26,9 +26,12 @@ final class AvailabilityRepository
      *
      * @param 'onsite'|'workshop' $scope  onsite : dispo terrain (location NULL) ;
      *                                    workshop : dispo atelier (location_id défini)
+     * @param int $excludeJobId  Job à exclure des blocs occupés (replanification
+     *                           d'un job déjà planifié : il ne doit pas se
+     *                           bloquer lui-même sur son propre créneau actuel).
      * @return list<TechnicianContext>
      */
-    public function technicianContexts(\DateTimeImmutable $from, \DateTimeImmutable $to, string $scope): array
+    public function technicianContexts(\DateTimeImmutable $from, \DateTimeImmutable $to, string $scope, int $excludeJobId = 0): array
     {
         $dates = $this->localDates($from, $to);
         $technicians = $this->db->select('SELECT * FROM technicians WHERE is_active = 1');
@@ -83,7 +86,7 @@ final class AvailabilityRepository
                 }
                 if ($windows !== []) {
                     $windowsByDate[$date] = $windows;
-                    $busyByDate[$date] = $this->technicianBusy($techId, $date);
+                    $busyByDate[$date] = $this->technicianBusy($techId, $date, $excludeJobId);
                 }
             }
 
@@ -109,7 +112,7 @@ final class AvailabilityRepository
      *
      * @return list<BusyBlock>
      */
-    private function technicianBusy(int $techId, string $date): array
+    private function technicianBusy(int $techId, string $date, int $excludeJobId = 0): array
     {
         $dayStart = ScheduleBuilder::windowForDate($date, '00:00', '23:59')->start->modify('-3 hours');
         $dayEnd = $dayStart->modify('+30 hours');
@@ -121,6 +124,11 @@ final class AvailabilityRepository
 
         $blocks = [];
 
+        $excludeSql = '';
+        if ($excludeJobId > 0) {
+            $excludeSql = ' AND j.id <> :excludeJobId';
+            $params['excludeJobId'] = $excludeJobId;
+        }
         $jobs = $this->db->select(
             "SELECT j.scheduled_start, j.scheduled_end, a.lat, a.lng, a.postal_code
              FROM jobs j
@@ -128,7 +136,8 @@ final class AvailabilityRepository
              WHERE j.technician_id = :id
                AND j.status IN ('scheduled','en_route','in_progress')
                AND j.scheduled_start IS NOT NULL
-               AND j.scheduled_start BETWEEN :s AND :e",
+               AND j.scheduled_start BETWEEN :s AND :e
+               {$excludeSql}",
             $params,
         );
         foreach ($jobs as $job) {
@@ -166,9 +175,10 @@ final class AvailabilityRepository
     /**
      * Postes de travail d'un atelier avec leurs blocs occupés.
      *
+     * @param int $excludeJobId  Job à exclure des blocs occupés (cf. technicianContexts()).
      * @return list<BayContext>
      */
-    public function bayContexts(int $locationId, \DateTimeImmutable $from, \DateTimeImmutable $to): array
+    public function bayContexts(int $locationId, \DateTimeImmutable $from, \DateTimeImmutable $to, int $excludeJobId = 0): array
     {
         $bays = $this->db->select(
             'SELECT id FROM workshop_bays WHERE location_id = :loc AND is_active = 1 ORDER BY sort_order',
@@ -186,12 +196,19 @@ final class AvailabilityRepository
                 $intervals = [];
 
                 // Jobs atelier planifiés sur ce poste (immobilisation = occupancy).
+                $bayParams = ['bay' => $bayId, 's' => $dayStart->format('Y-m-d H:i:s'), 'e' => $dayEnd->format('Y-m-d H:i:s')];
+                $bayExcludeSql = '';
+                if ($excludeJobId > 0) {
+                    $bayExcludeSql = ' AND id <> :excludeJobId';
+                    $bayParams['excludeJobId'] = $excludeJobId;
+                }
                 $jobs = $this->db->select(
                     "SELECT scheduled_start, scheduled_end, occupancy_duration_min
                      FROM jobs
                      WHERE bay_id = :bay AND status IN ('scheduled','en_route','in_progress')
-                       AND scheduled_start BETWEEN :s AND :e",
-                    ['bay' => $bayId, 's' => $dayStart->format('Y-m-d H:i:s'), 'e' => $dayEnd->format('Y-m-d H:i:s')],
+                       AND scheduled_start BETWEEN :s AND :e
+                       {$bayExcludeSql}",
+                    $bayParams,
                 );
                 foreach ($jobs as $job) {
                     $start = new \DateTimeImmutable((string) $job['scheduled_start'], new \DateTimeZone('UTC'));

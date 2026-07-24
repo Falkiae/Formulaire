@@ -673,3 +673,127 @@ table.kn-table {
 .kn-week-col h3 { font-size: var(--kn-fs-small); margin: 0 0 8px; }
 .kn-week-col .kn-cal-pill { white-space: normal; align-items: flex-start; }
 .kn-week-col .kn-cal-pill-body { white-space: normal; }
+
+/* --- Panneau job coulissant --------------------------------------------- */
+.kn-job-panel-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(20, 26, 46, .35);
+    z-index: 90;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .2s ease;
+}
+.kn-job-panel-overlay.is-open { opacity: 1; pointer-events: auto; }
+.kn-job-panel-slot {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 480px;
+    max-width: 100%;
+    background: var(--kn-paper);
+    box-shadow: -8px 0 24px rgba(20, 26, 46, .18);
+    z-index: 91;
+    overflow-y: auto;
+    transform: translateX(100%);
+    transition: transform .25s ease;
+    padding: var(--kn-space-4);
+}
+.kn-job-panel-slot.is-open { transform: translateX(0); }
+@media (max-width: 768px) {
+    .kn-job-panel-slot { width: 100%; }
+}
+.kn-job-panel-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: var(--kn-space-3);
+    margin-bottom: var(--kn-space-3);
+}
+.kn-job-panel-title { margin: 0; font-size: var(--kn-fs-2, 1.25rem); }
+.kn-job-panel-close {
+    background: none;
+    border: 1px solid var(--kn-line);
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    cursor: pointer;
+    font-size: 1rem;
+    line-height: 1;
+    flex: 0 0 auto;
+}
+.kn-job-panel-close:hover { background: var(--kn-surface); }
+
+/* Stepper de statut : rangée d'étapes cliquables. */
+.kn-status-stepper {
+    display: flex;
+    gap: 4px;
+    margin: var(--kn-space-3) 0;
+    flex-wrap: wrap;
+}
+.kn-status-step-form { margin: 0; flex: 1 1 auto; min-width: 90px; }
+.kn-status-step {
+    width: 100%;
+    padding: 6px 10px;
+    border: 1px solid var(--kn-line);
+    border-radius: var(--kn-radius-control);
+    background: var(--kn-surface);
+    color: var(--kn-muted);
+    font-size: var(--kn-fs-small);
+    font-weight: 600;
+    cursor: pointer;
+}
+.kn-status-step.is-done { background: var(--kn-blush); color: var(--kn-accent-ink); border-color: transparent; }
+.kn-status-step.is-active { background: var(--kn-accent); color: #fff; border-color: transparent; }
+
+/* Carte (Leaflet). */
+.kn-job-map {
+    height: 200px;
+    border-radius: var(--kn-radius-card);
+    margin: var(--kn-space-3) 0;
+    background: var(--kn-surface);
+    border: 1px solid var(--kn-line);
+}
+
+/* Sélecteur de créneaux de replanification. */
+.kn-resched-picker {
+    display: flex;
+    gap: var(--kn-space-4);
+    flex-wrap: wrap;
+    margin-top: var(--kn-space-3);
+}
+.kn-resched-cal { flex: 0 0 220px; }
+.kn-resched-cal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-weight: 600; }
+.kn-resched-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.kn-resched-cal-day {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--kn-fs-small);
+    border-radius: 50%;
+    background: none;
+    border: 0;
+    cursor: pointer;
+}
+.kn-resched-cal-day:disabled { color: var(--kn-line); cursor: not-allowed; }
+.kn-resched-cal-day.is-selected { background: var(--kn-accent); color: #fff; }
+.kn-resched-slots { flex: 1 1 240px; min-width: 220px; }
+.kn-resched-slot {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    padding: 8px 10px;
+    margin-bottom: 4px;
+    border: 1px solid var(--kn-line);
+    border-radius: var(--kn-radius-control);
+    background: var(--kn-surface);
+    cursor: pointer;
+    font: inherit;
+    text-align: left;
+}
+.kn-resched-slot:hover { border-color: var(--kn-accent); }
+.kn-resched-slot.is-selected { border-color: var(--kn-accent); background: var(--kn-blush); }
+.kn-resched-slot-avatars { display: flex; gap: 2px; }
