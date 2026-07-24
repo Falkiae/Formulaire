@@ -263,16 +263,6 @@
   // doigt ne passe jamais par ici) : il peut donc trancher sans ambiguïté
   // entre 3 cas selon la position du panneau ciblé par rapport au plus avancé.
   function goto(step) {
-    var targetIdx = STEPS.findIndex(function (s) {
-      return s.key === step;
-    });
-    var panels = scroller.children;
-    var furthest = panels.length ? panels[panels.length - 1] : null;
-    var furthestIdx = furthest
-      ? STEPS.findIndex(function (s) {
-          return s.key === furthest.dataset.step;
-        })
-      : -1;
     var existing = findPanel(step);
 
     if (!existing) {
@@ -283,17 +273,15 @@
       save();
       scrollToPanel(panel);
       focusPanelWhenSettled(panel);
-    } else if (targetIdx === furthestIdx) {
-      // Cas B — auto-rafraîchissement de l'étape déjà la plus avancée
-      // (ex. suppression d'une ligne panier → goto("cart")).
-      renderStepInto(clear(existing), step);
-      state.step = step;
-      save();
-      scrollToPanel(existing);
     } else {
-      // Cas C — retour arrière délibéré (backLink()) : on abandonne tout ce
-      // qui suit la cible, le panneau cible lui-même reste inchangé et valide.
+      // Cas B — panneau déjà créé (auto-rafraîchissement sur place, ex.
+      // suppression d'une ligne panier, OU retour arrière délibéré via
+      // backLink()) : toujours re-rendu — un panneau peut dépendre d'un
+      // state.* modifié depuis sa création (ex. le mode choisi à "where"
+      // change ce que "what" doit proposer). truncateAfter() est un no-op
+      // naturel si `step` est déjà le panneau le plus avancé.
       truncateAfter(step);
+      renderStepInto(clear(existing), step);
       state.step = step;
       save();
       scrollToPanel(existing);
@@ -331,16 +319,21 @@
     body.appendChild(el('<h2 class="kn-h">Où souhaitez-vous être nettoyé ?</h2>'));
 
     var cards = el('<div class="kn-cards"></div>');
-    cards.appendChild(
-      choiceCard("🏠", "Je veux qu'on vienne chez moi", "Un technicien se déplace à votre adresse.", function () {
-        showPostal();
-      }, state.mode === "onsite")
-    );
-    cards.appendChild(
-      choiceCard("🔧", "Je viens à l'atelier", "Vous déposez, nous nettoyons. Souvent moins cher.", function () {
-        pickMode("workshop");
-      }, state.mode === "workshop")
-    );
+    var onsiteCard = choiceCard("🏠", "Je veux qu'on vienne chez moi", "Un technicien se déplace à votre adresse.", function () {
+      // Retour visuel immédiat : state.mode n'est posé qu'au clic sur
+      // Continuer, mais la sélection doit déjà être visible pendant la
+      // saisie du code postal.
+      onsiteCard.classList.add("on");
+      workshopCard.classList.remove("on");
+      showPostal();
+    }, state.mode === "onsite");
+    var workshopCard = choiceCard("🔧", "Je viens à l'atelier", "Vous déposez, nous nettoyons. Souvent moins cher.", function () {
+      onsiteCard.classList.remove("on");
+      workshopCard.classList.add("on");
+      pickMode("workshop");
+    }, state.mode === "workshop");
+    cards.appendChild(onsiteCard);
+    cards.appendChild(workshopCard);
     body.appendChild(cards);
 
     // Le code postal ne concerne que le domicile (résolution de zone) : il
@@ -393,6 +386,9 @@
   // --- Étape 2 : QUOI (catégorie → service) ---------------------------------
   function renderWhat(body) {
     body.appendChild(el('<h2 class="kn-h">Quelle prestation ?</h2>'));
+    body.appendChild(backLink(function () {
+      goto("where");
+    }, "← Changer le mode (domicile / atelier)"));
     if (!catalog) {
       body.appendChild(loading());
       api("/catalog").then(function (d) {
@@ -667,7 +663,7 @@
       more.addEventListener("click", function () {
         goto("what");
       });
-      var cont = el('<button class="kn-btn kn-btn-primary" type="button">Continuer</button>');
+      var cont = el('<button class="kn-btn kn-btn-primary" type="button">Finaliser ma réservation</button>');
       cont.addEventListener("click", function () {
         var p = state.cart && state.cart.pricing ? state.cart.pricing : null;
         dl("begin_checkout", { currency: "EUR", value: p ? p.total_tvac_cents / 100 : undefined, items: cartItemsForTracking() });
@@ -1112,8 +1108,8 @@
     wrap.appendChild(el("<p style=\"margin:0;\">" + (links || "Contactez-nous depuis notre site.") + "</p>"));
     return wrap;
   }
-  function backLink(onClick) {
-    var b = el('<button type="button" class="kn-back">← Revenir</button>');
+  function backLink(onClick, label) {
+    var b = el('<button type="button" class="kn-back">' + esc(label || "← Revenir") + "</button>");
     b.addEventListener("click", onClick);
     return b;
   }
@@ -1192,9 +1188,13 @@
       // Conteneur de défilement interne et autonome : un « Typeform en boîte »,
       // pas une prise de contrôle du viewport du navigateur (widget embarqué
       // en bloc normal dans une page hôte arbitraire, sans iframe).
-      ".kn-scroller{overflow-y:auto;scroll-snap-type:y mandatory;-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain;height:min(680px,88vh);position:relative}" +
-      "@supports (height:100dvh){.kn-scroller{height:min(680px,88dvh)}}" +
-      ".kn-step-panel{min-height:100%;scroll-snap-align:start;scroll-snap-stop:always;display:flex;flex-direction:column;justify-content:center;padding:8px 0;outline:none}" +
+      // scroll-snap-type "proximity" (pas "mandatory") : aimante seulement
+      // quand on est déjà proche d'un point d'ancrage, laisse le défilement
+      // libre sur un panneau plus grand que la boîte — "mandatory" empêchait
+      // d'atteindre le bas d'une étape plus haute que le conteneur.
+      ".kn-scroller{overflow-y:auto;scroll-snap-type:y proximity;-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain;height:min(760px,90vh);position:relative}" +
+      "@supports (height:100dvh){.kn-scroller{height:min(760px,90dvh)}}" +
+      ".kn-step-panel{min-height:100%;scroll-snap-align:start;display:flex;flex-direction:column;justify-content:center;padding:8px 0;outline:none}" +
       ".kn-postal-wrap{display:flex;flex-direction:column;gap:8px;margin-top:4px}" +
       ".kn-postal-wrap[hidden]{display:none}" +
       ".kn-cards{display:grid;gap:12px;margin:12px 0}.kn-cards-sm{grid-template-columns:repeat(auto-fill,minmax(120px,1fr))}" +
@@ -1238,7 +1238,7 @@
       // Barre panier : hors du scroller (frère normal-flow, pas de sticky à
       // l'intérieur d'un conteneur scroll-snap — comportement incohérent
       // inter-navigateurs sinon, la barre n'étant pas une cible de snap valide).
-      ".kn-quotebar-slot{flex:0 0 auto}" +
+      ".kn-quotebar-slot{flex:0 0 auto;padding-bottom:env(safe-area-inset-bottom)}" +
       ".kn-quotebar{width:100%;display:flex;justify-content:space-between;align-items:center;min-height:56px;padding:0 16px;margin-top:16px;background:var(--ink);color:#fff;border:0;border-radius:12px;font:inherit;cursor:pointer}" +
       ".kn-quotebar-total{font-weight:700;font-size:1.15rem;font-variant-numeric:tabular-nums}" +
       ".kn-flash{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:12px 20px;border-radius:8px;z-index:9999}" +
