@@ -704,7 +704,19 @@
       cont.addEventListener("click", function () {
         var p = state.cart && state.cart.pricing ? state.cart.pricing : null;
         dl("begin_checkout", { currency: "EUR", value: p ? p.total_tvac_cents / 100 : undefined, items: cartItemsForTracking() });
-        goto("intake");
+        // Toujours refetch (pas de cache) : la composition du panier a pu
+        // changer depuis le dernier appel, la pertinence des questions doit
+        // être recalculée à chaque clic sur ce bouton.
+        api("/form?token=" + encodeURIComponent(state.token))
+          .then(function (f) {
+            state._form = f;
+          })
+          .catch(function () {
+            state._form = { fields: [], conditions: [] };
+          })
+          .then(function () {
+            goto(state._form.fields.length === 0 ? "contact" : "intake");
+          });
       });
       actions.appendChild(more);
       actions.appendChild(cont);
@@ -720,6 +732,13 @@
       api("/form?token=" + encodeURIComponent(state.token))
         .then(function (f) {
           state._form = f;
+          if (f.fields.length === 0) {
+            // Reprise de session sur une étape devenue vide entretemps (aucun
+            // risque de réentrance ici : ce callback s'exécute toujours après
+            // le retour du goto() qui a mené à ce panneau).
+            goto("contact");
+            return;
+          }
           renderStepInto(clear(body), state.step);
         })
         .catch(function () {
