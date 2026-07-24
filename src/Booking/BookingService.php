@@ -10,6 +10,7 @@ use Keepnew\Core\Database;
 use Keepnew\Core\Exception\HttpException;
 use Keepnew\Core\Exception\NotFoundException;
 use Keepnew\Form\FormRepository;
+use Keepnew\Geo\NominatimGeocoder;
 use Keepnew\Pricing\CartQuote;
 use Keepnew\Support\Clock;
 
@@ -29,6 +30,7 @@ final class BookingService
         private readonly CartPricingService $pricing,
         private readonly HoldService $holds,
         private readonly FormRepository $forms,
+        private readonly NominatimGeocoder $geocoder,
     ) {
     }
 
@@ -58,6 +60,22 @@ final class BookingService
 
         // Durées des jobs par mode (pour scheduled_end).
         $jobDurations = $this->jobDurations($lines);
+
+        // Géocodage de l'adresse (pour la carte admin) — hors transaction :
+        // appel réseau, ne doit jamais retenir un verrou DB. Jamais bloquant
+        // (repli sur "pas de coordonnées", la commande se crée quand même).
+        if (($address['street'] ?? '') !== '' && !isset($address['lat'], $address['lng'])) {
+            $coords = $this->geocoder->geocode(
+                (string) ($address['street'] ?? ''),
+                (string) ($address['number'] ?? ''),
+                (string) ($address['postal_code'] ?? ''),
+                (string) ($address['city'] ?? ''),
+            );
+            if ($coords !== null) {
+                $address['lat'] = $coords['lat'];
+                $address['lng'] = $coords['lng'];
+            }
+        }
 
         // Correspondance field_key => field_id du formulaire tel qu'affiché pour
         // ce panier (traçabilité de booking_answers.field_id, colonne jusqu'ici

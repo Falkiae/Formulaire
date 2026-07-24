@@ -52,6 +52,7 @@ use Keepnew\Geo\CachingGeoProvider;
 use Keepnew\Geo\ChainGeoProvider;
 use Keepnew\Geo\GeoProviderInterface;
 use Keepnew\Geo\HaversineGeoProvider;
+use Keepnew\Geo\NominatimGeocoder;
 use Keepnew\Geo\OpenRouteServiceProvider;
 use Keepnew\Geo\PostalMatrixGeoProvider;
 use Keepnew\Http\Api\AvailabilityApiController;
@@ -137,6 +138,7 @@ return static function (Router $router, Container $container): void {
         $c->get(\Keepnew\Catalog\CartPricingService::class),
     ));
     $container->singleton(HoldService::class, static fn (Container $c): HoldService => new HoldService($c->get(Database::class)));
+    $container->singleton(NominatimGeocoder::class, static fn (): NominatimGeocoder => new NominatimGeocoder());
     $container->singleton(BookingService::class, static fn (Container $c): BookingService => new BookingService(
         $c->get(Database::class),
         $c->get(CartService::class),
@@ -144,6 +146,7 @@ return static function (Router $router, Container $container): void {
         $c->get(\Keepnew\Catalog\CartPricingService::class),
         $c->get(HoldService::class),
         $c->get(FormRepository::class),
+        $c->get(NominatimGeocoder::class),
     ));
 
     // --- Contrôleurs API ---------------------------------------------------
@@ -321,6 +324,7 @@ return static function (Router $router, Container $container): void {
         $c->get(Database::class),
         $c->get(DispatchService::class),
         $c->get(RescheduleAvailabilityService::class),
+        $c->get(NominatimGeocoder::class),
     ));
     $container->singleton(CalendarController::class, static fn (Container $c): CalendarController => new CalendarController(
         $c->get(View::class),
@@ -329,7 +333,7 @@ return static function (Router $router, Container $container): void {
         $c->get(ZoneRepository::class),
         $c->get(TechnicianRepository::class),
     ));
-    $container->singleton(CustomerRepository::class, static fn (Container $c): CustomerRepository => new CustomerRepository($c->get(Database::class)));
+    $container->singleton(CustomerRepository::class, static fn (Container $c): CustomerRepository => new CustomerRepository($c->get(Database::class), $c->get(NominatimGeocoder::class)));
     $container->singleton(CustomerController::class, static fn (Container $c): CustomerController => new CustomerController(
         $c->get(View::class),
         $c->get(Session::class),

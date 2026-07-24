@@ -11,6 +11,7 @@ use Keepnew\Core\Request;
 use Keepnew\Core\Response;
 use Keepnew\Core\Session;
 use Keepnew\Core\View;
+use Keepnew\Geo\NominatimGeocoder;
 use Keepnew\Support\Clock;
 
 /**
@@ -29,6 +30,7 @@ final class JobController
         private readonly Database $db,
         private readonly DispatchService $dispatch,
         private readonly RescheduleAvailabilityService $availability,
+        private readonly NominatimGeocoder $geocoder,
     ) {
     }
 
@@ -70,6 +72,26 @@ final class JobController
         );
         if ($job === null) {
             throw new NotFoundException('Job introuvable.');
+        }
+
+        // Comble a posteriori les coordonnées manquantes (adresse créée avant
+        // l'ajout du géocodage) — ponctuel, jamais bloquant : la fiche s'affiche
+        // normalement même si le géocodage échoue.
+        if ($job['mode'] === 'onsite' && $job['lat'] === null && $job['address_id'] !== null && ($job['street'] ?? '') !== '') {
+            $coords = $this->geocoder->geocode(
+                (string) $job['street'],
+                (string) ($job['number'] ?? ''),
+                (string) $job['postal_code'],
+                (string) $job['city'],
+            );
+            if ($coords !== null) {
+                $this->db->run(
+                    'UPDATE addresses SET lat = :lat, lng = :lng WHERE id = :id',
+                    ['lat' => $coords['lat'], 'lng' => $coords['lng'], 'id' => (int) $job['address_id']],
+                );
+                $job['lat'] = $coords['lat'];
+                $job['lng'] = $coords['lng'];
+            }
         }
 
         $bookingId = (int) $job['booking_id'];

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Keepnew\Customer;
 
 use Keepnew\Core\Database;
+use Keepnew\Geo\NominatimGeocoder;
 
 /**
  * Accès en lecture et écriture aux clients, à leurs adresses et à leurs notes.
@@ -15,8 +16,10 @@ use Keepnew\Core\Database;
  */
 final class CustomerRepository
 {
-    public function __construct(private readonly Database $db)
-    {
+    public function __construct(
+        private readonly Database $db,
+        private readonly NominatimGeocoder $geocoder,
+    ) {
     }
 
     // --- Lecture liste / fiche -------------------------------------------------
@@ -162,16 +165,33 @@ final class CustomerRepository
      */
     private function addressColumns(array $data): array
     {
-        return [
+        $street = (string) ($data['street'] ?? '');
+        $postalCode = (string) ($data['postal_code'] ?? '');
+        $city = (string) ($data['city'] ?? '');
+        // Géocode à chaque création/modification, pour que la carte du panneau
+        // job dispose de coordonnées dès la saisie (jamais bloquant : la fiche
+        // s'enregistre même si le géocodage échoue).
+        $coords = $this->geocoder->geocode($street, (string) ($data['number'] ?? ''), $postalCode, $city);
+
+        $cols = [
             'label' => ($data['label'] ?? '') !== '' ? (string) $data['label'] : null,
-            'street' => (string) ($data['street'] ?? ''),
+            'street' => $street,
             'number' => ($data['number'] ?? '') !== '' ? (string) $data['number'] : null,
             'box' => ($data['box'] ?? '') !== '' ? (string) $data['box'] : null,
-            'postal_code' => (string) ($data['postal_code'] ?? ''),
-            'city' => (string) ($data['city'] ?? ''),
+            'postal_code' => $postalCode,
+            'city' => $city,
             'country' => ($data['country'] ?? '') !== '' ? (string) $data['country'] : 'BE',
             'access_notes' => ($data['access_notes'] ?? '') !== '' ? (string) $data['access_notes'] : null,
         ];
+        // Uniquement si le géocodage réussit : un échec ponctuel ne doit jamais
+        // effacer des coordonnées déjà enregistrées (ex. modification d'une
+        // adresse existante pour corriger juste une note d'accès).
+        if ($coords !== null) {
+            $cols['lat'] = $coords['lat'];
+            $cols['lng'] = $coords['lng'];
+        }
+
+        return $cols;
     }
 
     // --- Notes -----------------------------------------------------------------
