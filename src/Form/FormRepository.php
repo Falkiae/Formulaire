@@ -72,11 +72,13 @@ final class FormRepository
             'SELECT * FROM form_fields WHERE version_id = :v ORDER BY step, sort_order',
             ['v' => $versionId],
         );
+        $serviceIdsByField = $this->fieldServiceIdsByVersion($versionId);
         foreach ($fields as &$field) {
             $field['options'] = $this->db->select(
                 'SELECT * FROM form_field_options WHERE field_id = :f ORDER BY sort_order',
                 ['f' => (int) $field['id']],
             );
+            $field['service_ids'] = $serviceIdsByField[(int) $field['id']] ?? [];
         }
 
         return $fields;
@@ -85,6 +87,47 @@ final class FormRepository
     public function findField(int $fieldId): ?array
     {
         return $this->db->selectOne('SELECT * FROM form_fields WHERE id = :id', ['id' => $fieldId]);
+    }
+
+    /**
+     * Prestations assignées à chaque champ d'une version, en une seule requête
+     * groupée (évite le N+1 sur fields()). Un champ absent de la map (ou avec
+     * une liste vide) s'applique à toutes les prestations.
+     *
+     * @return array<int, list<int>> field_id => [service_id, ...]
+     */
+    public function fieldServiceIdsByVersion(int $versionId): array
+    {
+        $rows = $this->db->select(
+            'SELECT ffs.field_id, ffs.service_id
+               FROM form_field_services ffs
+               JOIN form_fields ff ON ff.id = ffs.field_id
+              WHERE ff.version_id = :v',
+            ['v' => $versionId],
+        );
+
+        $out = [];
+        foreach ($rows as $row) {
+            $out[(int) $row['field_id']][] = (int) $row['service_id'];
+        }
+
+        return $out;
+    }
+
+    /**
+     * Remplace les prestations assignées à un champ (liste vide = s'applique
+     * à toutes les prestations).
+     *
+     * @param list<int> $serviceIds
+     */
+    public function syncFieldServices(int $fieldId, array $serviceIds): void
+    {
+        $this->db->transaction(function (Database $db) use ($fieldId, $serviceIds): void {
+            $db->run('DELETE FROM form_field_services WHERE field_id = :f', ['f' => $fieldId]);
+            foreach (array_unique($serviceIds) as $serviceId) {
+                $db->insert('form_field_services', ['field_id' => $fieldId, 'service_id' => $serviceId]);
+            }
+        });
     }
 
     /**
@@ -234,6 +277,7 @@ final class FormRepository
                         static fn (array $o): array => ['value' => $o['value'], 'label' => $o['label']],
                         $f['options'],
                     ),
+                    'service_ids' => $f['service_ids'],
                 ],
                 $this->fields($versionId),
             ),
@@ -248,5 +292,35 @@ final class FormRepository
                 $this->conditions($versionId),
             ),
         ];
+    }
+
+    /**
+     * Formulaire publié, filtré aux champs pertinents pour un ensemble de
+     * prestations (contenu du panier) : un champ sans prestation assignée
+     * s'applique à toutes ; un champ avec assignation ne s'affiche que si au
+     * moins une de ses prestations est présente dans $serviceIds (union).
+     *
+     * @param list<int> $serviceIds
+     * @return array<string, mixed>|null
+     */
+    public function publishedFormForServices(array $serviceIds): ?array
+    {
+        $form = $this->publishedForm();
+        if ($form === null) {
+            return null;
+        }
+
+        $fields = array_values(array_filter(
+            $form['fields'],
+            static fn (array $f): bool => $f['service_ids'] === [] || array_intersect($f['service_ids'], $serviceIds) !== [],
+        ));
+        $fieldIds = array_map(static fn (array $f): int => $f['id'], $fields);
+
+        $conditions = array_values(array_filter(
+            $form['conditions'],
+            static fn (array $c): bool => in_array($c['source_field_id'], $fieldIds, true) && in_array($c['target_field_id'], $fieldIds, true),
+        ));
+
+        return ['version' => $form['version'], 'fields' => $fields, 'conditions' => $conditions];
     }
 }

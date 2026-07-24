@@ -12,6 +12,7 @@ use Keepnew\Catalog\CatalogRepository;
 use Keepnew\Catalog\LineResolver;
 use Keepnew\Core\Database;
 use Keepnew\Core\Exception\HttpException;
+use Keepnew\Form\FormRepository;
 use Keepnew\Pricing\CartPricer;
 use Keepnew\Pricing\PriceCalculator;
 use PHPUnit\Framework\TestCase;
@@ -52,7 +53,7 @@ final class BookingFlowTest extends TestCase
         $calc = new PriceCalculator();
         $pricing = new CartPricingService($this->db, $resolver, new CartPricer($calc));
         $this->cart = new CartService($this->db, $catalog, $resolver, $calc, $pricing);
-        $this->bookings = new BookingService($this->db, $this->cart, $catalog, $pricing, new HoldService($this->db));
+        $this->bookings = new BookingService($this->db, $this->cart, $catalog, $pricing, new HoldService($this->db), new FormRepository($this->db));
     }
 
     public function testCartToBookingSplitsIntoJobs(): void

@@ -923,6 +923,16 @@ CREATE TABLE form_conditions (
     CONSTRAINT fk_formcond_target  FOREIGN KEY (target_field_id) REFERENCES form_fields(id)   ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Assignation d'un champ à des prestations spécifiques. Aucune ligne pour un
+-- champ = ce champ s'applique à toutes les prestations (comportement par défaut).
+CREATE TABLE form_field_services (
+    field_id   BIGINT UNSIGNED NOT NULL,
+    service_id BIGINT UNSIGNED NOT NULL,
+    PRIMARY KEY (field_id, service_id),
+    CONSTRAINT fk_ffs_field   FOREIGN KEY (field_id)   REFERENCES form_fields(id) ON DELETE CASCADE,
+    CONSTRAINT fk_ffs_service FOREIGN KEY (service_id) REFERENCES services(id)    ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- =============================================================================
 --  10. OPÉRATIONNEL & FINANCE
 -- =============================================================================

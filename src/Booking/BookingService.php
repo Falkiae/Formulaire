@@ -9,6 +9,7 @@ use Keepnew\Catalog\CatalogRepository;
 use Keepnew\Core\Database;
 use Keepnew\Core\Exception\HttpException;
 use Keepnew\Core\Exception\NotFoundException;
+use Keepnew\Form\FormRepository;
 use Keepnew\Pricing\CartQuote;
 use Keepnew\Support\Clock;
 
@@ -27,6 +28,7 @@ final class BookingService
         private readonly CatalogRepository $catalog,
         private readonly CartPricingService $pricing,
         private readonly HoldService $holds,
+        private readonly FormRepository $forms,
     ) {
     }
 
@@ -57,7 +59,17 @@ final class BookingService
         // Durées des jobs par mode (pour scheduled_end).
         $jobDurations = $this->jobDurations($lines);
 
-        return $this->db->transaction(function (Database $db) use ($cart, $lines, $customer, $address, $slots, $answers, $quote, $jobDurations): array {
+        // Correspondance field_key => field_id du formulaire tel qu'affiché pour
+        // ce panier (traçabilité de booking_answers.field_id, colonne jusqu'ici
+        // jamais renseignée).
+        $serviceIds = array_values(array_unique(array_map(static fn (array $l): int => (int) $l['service_id'], $lines)));
+        $form = $this->forms->publishedFormForServices($serviceIds);
+        $fieldIdByKey = [];
+        foreach ($form['fields'] ?? [] as $f) {
+            $fieldIdByKey[$f['field_key']] = $f['id'];
+        }
+
+        return $this->db->transaction(function (Database $db) use ($cart, $lines, $customer, $address, $slots, $answers, $quote, $jobDurations, $fieldIdByKey): array {
             // 1. Verrou : vérifier que les créneaux choisis sont toujours libres.
             foreach (['onsite', 'workshop'] as $mode) {
                 if (!isset($slots[$mode], $jobDurations[$mode])) {
@@ -94,7 +106,7 @@ final class BookingService
             $this->insertItemsAndJobs($db, $bookingId, $addressId, $lines, $slots, $jobDurations);
 
             // 5. Réponses au formulaire + historique.
-            $this->insertAnswers($db, $bookingId, $answers);
+            $this->insertAnswers($db, $bookingId, $answers, $fieldIdByKey);
             $db->insert('booking_status_history', [
                 'booking_id' => $bookingId, 'new_status' => 'confirmed', 'note' => 'Réservation créée depuis le tunnel',
             ]);
@@ -481,11 +493,15 @@ final class BookingService
     /**
      * @param array<string, mixed> $answers
      */
-    private function insertAnswers(Database $db, int $bookingId, array $answers): void
+    /**
+     * @param array<string, int> $fieldIdByKey
+     */
+    private function insertAnswers(Database $db, int $bookingId, array $answers, array $fieldIdByKey = []): void
     {
         foreach ($answers as $key => $value) {
             $db->insert('booking_answers', [
                 'booking_id' => $bookingId,
+                'field_id' => $fieldIdByKey[(string) $key] ?? null,
                 'field_key' => (string) $key,
                 'value_text' => is_scalar($value) ? (string) $value : null,
                 'value_json' => is_array($value) ? json_encode($value, JSON_UNESCAPED_UNICODE) : null,

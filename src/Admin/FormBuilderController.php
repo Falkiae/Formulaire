@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Keepnew\Admin;
 
+use Keepnew\Catalog\CatalogRepository;
 use Keepnew\Core\Csrf;
 use Keepnew\Core\Exception\NotFoundException;
 use Keepnew\Core\Request;
@@ -25,6 +26,7 @@ final class FormBuilderController
         private readonly Session $session,
         private readonly Csrf $csrf,
         private readonly FormRepository $forms,
+        private readonly CatalogRepository $catalog,
     ) {
     }
 
@@ -54,6 +56,12 @@ final class FormBuilderController
             throw new NotFoundException('Version introuvable.');
         }
 
+        // Prestations groupées par catégorie, pour la checklist d'assignation par champ.
+        $servicesByCategory = [];
+        foreach ($this->catalog->allServices() as $svc) {
+            $servicesByCategory[$svc['category_name']][] = ['id' => (int) $svc['id'], 'name' => $svc['name']];
+        }
+
         return $this->view->render('admin/form/edit', [
             'csrf' => $this->csrf->field(),
             'csrf_token' => $this->csrf->token(),
@@ -61,6 +69,7 @@ final class FormBuilderController
             'fields' => $this->forms->fields($id),
             'conditions' => $this->forms->conditions($id),
             'field_types' => self::FIELD_TYPES,
+            'services_by_category' => $servicesByCategory,
             'user_name' => $this->session->get('user_name'),
             'flash' => $this->session->pullFlash('form_ok'),
         ]);
@@ -99,6 +108,20 @@ final class FormBuilderController
         $this->forms->reorderFields(array_map('intval', $request->array('order')));
 
         return Response::json(['status' => 'ok']);
+    }
+
+    /**
+     * POST /admin/formulaire/{id}/champ/{fieldId}/services — prestations
+     * auxquelles ce champ est assigné (liste vide = toutes les prestations).
+     */
+    public function updateFieldServices(Request $request): Response
+    {
+        $id = (int) $request->attribute('id');
+        $fieldId = (int) $request->attribute('fieldId');
+        $this->forms->syncFieldServices($fieldId, array_map('intval', $request->array('service_ids')));
+        $this->session->flash('form_ok', 'Prestations assignées mises à jour.');
+
+        return Response::redirect("/admin/formulaire/{$id}");
     }
 
     public function addOption(Request $request): Response

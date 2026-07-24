@@ -717,7 +717,7 @@
     body.appendChild(el('<h2 class="kn-h">Quelques précisions</h2>'));
     if (!state._form) {
       body.appendChild(loading());
-      api("/form")
+      api("/form?token=" + encodeURIComponent(state.token))
         .then(function (f) {
           state._form = f;
           renderStepInto(clear(body), state.step);

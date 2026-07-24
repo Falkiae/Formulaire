@@ -141,6 +141,7 @@ return static function (Router $router, Container $container): void {
         $c->get(CatalogRepository::class),
         $c->get(\Keepnew\Catalog\CartPricingService::class),
         $c->get(HoldService::class),
+        $c->get(FormRepository::class),
     ));
 
     // --- Contrôleurs API ---------------------------------------------------
@@ -221,12 +222,16 @@ return static function (Router $router, Container $container): void {
     ));
     $container->singleton(BookingApiController::class, static fn (Container $c): BookingApiController => new BookingApiController(
         $c->get(BookingService::class),
+        $c->get(CartService::class),
         $c->get(FormRepository::class),
         $c->get(FormValidator::class),
         $c->get(NotificationService::class),
         $c->get(TrackingService::class),
     ));
-    $container->singleton(FormApiController::class, static fn (Container $c): FormApiController => new FormApiController($c->get(FormRepository::class)));
+    $container->singleton(FormApiController::class, static fn (Container $c): FormApiController => new FormApiController(
+        $c->get(FormRepository::class),
+        $c->get(CartService::class),
+    ));
 
     // --- Tracking (Phase 11) -----------------------------------------------
     $container->singleton(MetaCapiClient::class, static function (Container $c): MetaCapiClient {
@@ -240,6 +245,7 @@ return static function (Router $router, Container $container): void {
         $c->get(Session::class),
         $c->get(Csrf::class),
         $c->get(FormRepository::class),
+        $c->get(CatalogRepository::class),
     ));
 
     // --- Middlewares -------------------------------------------------------
@@ -415,6 +421,7 @@ return static function (Router $router, Container $container): void {
             $r->post('/formulaire/{id}/champ', [FormBuilderController::class, 'addField'], [CsrfMiddleware::class]);
             $r->post('/formulaire/{id}/champ/{fieldId}/supprimer', [FormBuilderController::class, 'deleteField'], [CsrfMiddleware::class]);
             $r->post('/formulaire/{id}/champs/ordre', [FormBuilderController::class, 'reorderFields'], [CsrfMiddleware::class]);
+            $r->post('/formulaire/{id}/champ/{fieldId}/services', [FormBuilderController::class, 'updateFieldServices'], [CsrfMiddleware::class]);
             $r->post('/formulaire/{id}/champ/{fieldId}/option', [FormBuilderController::class, 'addOption'], [CsrfMiddleware::class]);
             $r->get('/formulaire/{id}/option/{optionId}/supprimer', [FormBuilderController::class, 'deleteOption']);
             $r->post('/formulaire/{id}/condition', [FormBuilderController::class, 'addCondition'], [CsrfMiddleware::class]);

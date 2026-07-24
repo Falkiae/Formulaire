@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Keepnew\Http\Api;
 
 use Keepnew\Booking\BookingService;
+use Keepnew\Booking\CartService;
 use Keepnew\Core\Exception\HttpException;
 use Keepnew\Core\Request;
 use Keepnew\Core\Response;
@@ -21,6 +22,7 @@ final class BookingApiController
 {
     public function __construct(
         private readonly BookingService $bookings,
+        private readonly CartService $cart,
         private readonly FormRepository $forms,
         private readonly FormValidator $validator,
         private readonly NotificationService $notifications,
@@ -44,9 +46,16 @@ final class BookingApiController
             throw new HttpException(422, 'Les conditions générales doivent être acceptées.');
         }
 
-        // Revalidation serveur des réponses au formulaire (jamais de confiance au front).
+        // Revalidation serveur des réponses au formulaire (jamais de confiance au front),
+        // filtrée aux prestations du panier : elle doit exiger exactement ce que le
+        // client a vu, ni plus (champ non pertinent) ni moins.
         $answers = $request->array('answers');
-        $form = $this->forms->publishedForm();
+        $cartToken = $request->string('token');
+        $serviceIds = array_values(array_unique(array_map(
+            static fn (array $line): int => (int) $line['service_id'],
+            $this->cart->lines($cartToken),
+        )));
+        $form = $serviceIds === [] ? $this->forms->publishedForm() : $this->forms->publishedFormForServices($serviceIds);
         if ($form !== null) {
             $errors = $this->validator->validate($answers, $form['fields'], $form['conditions']);
             if ($errors !== []) {

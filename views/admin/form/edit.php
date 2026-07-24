@@ -38,7 +38,7 @@ foreach ($data['fields'] as $f) { $fieldsById[(int) $f['id']] = $f; }
             <h2>Champs</h2>
             <div class="kn-table-wrap">
                 <table class="kn-table" id="fields-table">
-                    <thead><tr><th>Clé</th><th>Libellé</th><th>Type</th><th>Étape</th><th>Requis</th><th>Options</th><th></th></tr></thead>
+                    <thead><tr><th>Clé</th><th>Libellé</th><th>Type</th><th>Étape</th><th>Requis</th><th>Prestations</th><th>Options</th><th></th></tr></thead>
                     <tbody id="fields-body">
                         <?php foreach ($data['fields'] as $f): ?>
                             <tr draggable="true" data-id="<?= (int) $f['id'] ?>">
@@ -47,6 +47,33 @@ foreach ($data['fields'] as $f) { $fieldsById[(int) $f['id']] = $f; }
                                 <td><span class="kn-badge"><?= $e($f['field_type']) ?></span></td>
                                 <td><?= (int) $f['step'] ?></td>
                                 <td><?= (int) $f['is_required'] === 1 ? 'oui' : 'non' ?></td>
+                                <td>
+                                    <?php if ($f['service_ids'] === []): ?>
+                                        <span class="kn-badge">Toutes les prestations</span>
+                                    <?php else: ?>
+                                        <span class="kn-badge"><?= count($f['service_ids']) ?> prestation<?= count($f['service_ids']) > 1 ? 's' : '' ?></span>
+                                    <?php endif; ?>
+                                    <details>
+                                        <summary class="kn-muted">modifier</summary>
+                                        <form method="post" action="/admin/formulaire/<?= (int) $version['id'] ?>/champ/<?= (int) $f['id'] ?>/services" style="margin-top:4px;">
+                                            <?= $data['csrf'] ?>
+                                            <div style="max-height:160px;overflow-y:auto;border:1px solid var(--kn-line);border-radius:8px;padding:8px;">
+                                                <?php foreach ($data['services_by_category'] as $catName => $catServices): ?>
+                                                    <p class="kn-muted" style="margin:4px 0 2px;font-weight:600;"><?= $e($catName) ?></p>
+                                                    <?php foreach ($catServices as $svc): ?>
+                                                        <label class="kn-check" style="display:block;">
+                                                            <input type="checkbox" name="service_ids[]" value="<?= $svc['id'] ?>"
+                                                                <?= in_array($svc['id'], $f['service_ids'], true) ? 'checked' : '' ?>>
+                                                            <?= $e($svc['name']) ?>
+                                                        </label>
+                                                    <?php endforeach; ?>
+                                                <?php endforeach; ?>
+                                            </div>
+                                            <p class="kn-muted" style="font-size:.78rem;margin:4px 0;">Aucune case cochée = s'applique à toutes les prestations.</p>
+                                            <button type="submit" class="kn-btn kn-btn-ghost kn-btn-sm">Enregistrer</button>
+                                        </form>
+                                    </details>
+                                </td>
                                 <td>
                                     <?php foreach ($f['options'] as $o): ?>
                                         <span class="kn-badge"><?= $e($o['label']) ?>
@@ -73,7 +100,7 @@ foreach ($data['fields'] as $f) { $fieldsById[(int) $f['id']] = $f; }
                                 </td>
                             </tr>
                         <?php endforeach; ?>
-                        <?php if ($data['fields'] === []): ?><tr><td colspan="7" class="kn-muted">Aucun champ.</td></tr><?php endif; ?>
+                        <?php if ($data['fields'] === []): ?><tr><td colspan="8" class="kn-muted">Aucun champ.</td></tr><?php endif; ?>
                     </tbody>
                 </table>
             </div>
