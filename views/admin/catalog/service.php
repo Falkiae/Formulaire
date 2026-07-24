@@ -93,34 +93,35 @@ foreach ($data['modes'] as $m) {
 
             <section class="kn-card" style="margin-bottom:24px;">
                 <h2>Modes d'exécution</h2>
-                <p class="kn-muted">Prix et durée propres à chaque mode. Laisser le prix vide pour retomber sur la base.</p>
+                <p class="kn-muted">Décochez « Proposé aux clients » pour retirer un mode (ex. prestation réservable uniquement à domicile, ou uniquement en atelier). Prix et durée propres à chaque mode ; laisser le prix vide pour retomber sur la base.</p>
 
                 <?php foreach (['onsite' => 'À domicile', 'workshop' => 'Atelier'] as $mode => $label): ?>
                     <?php $m = $modesByName[$mode] ?? null; ?>
                     <fieldset style="border:1px solid var(--kn-line);border-radius:12px;padding:16px;margin-bottom:16px;">
                         <legend>
                             <span class="kn-badge kn-badge-<?= $mode ?>"><?= $e($label) ?></span>
-                            <?php if ($m === null): ?><span class="kn-muted">— non proposé</span><?php endif; ?>
                         </legend>
+                        <label class="kn-check">
+                            <input type="checkbox" name="mode_<?= $mode ?>" value="1" <?= $m !== null ? 'checked' : '' ?>>
+                            Proposé aux clients
+                        </label>
                         <div class="kn-grid kn-grid-2">
                             <div class="kn-field">
                                 <label for="price_<?= $mode ?>">Prix (€)</label>
                                 <input type="text" id="price_<?= $mode ?>" name="price_<?= $mode ?>" inputmode="decimal"
-                                       value="<?= ($m && $m['price_cents'] !== null) ? $e($centsToEuros((int) $m['price_cents'])) : '' ?>"
-                                    <?= $m === null ? 'disabled' : '' ?>>
+                                       value="<?= ($m && $m['price_cents'] !== null) ? $e($centsToEuros((int) $m['price_cents'])) : '' ?>">
                             </div>
                             <div class="kn-field">
                                 <label for="duration_<?= $mode ?>">Durée active (min)</label>
                                 <input type="number" id="duration_<?= $mode ?>" name="duration_<?= $mode ?>" min="0"
-                                       value="<?= ($m && $m['active_duration_min'] !== null) ? (int) $m['active_duration_min'] : '' ?>"
-                                    <?= $m === null ? 'disabled' : '' ?>>
+                                       value="<?= ($m && $m['active_duration_min'] !== null) ? (int) $m['active_duration_min'] : '' ?>">
                             </div>
                         </div>
-                        <?php if ($mode === 'workshop' && $m !== null): ?>
+                        <?php if ($mode === 'workshop'): ?>
                             <div class="kn-field">
                                 <label for="occupancy_workshop">Immobilisation du poste (min, séchage inclus)</label>
                                 <input type="number" id="occupancy_workshop" name="occupancy_workshop" min="0"
-                                       value="<?= $m['occupancy_duration_min'] !== null ? (int) $m['occupancy_duration_min'] : '' ?>">
+                                       value="<?= ($m && $m['occupancy_duration_min'] !== null) ? (int) $m['occupancy_duration_min'] : '' ?>">
                             </div>
                         <?php endif; ?>
                     </fieldset>

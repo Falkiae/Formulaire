@@ -330,6 +330,41 @@ final class CatalogRepository
     }
 
     /**
+     * Active un mode d'exécution pour un service (crée la ligne si absente).
+     * La présence d'une ligne = mode supporté (cf. LineResolver::resolve()).
+     * No-op si le mode est déjà proposé, pour rester idempotent.
+     */
+    public function createServiceMode(int $serviceId, string $mode): void
+    {
+        $existing = $this->serviceMode($serviceId, $mode);
+        if ($existing !== null) {
+            return;
+        }
+
+        $this->db->insert('service_delivery_modes', [
+            'service_id' => $serviceId,
+            'mode' => $mode,
+            'price_cents' => null,
+            'active_duration_min' => null,
+            'occupancy_duration_min' => null,
+            'is_active' => 1,
+        ]);
+    }
+
+    /**
+     * Retire un mode d'exécution d'un service : la prestation ne sera plus
+     * proposée dans ce mode (LineResolver::resolve() refuse déjà tout mode
+     * sans ligne correspondante). Aucune FK ne référence cette table.
+     */
+    public function deleteServiceMode(int $serviceId, string $mode): void
+    {
+        $this->db->run(
+            'DELETE FROM service_delivery_modes WHERE service_id = :id AND mode = :m',
+            ['id' => $serviceId, 'm' => $mode],
+        );
+    }
+
+    /**
      * Active/désactive un service sans le supprimer (historique préservé).
      */
     public function setServiceActive(int $serviceId, bool $active): void

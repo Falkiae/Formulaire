@@ -109,11 +109,28 @@ final class CatalogController
             'is_active' => $request->bool('is_active') ? 1 : 0,
         ], $userId);
 
-        // Un bloc de champs par mode : price_onsite, duration_onsite, occupancy_onsite…
+        // Un bloc de champs par mode : mode_onsite (case "proposé"), price_onsite,
+        // duration_onsite, occupancy_onsite… La case pilote la création/suppression
+        // de la ligne service_delivery_modes (présence = mode réservable, cf.
+        // LineResolver::resolve()) ; au moins un mode doit rester proposé.
+        $anyModeEnabled = false;
         foreach (['onsite', 'workshop'] as $mode) {
-            if (!$request->has("price_{$mode}") && !$request->has("duration_{$mode}")) {
+            if ($request->bool("mode_{$mode}")) {
+                $anyModeEnabled = true;
+            }
+        }
+        if (!$anyModeEnabled) {
+            $this->session->flash('catalog_ok', 'Au moins un mode (domicile ou atelier) doit rester proposé.');
+
+            return Response::redirect("/admin/catalogue/service/{$id}");
+        }
+
+        foreach (['onsite', 'workshop'] as $mode) {
+            if (!$request->bool("mode_{$mode}")) {
+                $this->catalog->deleteServiceMode($id, $mode);
                 continue;
             }
+            $this->catalog->createServiceMode($id, $mode);
             $this->catalog->updateModePricing(
                 $id,
                 $mode,
