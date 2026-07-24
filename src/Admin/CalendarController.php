@@ -9,6 +9,8 @@ use Keepnew\Core\Response;
 use Keepnew\Core\Session;
 use Keepnew\Core\View;
 use Keepnew\Support\Clock;
+use Keepnew\Technician\TechnicianRepository;
+use Keepnew\Zone\ZoneRepository;
 
 /**
  * Calendrier des prestations : vues mensuelle et hebdomadaire, en lecture,
@@ -30,7 +32,27 @@ final class CalendarController
         private readonly View $view,
         private readonly Session $session,
         private readonly DispatchService $dispatch,
+        private readonly ZoneRepository $zones,
+        private readonly TechnicianRepository $technicians,
     ) {
+    }
+
+    /**
+     * Zones et ateliers actifs pour la sidebar "Territoires" (mélangés dans
+     * une seule liste côté vue : une zone ne concerne que le domicile, un
+     * atelier que le workshop — cf. DispatchService::range()).
+     *
+     * @return array{zones:list<array<string,mixed>>, locations:list<array<string,mixed>>}
+     */
+    private function territories(): array
+    {
+        return [
+            'zones' => array_values(array_filter(
+                $this->zones->all(),
+                static fn (array $z): bool => (int) $z['is_active'] === 1,
+            )),
+            'locations' => $this->technicians->activeLocations(),
+        ];
     }
 
     /**
@@ -89,6 +111,8 @@ final class CalendarController
             'filters' => $filters,
             'filter_qs' => $this->filterQuery($filters),
             'technicians' => $this->dispatch->activeTechnicians(),
+            'territories' => $this->territories(),
+            'day_link' => '/admin/dispatch?date=' . $firstOfMonth->format('Y-m-d'),
             'user_name' => $this->session->get('user_name'),
         ]);
     }
@@ -136,12 +160,14 @@ final class CalendarController
             'filters' => $filters,
             'filter_qs' => $this->filterQuery($filters),
             'technicians' => $this->dispatch->activeTechnicians(),
+            'territories' => $this->territories(),
+            'day_link' => '/admin/dispatch?date=' . $monday->format('Y-m-d'),
             'user_name' => $this->session->get('user_name'),
         ]);
     }
 
     /**
-     * @return array{mode:string, technician_id:int}
+     * @return array{mode:string, technician_id:int, zone_id:int, location_id:int}
      */
     private function filters(Request $request): array
     {
@@ -150,13 +176,18 @@ final class CalendarController
         return [
             'mode' => in_array($mode, ['onsite', 'workshop'], true) ? $mode : '',
             'technician_id' => $request->int('tech'),
+            // Mutuellement exclusifs côté UI (sidebar "Territoires" à sélection
+            // unique) : une zone ne concerne que le domicile, un atelier que
+            // le workshop — cf. DispatchService::range().
+            'zone_id' => $request->int('zone_id'),
+            'location_id' => $request->int('location_id'),
         ];
     }
 
     /**
      * Sérialise les filtres pour les préserver dans les liens de navigation.
      *
-     * @param array{mode:string, technician_id:int} $filters
+     * @param array{mode:string, technician_id:int, zone_id:int, location_id:int} $filters
      */
     private function filterQuery(array $filters): string
     {
@@ -166,6 +197,12 @@ final class CalendarController
         }
         if ($filters['technician_id'] > 0) {
             $qs .= '&tech=' . $filters['technician_id'];
+        }
+        if ($filters['zone_id'] > 0) {
+            $qs .= '&zone_id=' . $filters['zone_id'];
+        }
+        if ($filters['location_id'] > 0) {
+            $qs .= '&location_id=' . $filters['location_id'];
         }
 
         return $qs;

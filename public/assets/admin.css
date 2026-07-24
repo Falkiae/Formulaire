@@ -526,19 +526,64 @@ table.kn-table {
 .kn-login-box h1 { margin-bottom: 4px; }
 
 /* --- Calendrier (mensuel / hebdomadaire) ----------------------------------- */
-.kn-cal-filters {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: end;
-    gap: var(--kn-space-3);
-    margin-bottom: var(--kn-space-4);
-}
-.kn-cal-filters .kn-field select { min-width: 150px; }
 .kn-cal-toggle {
     display: flex;
     align-items: center;
     gap: var(--kn-space-2);
     margin-left: auto;
+}
+
+/* Mise en page à deux colonnes : sidebar de filtres + grille. Empilée sous 768px. */
+.kn-cal-layout {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--kn-space-4);
+}
+.kn-cal-main { flex: 1 1 auto; min-width: 0; }
+
+.kn-cal-sidebar {
+    flex: 0 0 210px;
+    width: 210px;
+    background: var(--kn-surface);
+    border: 1px solid var(--kn-line);
+    border-radius: var(--kn-radius-card);
+    padding: var(--kn-space-3);
+}
+.kn-cal-sidebar-section { margin-bottom: var(--kn-space-4); }
+.kn-cal-sidebar-section:last-child { margin-bottom: 0; }
+.kn-cal-sidebar-section h3 {
+    font-size: var(--kn-fs-small);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--kn-muted);
+    margin: 0 0 6px;
+}
+.kn-cal-sidebar-link {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 8px;
+    border-radius: var(--kn-radius-control);
+    font-size: var(--kn-fs-small);
+    color: var(--kn-ink);
+    text-decoration: none;
+}
+.kn-cal-sidebar-link:hover { background: var(--kn-paper); }
+.kn-cal-sidebar-link.is-active { background: var(--kn-blush); color: var(--kn-accent-ink); font-weight: 600; }
+
+/* Avatar rond initiales, réutilisé dans la sidebar et les pastilles. */
+.kn-avatar {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    font-size: 0.62rem;
+    font-weight: 700;
+    color: var(--kn-ink);
+    line-height: 1;
 }
 
 /* Grille mensuelle : 7 colonnes, condensée sur mobile (le jour renvoie à la semaine). */
@@ -571,7 +616,9 @@ table.kn-table {
 .kn-cal-daynum a:hover { color: var(--kn-accent); }
 
 .kn-cal-pill {
-    display: block;
+    display: flex;
+    align-items: center;
+    gap: 4px;
     font-size: 0.72rem;
     line-height: 1.3;
     padding: 2px 5px;
@@ -580,14 +627,28 @@ table.kn-table {
     text-decoration: none;
     color: var(--kn-accent-ink);
     background: var(--kn-blush);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 .kn-cal-pill:hover { filter: brightness(0.96); }
 .kn-pill-onsite   { background: var(--kn-blush);  color: var(--kn-accent-ink); }
 .kn-pill-workshop { background: #E7ECFB;          color: var(--kn-accent-ink); }
 .kn-cal-time { font-variant-numeric: tabular-nums; font-weight: 700; }
+.kn-cal-pill-body {
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.kn-cal-pill-service {
+    display: block;
+    font-size: 0.68rem;
+    opacity: 0.75;
+}
+
+@media (max-width: 768px) {
+    .kn-cal-layout { flex-direction: column; }
+    .kn-cal-sidebar { width: 100%; flex-basis: auto; }
+    .kn-cal-sidebar-section { display: inline-block; margin-right: var(--kn-space-4); vertical-align: top; }
+}
 
 @media (max-width: 560px) {
     .kn-cal-cell { min-height: 60px; }
@@ -610,4 +671,5 @@ table.kn-table {
 }
 .kn-week-col.is-today { border-color: var(--kn-accent); }
 .kn-week-col h3 { font-size: var(--kn-fs-small); margin: 0 0 8px; }
-.kn-week-col .kn-cal-pill { white-space: normal; }
+.kn-week-col .kn-cal-pill { white-space: normal; align-items: flex-start; }
+.kn-week-col .kn-cal-pill-body { white-space: normal; }

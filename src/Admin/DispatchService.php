@@ -84,7 +84,7 @@ final class DispatchService
      * Jobs planifiés sur une PLAGE de dates (locale), avec filtres optionnels.
      * Sert au calendrier mensuel / hebdomadaire.
      *
-     * @param array{mode?:string, technician_id?:int} $filters
+     * @param array{mode?:string, technician_id?:int, zone_id?:int, location_id?:int} $filters
      * @return list<array<string,mixed>>
      */
     public function range(string $fromDate, string $toDate, array $filters = []): array
@@ -94,6 +94,7 @@ final class DispatchService
 
         $where = "j.scheduled_start BETWEEN :from AND :to AND j.status NOT IN ('cancelled')";
         $params = ['from' => $from, 'to' => $to];
+        $joins = '';
 
         if (in_array($filters['mode'] ?? '', ['onsite', 'workshop'], true)) {
             $where .= ' AND j.mode = :mode';
@@ -102,6 +103,19 @@ final class DispatchService
         if (($filters['technician_id'] ?? 0) > 0) {
             $where .= ' AND j.technician_id = :tech';
             $params['tech'] = (int) $filters['technician_id'];
+        }
+        // Territoire "zone" : ne concerne que les jobs à domicile (adresse
+        // dont le code postal appartient à la zone) — cohérent avec
+        // ZoneResolver, sans dupliquer sa logique de résolution.
+        if (($filters['zone_id'] ?? 0) > 0) {
+            $joins .= ' JOIN zone_postal_codes zpc ON zpc.postal_code = a.postal_code AND zpc.zone_id = :zone_id';
+            $params['zone_id'] = (int) $filters['zone_id'];
+        }
+        // Territoire "atelier" : ne concerne que les jobs en atelier (poste
+        // rattaché à l'atelier choisi).
+        if (($filters['location_id'] ?? 0) > 0) {
+            $joins .= ' JOIN workshop_bays wb ON wb.id = j.bay_id AND wb.location_id = :location_id';
+            $params['location_id'] = (int) $filters['location_id'];
         }
 
         $rows = $this->db->select(
@@ -115,6 +129,7 @@ final class DispatchService
              JOIN customers c ON c.id = b.customer_id
              LEFT JOIN addresses a ON a.id = j.address_id
              LEFT JOIN booking_items bi ON bi.job_id = j.id
+             {$joins}
              WHERE {$where}
              GROUP BY j.id
              ORDER BY j.scheduled_start",

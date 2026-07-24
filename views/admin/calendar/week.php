@@ -5,6 +5,21 @@
  * @var callable $e
  */
 $qs = $data['filter_qs'];
+$data['base_path'] = '/admin/calendrier/semaine';
+$initials = static fn (string $first, string $last): string =>
+    mb_strtoupper(mb_substr($first, 0, 1) . mb_substr($last, 0, 1));
+$avatarColor = static fn (int $techId): string =>
+    ['#F7D7E2', '#E7ECFB', '#D8F0DF', '#FCE8C8', '#E4D9F7', '#D6EFF3'][$techId % 6];
+$techById = [];
+foreach ($data['technicians'] as $t) {
+    $techById[(int) $t['id']] = $t;
+}
+// Ne garde que le premier segment du libellé cumulé des prestations (+N si
+// plusieurs), pour rester lisible dans une pastille compacte.
+$serviceLabel = static function (string $services): string {
+    $parts = explode(' + ', $services);
+    return $parts[0] . (count($parts) > 1 ? ' +' . (count($parts) - 1) : '');
+};
 ?>
 <!doctype html>
 <html lang="fr">
@@ -23,25 +38,41 @@ $qs = $data['filter_qs'];
             <a class="kn-btn kn-btn-ghost kn-btn-sm" href="/admin/calendrier/semaine?date=<?= $e($data['prev']) . $qs ?>">← Semaine préc.</a>
             <h1 style="margin:0;font-size:var(--kn-fs-2);"><?= $e($data['label']) ?></h1>
             <a class="kn-btn kn-btn-ghost kn-btn-sm" href="/admin/calendrier/semaine?date=<?= $e($data['next']) . $qs ?>">Semaine suiv. →</a>
+            <div class="kn-cal-toggle">
+                <a class="kn-btn kn-btn-ghost kn-btn-sm" href="<?= $e($data['day_link']) ?>">Jour</a>
+                <span class="kn-badge kn-badge-onsite">Semaine</span>
+                <a class="kn-btn kn-btn-ghost kn-btn-sm" href="/admin/calendrier?date=<?= $e($data['month_of']) . $qs ?>">Mois</a>
+            </div>
         </div>
 
-        <?php include __DIR__ . '/_filters.php'; ?>
+        <div class="kn-cal-layout">
+            <?php include __DIR__ . '/_sidebar.php'; ?>
 
-        <div class="kn-week-grid">
-            <?php foreach ($data['days'] as $day): ?>
-                <section class="kn-week-col<?= $day['is_today'] ? ' is-today' : '' ?>">
-                    <h3><?= $e($day['label']) ?></h3>
-                    <?php foreach ($day['jobs'] as $j): ?>
-                        <a class="kn-cal-pill kn-pill-<?= $e($j['mode']) ?>" href="/admin/job/<?= (int) $j['id'] ?>"
-                           title="<?= $e($j['customer'] . ' · ' . $j['services']) ?>">
-                            <span class="kn-cal-time"><?= $e($j['start_local'] ?? '') ?>–<?= $e($j['end_local'] ?? '') ?></span>
-                            <?= $e($j['customer']) ?>
-                            <span class="kn-badge <?= $j['mode'] === 'onsite' ? 'kn-badge-onsite' : 'kn-badge-workshop' ?>" style="margin-left:2px;"><?= $j['mode'] === 'onsite' ? 'Dom.' : 'Atl.' ?></span>
-                        </a>
+            <div class="kn-cal-main">
+                <div class="kn-week-grid">
+                    <?php foreach ($data['days'] as $day): ?>
+                        <section class="kn-week-col<?= $day['is_today'] ? ' is-today' : '' ?>">
+                            <h3><?= $e($day['label']) ?></h3>
+                            <?php foreach ($day['jobs'] as $j): ?>
+                                <?php $tech = $techById[(int) $j['technician_id']] ?? null; ?>
+                                <a class="kn-cal-pill kn-pill-<?= $e($j['mode']) ?>" href="/admin/job/<?= (int) $j['id'] ?>"
+                                   title="<?= $e($j['customer'] . ' · ' . $j['services']) ?>">
+                                    <?php if ($tech): ?>
+                                        <span class="kn-avatar" style="background:<?= $avatarColor((int) $j['technician_id']) ?>"><?= $e($initials($tech['first_name'], $tech['last_name'])) ?></span>
+                                    <?php endif; ?>
+                                    <span class="kn-cal-pill-body">
+                                        <span class="kn-cal-time"><?= $e($j['start_local'] ?? '') ?>–<?= $e($j['end_local'] ?? '') ?></span>
+                                        <?= $e($j['customer']) ?>
+                                        <span class="kn-badge <?= $j['mode'] === 'onsite' ? 'kn-badge-onsite' : 'kn-badge-workshop' ?>" style="margin-left:2px;"><?= $j['mode'] === 'onsite' ? 'Dom.' : 'Atl.' ?></span>
+                                        <span class="kn-cal-pill-service"><?= $e($serviceLabel($j['services'])) ?></span>
+                                    </span>
+                                </a>
+                            <?php endforeach; ?>
+                            <?php if ($day['jobs'] === []): ?><p class="kn-muted" style="font-size:.8rem;padding:4px;">—</p><?php endif; ?>
+                        </section>
                     <?php endforeach; ?>
-                    <?php if ($day['jobs'] === []): ?><p class="kn-muted" style="font-size:.8rem;padding:4px;">—</p><?php endif; ?>
-                </section>
-            <?php endforeach; ?>
+                </div>
+            </div>
         </div>
     </main>
 </body>

@@ -317,6 +317,8 @@ return static function (Router $router, Container $container): void {
         $c->get(View::class),
         $c->get(Session::class),
         $c->get(DispatchService::class),
+        $c->get(ZoneRepository::class),
+        $c->get(TechnicianRepository::class),
     ));
     $container->singleton(CustomerRepository::class, static fn (Container $c): CustomerRepository => new CustomerRepository($c->get(Database::class)));
     $container->singleton(CustomerController::class, static fn (Container $c): CustomerController => new CustomerController(
