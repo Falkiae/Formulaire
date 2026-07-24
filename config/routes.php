@@ -54,6 +54,7 @@ use Keepnew\Geo\HaversineGeoProvider;
 use Keepnew\Geo\OpenRouteServiceProvider;
 use Keepnew\Geo\PostalMatrixGeoProvider;
 use Keepnew\Http\Api\AvailabilityApiController;
+use Keepnew\Http\Api\ZoneCheckApiController;
 use Keepnew\Http\Api\BookingApiController;
 use Keepnew\Http\Api\CartApiController;
 use Keepnew\Http\Api\CatalogApiController;
@@ -157,6 +158,10 @@ return static function (Router $router, Container $container): void {
         $c->get(CartService::class),
         $c->get(AvailabilityService::class),
         $c->get(AvailabilityRepository::class),
+    ));
+    $container->singleton(ZoneCheckApiController::class, static fn (Container $c): ZoneCheckApiController => new ZoneCheckApiController(
+        $c->get(AvailabilityRepository::class),
+        $c->get(ZoneResolver::class),
     ));
     $container->singleton(FormRepository::class, static fn (Container $c): FormRepository => new FormRepository($c->get(Database::class)));
     $container->singleton(FormValidator::class, static fn (): FormValidator => new FormValidator());
@@ -541,8 +546,9 @@ return static function (Router $router, Container $container): void {
     $db = $container->get(Database::class);
     $availabilityLimit = new RateLimitMiddleware($db, 'api_availability', 40, 60);
     $bookingLimit = new RateLimitMiddleware($db, 'api_booking', 15, 60);
+    $zoneCheckLimit = new RateLimitMiddleware($db, 'api_zone_check', 40, 60);
 
-    $router->group('/api', [], static function (Router $r) use ($availabilityLimit, $bookingLimit): void {
+    $router->group('/api', [], static function (Router $r) use ($availabilityLimit, $bookingLimit, $zoneCheckLimit): void {
         // Catalogue (lecture)
         $r->get('/catalog', [CatalogApiController::class, 'index']);
         $r->get('/services/{id}', [CatalogApiController::class, 'service']);
@@ -563,6 +569,9 @@ return static function (Router $router, Container $container): void {
 
         // Disponibilité (rate-limité : anti-énumération de créneaux)
         $r->post('/availability', [AvailabilityApiController::class, 'search'], [$availabilityLimit]);
+
+        // Vérification de zone légère (étape 1 du tunnel, avant tout panier)
+        $r->get('/zones/check', [ZoneCheckApiController::class, 'check'], [$zoneCheckLimit]);
 
         // Réservation (rate-limité)
         $r->post('/bookings', [BookingApiController::class, 'create'], [$bookingLimit]);

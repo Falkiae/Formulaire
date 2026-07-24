@@ -395,6 +395,8 @@
         '" placeholder="Ex. 4000"></div>'
     );
     postalWrap.appendChild(field);
+    var postalMsgWrap = el("<div></div>");
+    postalWrap.appendChild(postalMsgWrap);
     var cont = el('<button class="kn-btn kn-btn-primary" type="button">Continuer</button>');
     cont.addEventListener("click", function () {
       pickMode("onsite");
@@ -403,8 +405,24 @@
     body.appendChild(postalWrap);
 
     var input = field.querySelector("input");
+    // Vérification de zone dès la saisie (débounced), pour un retour immédiat
+    // sans attendre le clic sur Continuer — pickMode() reste l'unique point de
+    // blocage autoritaire (voir plus bas), ceci n'est qu'un retour visuel.
+    var checkTimer = null;
     input.addEventListener("input", function () {
       state.postal = input.value.replace(/\D/g, "").slice(0, 4);
+      postalMsgWrap.innerHTML = "";
+      clearTimeout(checkTimer);
+      if (state.postal.length === 4) {
+        checkTimer = setTimeout(function () {
+          checkPostalZone(state.postal).then(function (ok) {
+            if (!ok && state.postal.length === 4) {
+              postalMsgWrap.innerHTML = "";
+              postalMsgWrap.appendChild(outOfZoneMessage());
+            }
+          });
+        }, 400);
+      }
     });
     input.addEventListener("keydown", function (e) {
       if (e.key === "Enter") pickMode("onsite");
@@ -417,19 +435,48 @@
     if (state.mode === "onsite") showPostal();
 
     body.appendChild(reassure("Oui, nous intervenons à Liège et dans un rayon de 25 km."));
-  }
-  function pickMode(mode) {
-    // Le code postal n'est requis que pour le domicile (zone) ; pas pour l'atelier.
-    if (mode === "onsite" && (!state.postal || state.postal.length < 4)) {
-      flash("Indiquez d'abord votre code postal.");
-      return;
+
+    // Vérification autoritaire à la validation (toujours réévaluée, jamais de
+    // cache pouvant être obsolète) : bloque le passage à l'étape suivante tant
+    // que le code postal n'est pas couvert.
+    function pickMode(mode) {
+      if (mode === "onsite" && (!state.postal || state.postal.length < 4)) {
+        flash("Indiquez d'abord votre code postal.");
+        return;
+      }
+      if (mode !== "onsite") {
+        proceedMode(mode);
+        return;
+      }
+      checkPostalZone(state.postal).then(function (ok) {
+        if (!ok) {
+          postalMsgWrap.innerHTML = "";
+          postalMsgWrap.appendChild(outOfZoneMessage());
+          return;
+        }
+        proceedMode("onsite");
+      });
     }
+  }
+  function proceedMode(mode) {
     state.mode = mode;
     ensureCart().then(function () {
       setTimeout(function () {
         goto("what");
       }, 300);
     });
+  }
+  // Panne réseau : ne bloque pas abusivement une saisie potentiellement
+  // valide, cohérent avec le choix déjà fait ailleurs dans le tunnel.
+  function checkPostalZone(postal) {
+    return api("/zones/check?postal=" + encodeURIComponent(postal))
+      .then(function (r) {
+        return !!r.ok;
+      })
+      .catch(function () {
+        flash("Impossible de vérifier votre zone pour le moment.");
+        return true;
+      });
   }
 
   // --- Étape 2 : QUOI (catégorie → service) ---------------------------------
@@ -1242,6 +1289,15 @@
   // --- Démarrage -------------------------------------------------------------
   mountShell();
   replaySession();
+  // Préchargement en arrière-plan (non bloquant) : renderWhere() a besoin de
+  // catalog.contact pour outOfZoneMessage() dès l'étape 1 ; renderWhat()
+  // garde son propre filet de sécurité si l'utilisateur va plus vite que ce
+  // chargement.
+  if (!catalog) {
+    api("/catalog").then(function (d) {
+      catalog = d;
+    });
+  }
 
   // --- CSS (tokens de marque inline, scopé au Shadow DOM) -------------------
   function CSS() {
