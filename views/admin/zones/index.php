@@ -41,6 +41,7 @@ $typeLabels = ['radius' => 'Rayon', 'postal_codes' => 'Codes postaux', 'polygon'
                                 <td class="kn-muted">
                                     <?php if ($z['zone_type'] === 'radius'): ?>
                                         <?= $e($z['radius_km']) ?> km autour de <?= $e($z['center_lat']) ?>, <?= $e($z['center_lng']) ?>
+                                        <br><span class="kn-alert" style="display:inline-block;padding:2px 8px;font-size:.75rem;">⚠ inactive — ouvrez la zone et ajoutez des codes postaux</span>
                                     <?php else: ?>
                                         <?= (int) $z['postal_count'] ?> code(s) postal(aux)
                                     <?php endif; ?>

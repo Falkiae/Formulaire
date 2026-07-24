@@ -8,7 +8,7 @@
 $zone = $data['zone'];
 $isNew = $zone === null;
 $zoneId = $isNew ? 0 : (int) $zone['id'];
-$type = $zone['zone_type'] ?? 'postal_codes';
+$wasRadius = !$isNew && ($zone['zone_type'] ?? '') === 'radius';
 $modifierLabels = ['refuse' => 'Refus', 'surcharge' => 'Supplément', 'discount' => 'Remise'];
 $techZoneIds = $data['zone_technician_ids'];
 ?>
@@ -29,6 +29,9 @@ $techZoneIds = $data['zone_technician_ids'];
 
         <?php if (!empty($data['error'])): ?><p class="kn-alert kn-alert-error"><?= $e($data['error']) ?></p><?php endif; ?>
         <?php if (!empty($data['flash'])): ?><p class="kn-alert kn-alert-ok"><?= $e($data['flash']) ?></p><?php endif; ?>
+        <?php if ($wasRadius): ?>
+            <p class="kn-alert">Cette zone était de type « rayon », qui ne fonctionnait jamais réellement dans le tunnel public (le code postal saisi n'était jamais converti en coordonnées). Elle a été convertie en « codes postaux » — complétez la liste ci-dessous et enregistrez pour qu'elle redevienne active.</p>
+        <?php endif; ?>
 
         <h1><?= $isNew ? 'Nouvelle zone' : $e($zone['name']) ?></h1>
 
@@ -42,24 +45,7 @@ $techZoneIds = $data['zone_technician_ids'];
             </div>
 
             <div class="kn-field">
-                <label for="zone_type">Type de couverture</label>
-                <select id="zone_type" name="zone_type">
-                    <option value="postal_codes" <?= $type === 'postal_codes' ? 'selected' : '' ?>>Codes postaux (liste explicite)</option>
-                    <option value="radius" <?= $type === 'radius' ? 'selected' : '' ?>>Rayon depuis un centre</option>
-                </select>
-            </div>
-
-            <div class="kn-field kn-zone-radius">
-                <label>Centre et rayon</label>
-                <div class="kn-grid kn-grid-2">
-                    <input type="text" name="center_lat" value="<?= $e($zone['center_lat'] ?? '') ?>" placeholder="Latitude (ex. 50.6326)" inputmode="decimal">
-                    <input type="text" name="center_lng" value="<?= $e($zone['center_lng'] ?? '') ?>" placeholder="Longitude (ex. 5.5797)" inputmode="decimal">
-                </div>
-                <input type="text" name="radius_km" value="<?= $e($zone['radius_km'] ?? '') ?>" placeholder="Rayon en km (ex. 25)" inputmode="decimal" style="margin-top:8px;">
-            </div>
-
-            <div class="kn-field kn-zone-postal">
-                <label for="postal_codes">Codes postaux (un par ligne, ou séparés par des virgules)</label>
+                <label for="postal_codes">Codes postaux couverts (un par ligne, ou séparés par des virgules)</label>
                 <textarea id="postal_codes" name="postal_codes" rows="5" style="width:100%;padding:8px;border:1px solid var(--kn-line);border-radius:8px;resize:vertical;"><?= $e(implode("\n", $data['postal_codes'])) ?></textarea>
             </div>
 
@@ -78,21 +64,6 @@ $techZoneIds = $data['zone_technician_ids'];
 
             <button type="submit" class="kn-btn kn-btn-primary"><?= $isNew ? 'Créer la zone' : 'Enregistrer' ?></button>
         </form>
-
-        <script>
-        (function () {
-            var form = document.getElementById('kn-zone-form');
-            if (!form) return;
-            var typeSel = document.getElementById('zone_type');
-            function sync() {
-                var radius = typeSel.value === 'radius';
-                form.querySelectorAll('.kn-zone-radius').forEach(function (el) { el.style.display = radius ? '' : 'none'; });
-                form.querySelectorAll('.kn-zone-postal').forEach(function (el) { el.style.display = radius ? 'none' : ''; });
-            }
-            typeSel.addEventListener('change', sync);
-            sync();
-        })();
-        </script>
 
         <?php if (!$isNew): ?>
             <form method="post" action="/admin/zones/<?= $zoneId ?>/supprimer" style="margin-top:12px;" onsubmit="return confirm('Supprimer cette zone ? Les codes postaux, règles et affectations techniciens associés seront aussi supprimés.');">

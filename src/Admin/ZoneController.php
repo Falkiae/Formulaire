@@ -60,10 +60,7 @@ final class ZoneController
         }
 
         $id = $this->zones->create($this->fromRequest($request));
-
-        if ($request->string('zone_type') === 'postal_codes') {
-            $this->zones->syncPostalCodes($id, $this->splitPostalCodes($request->string('postal_codes')));
-        }
+        $this->zones->syncPostalCodes($id, $this->splitPostalCodes($request->string('postal_codes')));
 
         $this->session->flash('zone_ok', 'Zone créée.');
 
@@ -89,10 +86,7 @@ final class ZoneController
         $id = (int) $zone['id'];
 
         $this->zones->update($id, $this->fromRequest($request));
-
-        if ($request->string('zone_type') === 'postal_codes') {
-            $this->zones->syncPostalCodes($id, $this->splitPostalCodes($request->string('postal_codes')));
-        }
+        $this->zones->syncPostalCodes($id, $this->splitPostalCodes($request->string('postal_codes')));
 
         $this->session->flash('zone_ok', 'Zone enregistrée.');
 
@@ -183,10 +177,6 @@ final class ZoneController
     {
         return [
             'name' => $request->string('name'),
-            'zone_type' => $request->string('zone_type'),
-            'center_lat' => $request->string('center_lat'),
-            'center_lng' => $request->string('center_lng'),
-            'radius_km' => $request->string('radius_km'),
             'priority' => $request->int('priority', 100),
             'is_active' => $request->bool('is_active'),
         ];

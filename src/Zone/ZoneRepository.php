@@ -79,24 +79,25 @@ final class ZoneRepository
 
     /**
      * Normalise le sous-ensemble de colonnes autorisées en écriture.
-     * L'UI ne propose que 'radius' et 'postal_codes' (le type 'polygon' reste
-     * possible en base mais n'est pas piloté depuis cette interface).
+     * L'UI ne propose que 'postal_codes' — le type 'radius' ne peut jamais
+     * matcher en pratique (le code postal saisi par le client n'est converti
+     * en coordonnées GPS nulle part dans le tunnel public, voir ZoneResolver)
+     * et 'polygon' reste possible en base mais n'est pas piloté depuis cette
+     * interface. On force donc systématiquement 'postal_codes' ici, quelle
+     * que soit la valeur envoyée, pour ne jamais créer/laisser dériver une
+     * zone silencieusement inopérante.
      *
      * @param array<string, mixed> $data
      * @return array<string, mixed>
      */
     private function columns(array $data): array
     {
-        $type = in_array($data['zone_type'] ?? '', ['radius', 'postal_codes'], true)
-            ? $data['zone_type']
-            : 'postal_codes';
-
         return [
             'name' => (string) ($data['name'] ?? ''),
-            'zone_type' => $type,
-            'center_lat' => $type === 'radius' && ($data['center_lat'] ?? '') !== '' ? (float) $data['center_lat'] : null,
-            'center_lng' => $type === 'radius' && ($data['center_lng'] ?? '') !== '' ? (float) $data['center_lng'] : null,
-            'radius_km' => $type === 'radius' && ($data['radius_km'] ?? '') !== '' ? (float) $data['radius_km'] : null,
+            'zone_type' => 'postal_codes',
+            'center_lat' => null,
+            'center_lng' => null,
+            'radius_km' => null,
             'priority' => (int) ($data['priority'] ?? 100),
             'is_active' => ($data['is_active'] ?? false) ? 1 : 0,
         ];
