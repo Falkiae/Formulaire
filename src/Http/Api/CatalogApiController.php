@@ -36,6 +36,9 @@ final class CatalogApiController
                 'variant_type' => $s['variant_type'],
                 'base_price_cents' => (int) $s['base_price_cents'],
                 'image_path' => $s['image_path'] ?? null,
+                // Mise en avant (« Plus demandée », « La plus complète »…), texte
+                // libre affiché tel quel sur la carte de la prestation.
+                'badge_label' => $s['badge_label'] ?? null,
                 // Modes ('onsite'/'workshop') que cette prestation supporte —
                 // permet au widget de ne proposer que les prestations compatibles
                 // avec le mode déjà choisi (ex. les véhicules ne sont qu'à domicile).
@@ -81,7 +84,11 @@ final class CatalogApiController
             'variant_type' => $service['variant_type'],
             'modes' => array_map(static fn (array $m): array => ['mode' => $m['mode']], $this->catalog->serviceModes($id)),
             'variants' => array_map(
-                static fn (array $v): array => ['id' => (int) $v['id'], 'label' => $v['label']],
+                static fn (array $v): array => [
+                    'id' => (int) $v['id'],
+                    'label' => $v['label'],
+                    'is_default' => (bool) $v['is_default'],
+                ],
                 $this->catalog->serviceVariants($id),
             ),
             'extras' => array_map(

@@ -148,6 +148,34 @@
     root.appendChild(quoteBarSlot);
 
     setupStepObserver();
+    setupViewportGuard();
+  }
+
+  // Sous Safari iOS, la barre d'outils apparaît/disparaît dynamiquement au
+  // défilement sans que le viewport de layout (sur lequel se calent les
+  // éléments position:fixed) ne change — le viewport VISUEL, lui, change.
+  // Résultat : un bandeau fixé en bas peut se retrouver masqué sous la barre
+  // d'outils. window.visualViewport expose l'écart réel ; on l'utilise pour
+  // décaler la barre de progression et le bandeau panier au plus près du
+  // viewport réellement visible. Navigateurs sans visualViewport : pas de
+  // correction, comportement CSS de base inchangé.
+  function setupViewportGuard() {
+    if (!("visualViewport" in window)) return;
+    var vv = window.visualViewport;
+    var raf = null;
+    function apply() {
+      raf = null;
+      var bottomGap = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      var topGap = Math.max(0, vv.offsetTop);
+      root.style.setProperty("--kn-vv-bottom", bottomGap + "px");
+      root.style.setProperty("--kn-vv-top", topGap + "px");
+    }
+    function schedule() {
+      if (raf === null) raf = requestAnimationFrame(apply);
+    }
+    vv.addEventListener("resize", schedule);
+    vv.addEventListener("scroll", schedule);
+    apply();
   }
 
   // Suit le panneau le plus visible pendant un défilement manuel : met à jour
@@ -431,7 +459,7 @@
                 setTimeout(function () {
                   goto("details");
                 }, 300);
-              }, false, imgUrl(svc.image_path))
+              }, false, imgUrl(svc.image_path), svc.badge_label)
             );
           });
       });
@@ -481,6 +509,15 @@
     }
 
     // Variantes (choix unique → auto-avance non, car on continue à configurer).
+    // Pré-sélection : tant que l'utilisateur n'a jamais choisi lui-même (state.variantId
+    // remis à null au choix du service), on retient la variante marquée par défaut
+    // côté admin, sinon la première — jamais aucune sélection par défaut.
+    if (cfg.variants.length && !state.variantId) {
+      var defaultVariant = cfg.variants.filter(function (v) {
+        return v.is_default;
+      })[0] || cfg.variants[0];
+      state.variantId = defaultVariant.id;
+    }
     if (cfg.variants.length) {
       body.appendChild(el('<h3 class="kn-h3">Votre modèle</h3>'));
       var vcards = el('<div class="kn-cards kn-cards-sm"></div>');
@@ -1051,7 +1088,7 @@
   }
 
   // --- Composants réutilisables ---------------------------------------------
-  function choiceCard(icon, title, desc, onClick, active, imageUrl) {
+  function choiceCard(icon, title, desc, onClick, active, imageUrl, badge) {
     // Média à gauche : image (vignette) si disponible, sinon emoji/icône.
     var media = imageUrl
       ? '<img class="kn-card-img" src="' + esc(imageUrl) + '" alt="" loading="lazy">'
@@ -1066,6 +1103,7 @@
         '<span class="kn-card-body">' +
         '<span class="kn-card-title">' +
         esc(title) +
+        (badge ? ' <span class="kn-badge">' + esc(badge) + "</span>" : "") +
         "</span>" +
         (desc ? '<span class="kn-card-desc">' + esc(desc) + "</span>" : "") +
         "</span>" +
@@ -1184,8 +1222,10 @@
       // Barre de progression : fixe en haut du vrai viewport (jamais dans le
       // flux du défilement de page), fond opaque pour ne rien laisser passer
       // dessous, padding sensible à l'encoche/notch (viewport-fit=cover côté
-      // page hôte).
-      ".kn-progress{position:fixed;top:0;left:0;right:0;z-index:20;background:var(--paper);border-bottom:1px solid var(--line);" +
+      // page hôte). --kn-vv-top (posé par setupViewportGuard(), via
+      // window.visualViewport) corrige un éventuel écart entre viewport de
+      // layout et viewport visuel sous Safari iOS ; 0px par défaut ailleurs.
+      ".kn-progress{position:fixed;top:var(--kn-vv-top,0px);left:0;right:0;z-index:20;background:var(--paper);border-bottom:1px solid var(--line);" +
       "padding:max(12px,env(safe-area-inset-top)) 16px 12px}" +
       ".kn-progress-inner{margin:0 auto;width:100%;max-width:560px}" +
       ".kn-progress-track{height:8px;background:var(--line);border-radius:999px;overflow:hidden}" +
@@ -1244,7 +1284,9 @@
       // tout calcul de hauteur (voir note .kn-scroller ci-dessus). pointer-
       // events:none sur le conteneur (vide la plupart du temps) pour ne
       // jamais bloquer de clics sous lui ; ré-activés sur le bouton lui-même.
-      ".kn-quotebar-slot{position:fixed;left:0;right:0;bottom:0;z-index:20;padding:8px 16px max(8px,env(safe-area-inset-bottom));pointer-events:none}" +
+      // --kn-vv-bottom (setupViewportGuard()) compense la barre d'outils
+      // dynamique de Safari iOS, qu'env(safe-area-inset-bottom) ne couvre pas.
+      ".kn-quotebar-slot{position:fixed;left:0;right:0;bottom:var(--kn-vv-bottom,0px);z-index:20;padding:8px 16px max(8px,env(safe-area-inset-bottom));pointer-events:none}" +
       ".kn-quotebar-slot:empty{display:none}" +
       ".kn-quotebar{pointer-events:auto;width:100%;max-width:560px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;min-height:56px;padding:0 16px;background:var(--ink);color:#fff;border:0;border-radius:12px;font:inherit;cursor:pointer;box-shadow:0 4px 16px rgba(20,26,46,.25)}" +
       ".kn-quotebar-total{font-weight:700;font-size:1.15rem;font-variant-numeric:tabular-nums}" +

@@ -99,6 +99,7 @@ final class CatalogController
                 'name' => $name,
                 'category_id' => $categoryId,
                 'short_description' => $request->string('short_description'),
+                'badge_label' => $request->string('badge_label'),
             ]);
         }
 
@@ -246,11 +247,12 @@ final class CatalogController
     {
         $id = (int) $request->attribute('id');
         $variantId = (int) $request->attribute('variantId');
-        $this->catalog->updateVariant($variantId, [
+        $this->catalog->updateVariant($variantId, $id, [
             'label' => $request->string('label'),
             'price_delta_cents' => $this->eurosToCents($request->string('price_delta')),
             'duration_delta_min' => $request->int('duration_delta'),
             'is_active' => $request->bool('is_active') ? 1 : 0,
+            'is_default' => $request->bool('is_default'),
         ]);
         $this->session->flash('catalog_ok', 'Variante enregistrée.');
 

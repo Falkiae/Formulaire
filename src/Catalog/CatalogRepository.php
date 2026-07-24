@@ -207,18 +207,20 @@ final class CatalogRepository
      */
     /**
      * Met à jour l'identité d'une prestation : nom, catégorie, description
-     * courte (le slug unique reste inchangé pour ne pas casser les liens).
+     * courte, badge de mise en avant (le slug unique reste inchangé pour ne
+     * pas casser les liens).
      *
-     * @param array{name:string, category_id:int, short_description?:string} $data
+     * @param array{name:string, category_id:int, short_description?:string, badge_label?:string} $data
      */
     public function updateServiceMeta(int $serviceId, array $data): void
     {
         $this->db->run(
-            'UPDATE services SET name = :name, category_id = :cat, short_description = :sd WHERE id = :id',
+            'UPDATE services SET name = :name, category_id = :cat, short_description = :sd, badge_label = :bl WHERE id = :id',
             [
                 'name' => $data['name'],
                 'cat' => $data['category_id'],
                 'sd' => ($data['short_description'] ?? '') !== '' ? $data['short_description'] : null,
+                'bl' => ($data['badge_label'] ?? '') !== '' ? $data['badge_label'] : null,
                 'id' => $serviceId,
             ],
         );
@@ -617,22 +619,33 @@ final class CatalogRepository
     }
 
     /**
-     * @param array{label:string, price_delta_cents:int, duration_delta_min:int, is_active:int} $data
+     * @param array{label:string, price_delta_cents:int, duration_delta_min:int, is_active:int, is_default:bool} $data
      */
-    public function updateVariant(int $variantId, array $data): void
+    public function updateVariant(int $variantId, int $serviceId, array $data): void
     {
-        $this->db->run(
-            'UPDATE service_variants
-             SET label = :label, price_delta_cents = :pd, duration_delta_min = :dd, is_active = :a
-             WHERE id = :id',
-            [
-                'label' => $data['label'],
-                'pd' => $data['price_delta_cents'],
-                'dd' => $data['duration_delta_min'],
-                'a' => $data['is_active'],
-                'id' => $variantId,
-            ],
-        );
+        $this->db->transaction(function (Database $db) use ($variantId, $serviceId, $data): void {
+            if ($data['is_default']) {
+                // Une seule variante par défaut par service.
+                $db->run(
+                    'UPDATE service_variants SET is_default = 0 WHERE service_id = :sid AND id != :vid',
+                    ['sid' => $serviceId, 'vid' => $variantId],
+                );
+            }
+
+            $db->run(
+                'UPDATE service_variants
+                 SET label = :label, price_delta_cents = :pd, duration_delta_min = :dd, is_active = :a, is_default = :def
+                 WHERE id = :id',
+                [
+                    'label' => $data['label'],
+                    'pd' => $data['price_delta_cents'],
+                    'dd' => $data['duration_delta_min'],
+                    'a' => $data['is_active'],
+                    'def' => $data['is_default'] ? 1 : 0,
+                    'id' => $variantId,
+                ],
+            );
+        });
     }
 
     public function variantDeletable(int $variantId): bool

@@ -60,6 +60,18 @@ foreach ($data['modes'] as $m) {
                     <input type="text" id="short_description" name="short_description" value="<?= $e($service['short_description'] ?? '') ?>">
                 </div>
                 <div class="kn-field">
+                    <label for="badge_label">Badge de mise en avant</label>
+                    <input type="text" id="badge_label" name="badge_label" list="badge-presets" maxlength="40"
+                           value="<?= $e($service['badge_label'] ?? '') ?>">
+                    <datalist id="badge-presets">
+                        <option value="Plus demandée">
+                        <option value="La plus complète">
+                        <option value="Meilleur rapport qualité-prix">
+                        <option value="Nouveauté">
+                    </datalist>
+                    <p class="kn-muted" style="font-size:.8rem;margin-top:4px;">Affiché en petit badge sur la carte de la prestation. Laisser vide pour ne rien afficher.</p>
+                </div>
+                <div class="kn-field">
                     <label>Image (affichée dans le tunnel client)</label>
                     <?php if (($service['image_path'] ?? '') !== ''): ?>
                         <img src="/uploads/<?= $e($service['image_path']) ?>" alt="" style="max-width:140px;border-radius:8px;display:block;margin-bottom:8px;">
@@ -143,11 +155,14 @@ foreach ($data['modes'] as $m) {
                     <form method="post" action="/admin/catalogue/service/<?= (int) $service['id'] ?>/variante/<?= (int) $v['id'] ?>"
                           style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;">
                         <?= $data['csrf'] ?>
-                        <div class="kn-field" style="margin:0;"><label>Libellé</label><input type="text" name="label" value="<?= $e($v['label']) ?>" style="max-width:180px;"></div>
+                        <div class="kn-field" style="margin:0;"><label>Libellé <?= ((int) $v['is_default'] === 1) ? '<span class="kn-badge">★ Par défaut</span>' : '' ?></label><input type="text" name="label" value="<?= $e($v['label']) ?>" style="max-width:180px;"></div>
                         <div class="kn-field" style="margin:0;"><label>Δ prix (€)</label><input type="text" name="price_delta" value="<?= $e($centsToEuros((int) $v['price_delta_cents'])) ?>" inputmode="decimal" style="max-width:100px;"></div>
                         <div class="kn-field" style="margin:0;"><label>Δ durée (min)</label><input type="number" name="duration_delta" value="<?= (int) $v['duration_delta_min'] ?>" style="max-width:90px;"></div>
                         <label class="kn-check" style="margin-bottom:12px;">
                             <input type="checkbox" name="is_active" value="1" <?= ((int) $v['is_active'] === 1) ? 'checked' : '' ?>> active
+                        </label>
+                        <label class="kn-check" style="margin-bottom:12px;">
+                            <input type="checkbox" name="is_default" value="1" <?= ((int) $v['is_default'] === 1) ? 'checked' : '' ?>> défaut
                         </label>
                         <button type="submit" class="kn-btn kn-btn-ghost kn-btn-sm" style="margin-bottom:12px;">Enregistrer</button>
                     </form>

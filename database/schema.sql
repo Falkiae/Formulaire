@@ -170,6 +170,7 @@ CREATE TABLE services (
     name                VARCHAR(190)    NOT NULL,
     slug                VARCHAR(200)    NOT NULL,
     short_description   VARCHAR(255)    NULL,
+    badge_label         VARCHAR(40)     NULL,   -- mise en avant ("Plus demandée"…), affiché tel quel
     description         TEXT            NULL,
     -- 'variantless' | 'gabarit' | 'places' | 'dimension' : nature des variantes
     variant_type        ENUM('none','gabarit','places','dimension') NOT NULL DEFAULT 'none',
