@@ -274,12 +274,14 @@
       scrollToPanel(panel);
       focusPanelWhenSettled(panel);
     } else {
-      // Cas B — panneau déjà créé (auto-rafraîchissement sur place, ex.
-      // suppression d'une ligne panier, OU retour arrière délibéré via
-      // backLink()) : toujours re-rendu — un panneau peut dépendre d'un
-      // state.* modifié depuis sa création (ex. le mode choisi à "where"
-      // change ce que "what" doit proposer). truncateAfter() est un no-op
-      // naturel si `step` est déjà le panneau le plus avancé.
+      // Cas B — panneau déjà créé : soit auto-rafraîchissement sur place
+      // (ex. suppression d'une ligne panier), soit l'utilisateur a défilé en
+      // arrière puis fait un nouveau choix dans un panneau antérieur (ex.
+      // reprendre une autre prestation depuis "what"). Toujours re-rendu :
+      // un panneau peut dépendre d'un state.* modifié depuis sa création (le
+      // mode choisi à "where" change ce que "what" doit proposer).
+      // truncateAfter() est un no-op naturel si `step` est déjà le panneau
+      // le plus avancé.
       truncateAfter(step);
       renderStepInto(clear(existing), step);
       state.step = step;
@@ -386,9 +388,6 @@
   // --- Étape 2 : QUOI (catégorie → service) ---------------------------------
   function renderWhat(body) {
     body.appendChild(el('<h2 class="kn-h">Quelle prestation ?</h2>'));
-    body.appendChild(backLink(function () {
-      goto("where");
-    }, "← Changer le mode (domicile / atelier)"));
     if (!catalog) {
       body.appendChild(loading());
       api("/catalog").then(function (d) {
@@ -533,9 +532,6 @@
     add.addEventListener("click", addToCart);
     actions.appendChild(add);
     body.appendChild(actions);
-    body.appendChild(backLink(function () {
-      goto("what");
-    }));
   }
   function toggleExtra(x, on, cfg) {
     if (on && x.selection_type === "radio" && x.exclusive_group) {
@@ -709,9 +705,6 @@
     });
     actions.appendChild(cont);
     body.appendChild(actions);
-    body.appendChild(backLink(function () {
-      goto("cart");
-    }));
   }
   // Champs effectivement visibles/requis après application des conditions.
   function formState(hasOnsite) {
@@ -836,9 +829,6 @@
     });
     actions.appendChild(cont);
     body.appendChild(actions);
-    body.appendChild(backLink(function () {
-      goto("intake");
-    }));
   }
   function textField(bag, key, label, autocomplete, type) {
     var f = el(
@@ -903,9 +893,6 @@
       });
       actions.appendChild(cont);
       body.appendChild(actions);
-      body.appendChild(backLink(function () {
-        goto("contact");
-      }));
     });
   }
   function slotPicker(mode, slots) {
@@ -986,9 +973,6 @@
       confirm.addEventListener("click", submitBooking);
       actions.appendChild(confirm);
       body.appendChild(actions);
-      body.appendChild(backLink(function () {
-        goto("slot");
-      }));
     });
   }
   function submitBooking() {
@@ -1177,7 +1161,10 @@
   function CSS() {
     return (
       ".kn{--a:#586FF3;--ai:#3A4BC0;--blush:#F7D7E2;--ink:#141A2E;--muted:#5C6479;--paper:#FBFBFD;--surface:#fff;--line:#E4E6EF;--ok:#1D7A54;--alert:#B4322D;" +
-      "font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-size:16px;line-height:1.6;color:var(--ink);background:var(--paper);max-width:560px;margin:0 auto;padding:16px;box-sizing:border-box;display:flex;flex-direction:column}" +
+      // padding-top tient compte de la zone système du téléphone (encoche,
+      // heure, batterie…) : évite que la barre de progression soit masquée
+      // en haut d'écran sur mobile, sans changer l'espacement ailleurs.
+      "font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-size:16px;line-height:1.6;color:var(--ink);background:var(--paper);max-width:560px;margin:0 auto;padding:max(16px,env(safe-area-inset-top)) 16px 16px;box-sizing:border-box;display:flex;flex-direction:column}" +
       ".kn *{box-sizing:border-box}" +
       ".kn-h{font-size:1.5rem;margin:8px 0 16px}.kn-h3{font-size:1.05rem;margin:16px 0 8px}" +
       ".kn-muted{color:var(--muted);font-size:.875rem}" +
