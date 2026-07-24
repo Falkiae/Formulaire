@@ -148,49 +148,74 @@
         });
     }
 
+    function timeOfDay(time) {
+      var h = parseInt(time.split(":")[0], 10);
+      if (h < 12) return "Matin";
+      if (h < 18) return "Après-midi";
+      return "Soir";
+    }
+
+    // Matin/après-midi/soir : une journée chargée (plusieurs techniciens ×
+    // créneaux de 30 min) reste scannable au lieu d'un mur de boutons.
     function renderSlots() {
       slotList.innerHTML = "";
       var times = Object.keys(lastSlots).sort();
       var onlyCurrentChecked = onlyCurrent.checked;
-      var shown = 0;
+      var buckets = { "Matin": [], "Après-midi": [], "Soir": [] };
 
       times.forEach(function (time) {
         var techs = lastSlots[time];
         if (onlyCurrentChecked && !techs.some(function (t) { return t.id === currentTech; })) {
           return;
         }
-        shown++;
+        buckets[timeOfDay(time)].push(time);
+      });
 
-        var row = document.createElement("button");
-        row.type = "button";
-        row.className = "kn-resched-slot";
+      var shown = 0;
+      ["Matin", "Après-midi", "Soir"].forEach(function (heading) {
+        var bucketTimes = buckets[heading];
+        if (!bucketTimes.length) return;
 
-        var left = document.createElement("span");
-        left.textContent = time;
-        row.appendChild(left);
+        var h = document.createElement("div");
+        h.className = "kn-slot-heading";
+        h.textContent = heading;
+        slotList.appendChild(h);
 
-        var avatars = document.createElement("span");
-        avatars.className = "kn-resched-slot-avatars";
-        techs.slice(0, 4).forEach(function (t) {
-          var av = document.createElement("span");
-          av.className = "kn-avatar";
-          av.style.background = avatarColor(t.id);
-          av.title = t.name;
-          av.textContent = initials(t.name);
-          avatars.appendChild(av);
+        bucketTimes.forEach(function (time) {
+          var techs = lastSlots[time];
+          shown++;
+
+          var row = document.createElement("button");
+          row.type = "button";
+          row.className = "kn-resched-slot";
+
+          var left = document.createElement("span");
+          left.textContent = time;
+          row.appendChild(left);
+
+          var avatars = document.createElement("span");
+          avatars.className = "kn-resched-slot-avatars";
+          techs.slice(0, 4).forEach(function (t) {
+            var av = document.createElement("span");
+            av.className = "kn-avatar";
+            av.style.background = avatarColor(t.id);
+            av.title = t.name;
+            av.textContent = initials(t.name);
+            avatars.appendChild(av);
+          });
+          var count = document.createElement("span");
+          count.className = "kn-muted";
+          count.style.fontSize = ".72rem";
+          count.style.marginLeft = "4px";
+          count.textContent = techs.length + " libre" + (techs.length > 1 ? "s" : "");
+          avatars.appendChild(count);
+          row.appendChild(avatars);
+
+          row.addEventListener("click", function () {
+            selectSlot(time, techs, row);
+          });
+          slotList.appendChild(row);
         });
-        var count = document.createElement("span");
-        count.className = "kn-muted";
-        count.style.fontSize = ".72rem";
-        count.style.marginLeft = "4px";
-        count.textContent = techs.length + " libre" + (techs.length > 1 ? "s" : "");
-        avatars.appendChild(count);
-        row.appendChild(avatars);
-
-        row.addEventListener("click", function () {
-          selectSlot(time, techs, row);
-        });
-        slotList.appendChild(row);
       });
 
       if (shown === 0) {

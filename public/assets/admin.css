@@ -780,6 +780,18 @@ table.kn-table {
 .kn-resched-cal-day:disabled { color: var(--kn-line); cursor: not-allowed; }
 .kn-resched-cal-day.is-selected { background: var(--kn-accent); color: #fff; }
 .kn-resched-slots { flex: 1 1 240px; min-width: 220px; }
+/* Hauteur plafonnée + défilement interne : une journée chargée reste
+   scannable sans faire défiler tout le panneau job. */
+#kn-resched-slot-list { max-height: min(50vh, 380px); overflow-y: auto; padding-right: 2px; margin-top: 8px; }
+.kn-slot-heading {
+    font-size: var(--kn-fs-small);
+    font-weight: 700;
+    color: var(--kn-muted);
+    text-transform: uppercase;
+    letter-spacing: .03em;
+    margin: 10px 0 4px;
+}
+.kn-slot-heading:first-child { margin-top: 0; }
 .kn-resched-slot {
     display: flex;
     justify-content: space-between;

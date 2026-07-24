@@ -187,16 +187,21 @@ final class RescheduleAvailabilityService
         $contexts = $this->repo->technicianContexts($from, $to, 'onsite', $job['id']);
 
         // Filtrage par zone si l'adresse résout à une zone connue — repli
-        // volontairement permissif (pas de filtrage) si la résolution échoue,
-        // pour ne jamais bloquer une replanification d'un job déjà accepté à
-        // cause d'un changement de configuration de zone entre-temps.
+        // volontairement permissif si le filtrage ne laisse plus AUCUN
+        // technicien candidat (adresse hors zone connue, ou zone valide mais
+        // plus aucun technicien actif n'y est assigné depuis la réservation
+        // initiale) : on ne doit jamais bloquer la replanification d'un job
+        // déjà accepté à cause d'un changement de configuration entre-temps.
         if ($job['point'] !== null) {
             $zone = $this->zoneResolver->resolve($job['point'], $this->repo->zones());
             if ($zone->inZone && $zone->matchedZoneIds !== []) {
-                $contexts = array_values(array_filter(
+                $filtered = array_values(array_filter(
                     $contexts,
                     fn ($ctx): bool => array_intersect($this->repo->technicianZoneIds($ctx->technicianId), $zone->matchedZoneIds) !== [],
                 ));
+                if ($filtered !== []) {
+                    $contexts = $filtered;
+                }
             }
         }
 

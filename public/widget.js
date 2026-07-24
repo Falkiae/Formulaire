@@ -1054,20 +1054,63 @@
     fillSlots(listBox, mode, byDate[dates[0]]);
     return wrap;
   }
+  // Le moteur de disponibilité renvoie un créneau DISTINCT par technicien
+  // libre à une même heure (technician_id porté par chaque créneau, pour que
+  // le serveur choisisse qui l'exécute) — le client ne choisit jamais son
+  // technicien explicitement, donc on regroupe par heure pour n'afficher
+  // qu'un seul bouton, quel que soit le nombre de techniciens libres.
+  function groupSlotsByTime(slots) {
+    var order = [];
+    var groups = {};
+    slots.forEach(function (s) {
+      if (!groups[s.start_utc]) {
+        groups[s.start_utc] = [];
+        order.push(s.start_utc);
+      }
+      groups[s.start_utc].push(s);
+    });
+    return order.map(function (startUtc) {
+      return groups[startUtc];
+    });
+  }
+  // Matin/après-midi/soir : rend une longue liste de créneaux scannable en un
+  // coup d'œil plutôt qu'un mur de boutons identiques (utile dès qu'une
+  // journée a beaucoup de créneaux libres, ex. plusieurs techniciens).
+  function timeOfDay(hhmm) {
+    var h = parseInt(hhmm.split(":")[0], 10);
+    if (h < 12) return "Matin";
+    if (h < 18) return "Après-midi";
+    return "Soir";
+  }
   function fillSlots(box, mode, slots) {
     box.innerHTML = "";
-    slots.forEach(function (s) {
-      var label = mode === "onsite" ? s.start_local.split(" ")[1] : "Dépôt " + s.start_local.split(" ")[1] + " · reprise ~" + s.pickup_local;
-      var chosen = state.slots[mode] && state.slots[mode].start_utc === s.start_utc && state.slots[mode].technician_id === s.technician_id;
-      var b = el('<button type="button" class="kn-slot ' + (chosen ? "on" : "") + '">' + esc(label) + "</button>");
-      b.addEventListener("click", function () {
-        state.slots[mode] = { start_utc: s.start_utc, technician_id: s.technician_id, bay_id: s.bay_id || null };
-        box.querySelectorAll(".kn-slot").forEach(function (x) {
-          x.classList.remove("on");
+    var buckets = { "Matin": [], "Après-midi": [], "Soir": [] };
+    groupSlotsByTime(slots).forEach(function (group) {
+      buckets[timeOfDay(group[0].start_local.split(" ")[1])].push(group);
+    });
+
+    ["Matin", "Après-midi", "Soir"].forEach(function (heading) {
+      var groups = buckets[heading];
+      if (!groups.length) return;
+      box.appendChild(el('<div class="kn-slot-heading">' + heading + "</div>"));
+      groups.forEach(function (group) {
+        var s = group[0];
+        var label = mode === "onsite" ? s.start_local.split(" ")[1] : "Dépôt " + s.start_local.split(" ")[1] + " · reprise ~" + s.pickup_local;
+        var chosen = state.slots[mode] && state.slots[mode].start_utc === s.start_utc;
+        var b = el('<button type="button" class="kn-slot ' + (chosen ? "on" : "") + '">' + esc(label) + "</button>");
+        b.addEventListener("click", function () {
+          // Garde le technicien déjà choisi s'il est toujours libre à ce
+          // créneau, sinon prend le premier disponible du groupe.
+          var current = state.slots[mode];
+          var pick = (current && group.find(function (g) { return g.technician_id === current.technician_id; })) || group[0];
+          state.slots[mode] = { start_utc: pick.start_utc, technician_id: pick.technician_id, bay_id: pick.bay_id || null };
+          box.querySelectorAll(".kn-slot").forEach(function (x) {
+            x.classList.remove("on");
+          });
+          b.classList.add("on");
         });
-        b.classList.add("on");
+        box.appendChild(b);
       });
-      box.appendChild(b);
     });
   }
 
@@ -1377,7 +1420,12 @@
       ".kn-dates{display:flex;gap:8px;overflow-x:auto;padding-bottom:8px}" +
       ".kn-date{white-space:nowrap;min-height:44px;padding:0 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface);font:inherit;cursor:pointer}" +
       ".kn-date.on{border-color:var(--a);color:var(--a);font-weight:700}" +
-      ".kn-slot-list{display:grid;gap:8px;margin-top:8px}" +
+      // Hauteur plafonnée + défilement interne : une journée avec beaucoup de
+      // créneaux libres reste scannable sans faire défiler toute la page (le
+      // sélecteur de date et le bouton Continuer restent visibles).
+      ".kn-slot-list{display:grid;gap:8px;margin-top:8px;max-height:min(50vh,420px);overflow-y:auto;padding-right:2px}" +
+      ".kn-slot-heading{font-size:.78rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;margin:8px 0 2px}" +
+      ".kn-slot-heading:first-child{margin-top:0}" +
       ".kn-slot{min-height:48px;border:1px solid var(--line);border-radius:8px;background:var(--surface);font:inherit;cursor:pointer}" +
       ".kn-slot.on{border-color:var(--a);background:var(--a);color:#fff}" +
       // Barre panier : fixe en bas du vrai viewport, ancrée indépendamment de
