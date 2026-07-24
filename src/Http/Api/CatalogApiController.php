@@ -48,7 +48,7 @@ final class CatalogApiController
         );
 
         $contact = $this->db->select(
-            "SELECT `key`, `value` FROM settings WHERE `key` IN ('company.phone', 'company.email')",
+            "SELECT `key`, `value` FROM settings WHERE `key` IN ('company.phone', 'company.email', 'finance.vat_rate_bp')",
         );
         $contactByKey = [];
         foreach ($contact as $row) {
@@ -64,6 +64,10 @@ final class CatalogApiController
                 'phone' => $contactByKey['company.phone'] ?? null,
                 'email' => $contactByKey['company.email'] ?? null,
             ],
+            // Taux de TVA (points de base, ex. 2100 = 21 %) — permet au widget
+            // d'afficher des prix TVAC avant même qu'un devis serveur existe
+            // (même repli que CartPricingService::rules()).
+            'vat_rate_bp' => (int) ($contactByKey['finance.vat_rate_bp'] ?? 2100),
         ]);
     }
 

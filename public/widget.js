@@ -74,6 +74,12 @@
   function euro(cents) {
     return (cents / 100).toFixed(2).replace(".", ",") + " €";
   }
+  // Convertit un montant HT (catalogue) en affichage TVAC — tous les prix
+  // côté client sont TVAC, la ventilation HT/TVA reste interne (facturation).
+  function tvac(centsHt) {
+    var bp = (catalog && catalog.vat_rate_bp) || 2100;
+    return euro(Math.round((centsHt * (10000 + bp)) / 10000));
+  }
   // Construit l'URL publique d'une image du catalogue (servie sous /uploads).
   function imgUrl(p) {
     return p ? apiBase.replace(/\/$/, "") + "/uploads/" + p : null;
@@ -195,6 +201,7 @@
         if (best && best.target.dataset.step) {
           state.step = best.target.dataset.step;
           updateProgressBar(state.step);
+          updateQuoteBar();
           // Persistance différée (pas à chaque callback pendant un flick rapide).
           clearTimeout(saveTimer);
           saveTimer = setTimeout(save, 400);
@@ -204,19 +211,27 @@
     );
   }
 
-  function updateProgressBar(step) {
-    var idx = STEPS.findIndex(function (s) {
-      return s.key === step;
+  function stepIndex(key) {
+    return STEPS.findIndex(function (s) {
+      return s.key === key;
     });
+  }
+
+  function updateProgressBar(step) {
+    var idx = stepIndex(step);
     var safeIdx = idx < 0 ? 0 : idx;
     var pct = Math.round(((safeIdx + 1) / STEPS.length) * 100);
     progressFillEl.style.width = pct + "%";
     progressLabelEl.textContent = "Étape " + (safeIdx + 1) + "/" + STEPS.length + " · " + STEPS[safeIdx].label;
   }
 
+  // Masqué à partir de l'étape Panier (incluse) : une fois le devis établi,
+  // le prospect entre dans le tunnel de finalisation et ne doit plus être
+  // distrait par le bouton flottant (qui fait par ailleurs doublon avec le
+  // ticket affiché en pleine page dès l'étape Panier elle-même).
   function updateQuoteBar() {
     quoteBarSlot.innerHTML = "";
-    var show = !!(state.cart && state.cart.item_count > 0 && state.step !== "done");
+    var show = !!(state.cart && state.cart.item_count > 0 && stepIndex(state.step) >= 0 && stepIndex(state.step) < stepIndex("cart"));
     root.classList.toggle("has-quotebar", show);
     if (show) {
       quoteBarSlot.appendChild(quoteBar());
@@ -547,7 +562,7 @@
             '<span class="kn-extra-txt">' +
             esc(x.label) +
             ' <span class="kn-muted">+' +
-            euro(x.price_cents) +
+            tvac(x.price_cents) +
             "</span></span>" +
             '<input type="checkbox" ' +
             (checked ? "checked" : "") +
@@ -672,7 +687,7 @@
             it.unit_duration_min +
             " min</span></div>" +
             '<div class="kn-line-r"><span>' +
-            euro(it.unit_price_cents * it.quantity) +
+            tvac(it.unit_price_cents * it.quantity) +
             '</span></div></div>'
         );
         var del = el('<button class="kn-link" type="button">Supprimer</button>');
@@ -688,9 +703,8 @@
       var p = state.cart.pricing;
       if (p) {
         if (p.cumul_discount_cents > 0) {
-          ticket.appendChild(el('<div class="kn-line kn-ok"><span>Remise groupée</span><span>−' + euro(p.cumul_discount_cents) + "</span></div>"));
+          ticket.appendChild(el('<div class="kn-line kn-ok"><span>Remise groupée</span><span>−' + tvac(p.cumul_discount_cents) + "</span></div>"));
         }
-        ticket.appendChild(el('<div class="kn-line"><span class="kn-muted">TVA 21 %</span><span class="kn-muted">' + p.vat_formatted + "</span></div>"));
         ticket.appendChild(el('<div class="kn-line kn-total"><span>Total TVAC</span><span>' + p.total_tvac_formatted + "</span></div>"));
       }
       body.appendChild(ticket);
@@ -1008,9 +1022,9 @@
       var p = state.cart.pricing;
       var ticket = el('<div class="kn-ticket"></div>');
       state.cart.items.forEach(function (it) {
-        ticket.appendChild(el('<div class="kn-line"><span>' + esc(it.label) + " ×" + it.quantity + "</span><span>" + euro(it.unit_price_cents * it.quantity) + "</span></div>"));
+        ticket.appendChild(el('<div class="kn-line"><span>' + esc(it.label) + " ×" + it.quantity + "</span><span>" + tvac(it.unit_price_cents * it.quantity) + "</span></div>"));
       });
-      if (p.cumul_discount_cents > 0) ticket.appendChild(el('<div class="kn-line kn-ok"><span>Remise groupée</span><span>−' + euro(p.cumul_discount_cents) + "</span></div>"));
+      if (p.cumul_discount_cents > 0) ticket.appendChild(el('<div class="kn-line kn-ok"><span>Remise groupée</span><span>−' + tvac(p.cumul_discount_cents) + "</span></div>"));
       ticket.appendChild(el('<div class="kn-line kn-total"><span>Total TVAC</span><span>' + p.total_tvac_formatted + "</span></div>"));
       body.appendChild(ticket);
 
