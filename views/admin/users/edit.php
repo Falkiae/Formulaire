@@ -89,6 +89,14 @@ $currentRole = $isNew ? 'dispatcher' : (string) $user['role'];
 
             <button type="submit" class="kn-btn kn-btn-primary"><?= $isNew ? 'Créer le compte' : 'Enregistrer' ?></button>
         </form>
+
+        <?php if (!$isNew && empty($data['is_self'])): ?>
+            <form method="post" action="/admin/utilisateurs/<?= (int) $user['id'] ?>/supprimer" style="margin-top:12px;"
+                  onsubmit="return confirm('Supprimer ce compte ? S\'il est lié à une fiche technicien, il sera désactivé plutôt que supprimé.');">
+                <?= $data['csrf'] ?>
+                <button type="submit" class="kn-btn kn-btn-danger">Supprimer le compte</button>
+            </form>
+        <?php endif; ?>
     </main>
 </body>
 </html>

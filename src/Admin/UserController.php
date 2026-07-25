@@ -165,6 +165,40 @@ final class UserController
     }
 
     /**
+     * POST /admin/utilisateurs/{id}/supprimer — supprime si possible, sinon
+     * désactive pour préserver l'historique (ex. lié à des notes clients).
+     */
+    public function delete(Request $request): Response
+    {
+        $id = (int) $request->attribute('id');
+        $user = $this->users->find($id);
+        if ($user === null) {
+            throw new NotFoundException('Compte introuvable.');
+        }
+
+        if ($this->session->userId() === $id) {
+            $this->session->flash('users_ok', 'Vous ne pouvez pas supprimer votre propre compte.');
+
+            return Response::redirect('/admin/utilisateurs');
+        }
+        if ($this->users->isLastActiveAdmin($id)) {
+            $this->session->flash('users_ok', 'Impossible de supprimer le dernier administrateur actif.');
+
+            return Response::redirect('/admin/utilisateurs');
+        }
+
+        $result = $this->users->deleteOrDeactivateUser($id);
+        $this->session->flash(
+            'users_ok',
+            $result === 'deleted'
+                ? 'Compte supprimé.'
+                : 'Compte désactivé (lié à une fiche technicien — déliez-la d\'abord pour supprimer définitivement).',
+        );
+
+        return Response::redirect('/admin/utilisateurs');
+    }
+
+    /**
      * Valide les champs communs. Renvoie un message d'erreur ou null.
      */
     private function validate(Request $request, ?int $exceptId): ?string

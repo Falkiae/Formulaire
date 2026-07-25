@@ -455,11 +455,13 @@ return static function (Router $router, Container $container): void {
             $r->get('/utilisateurs/{id}', [UserController::class, 'edit']);
             $r->post('/utilisateurs/{id}', [UserController::class, 'update'], [CsrfMiddleware::class]);
             $r->post('/utilisateurs/{id}/actif', [UserController::class, 'toggleActive'], [CsrfMiddleware::class]);
+            $r->post('/utilisateurs/{id}/supprimer', [UserController::class, 'delete'], [CsrfMiddleware::class]);
 
             // Catalogue des compétences (skills)
             $r->get('/competences', [TechnicianController::class, 'skillsIndex']);
             $r->post('/competences', [TechnicianController::class, 'createSkill'], [CsrfMiddleware::class]);
             $r->post('/competences/{id}', [TechnicianController::class, 'updateSkill'], [CsrfMiddleware::class]);
+            $r->post('/competences/{id}/supprimer', [TechnicianController::class, 'deleteSkill'], [CsrfMiddleware::class]);
 
             // Zones de service (chalandise) : couverture, règles tarifaires, techniciens
             $r->get('/zones', [ZoneController::class, 'index']);
@@ -506,6 +508,7 @@ return static function (Router $router, Container $container): void {
             $r->post('/techniciens', [TechnicianController::class, 'create'], [CsrfMiddleware::class]);
             $r->get('/techniciens/{id}', [TechnicianController::class, 'edit']);
             $r->post('/techniciens/{id}', [TechnicianController::class, 'update'], [CsrfMiddleware::class]);
+            $r->post('/techniciens/{id}/supprimer', [TechnicianController::class, 'delete'], [CsrfMiddleware::class]);
             $r->post('/techniciens/{id}/competences', [TechnicianController::class, 'syncSkills'], [CsrfMiddleware::class]);
             $r->post('/techniciens/{id}/zones', [TechnicianController::class, 'syncZones'], [CsrfMiddleware::class]);
             $r->post('/techniciens/{id}/disponibilite', [TechnicianController::class, 'addAvailability'], [CsrfMiddleware::class]);

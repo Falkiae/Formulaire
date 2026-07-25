@@ -87,6 +87,36 @@ final class TechnicianRepository
         ];
     }
 
+    /**
+     * Supprimable seulement si jamais assigné à un job (passé ou futur) —
+     * même critère que CatalogRepository::serviceDeletable() : préserve
+     * l'historique plutôt que de délier silencieusement des jobs passés.
+     */
+    public function technicianDeletable(int $id): bool
+    {
+        $jobs = (int) $this->db->scalar('SELECT COUNT(*) FROM jobs WHERE technician_id = :id', ['id' => $id]);
+
+        return $jobs === 0;
+    }
+
+    /**
+     * Supprime si possible (cascade sur skills/zones/disponibilités/congés,
+     * déjà ON DELETE CASCADE), sinon désactive pour préserver l'historique.
+     * Renvoie l'action réalisée.
+     */
+    public function deleteOrDeactivateTechnician(int $id): string
+    {
+        if ($this->technicianDeletable($id)) {
+            $this->db->run('DELETE FROM technicians WHERE id = :id', ['id' => $id]);
+
+            return 'deleted';
+        }
+
+        $this->db->run('UPDATE technicians SET is_active = 0 WHERE id = :id', ['id' => $id]);
+
+        return 'deactivated';
+    }
+
     // --- Compétences (skills) --------------------------------------------------
 
     /**
@@ -142,6 +172,29 @@ final class TechnicianRepository
             'UPDATE skills SET code = :code, label = :label WHERE id = :id',
             ['code' => $code, 'label' => $label, 'id' => $id],
         );
+    }
+
+    /**
+     * Supprimable seulement si plus utilisée nulle part (aucun technicien,
+     * aucune prestation) — pas de colonne is_active sur skills, donc pas de
+     * repli « désactiver » possible, blocage sec sinon.
+     */
+    public function skillDeletable(int $id): bool
+    {
+        $techs = (int) $this->db->scalar('SELECT COUNT(*) FROM technician_skills WHERE skill_id = :id', ['id' => $id]);
+        $services = (int) $this->db->scalar('SELECT COUNT(*) FROM service_skills WHERE skill_id = :id', ['id' => $id]);
+
+        return $techs === 0 && $services === 0;
+    }
+
+    public function deleteSkill(int $id): bool
+    {
+        if (!$this->skillDeletable($id)) {
+            return false;
+        }
+        $this->db->run('DELETE FROM skills WHERE id = :id', ['id' => $id]);
+
+        return true;
     }
 
     // --- Disponibilités récurrentes -------------------------------------------

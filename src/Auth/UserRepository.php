@@ -116,6 +116,55 @@ final class UserRepository
     }
 
     /**
+     * Supprimable seulement si aucune fiche technicien n'y est liée — il faut
+     * d'abord la délier explicitement (édition de la fiche technicien) plutôt
+     * que perdre silencieusement ce lien.
+     */
+    public function userDeletable(int $id): bool
+    {
+        $linkedTechnician = (int) $this->db->scalar('SELECT COUNT(*) FROM technicians WHERE user_id = :id', ['id' => $id]);
+
+        return $linkedTechnician === 0;
+    }
+
+    /**
+     * Vrai si ce compte est admin actif ET le seul restant — dans ce cas,
+     * ni suppression ni désactivation ne doivent être permises (l'une comme
+     * l'autre couperait l'accès admin à tout le monde). À vérifier par
+     * l'appelant AVANT deleteOrDeactivateUser(), qui ne le fait pas lui-même.
+     */
+    public function isLastActiveAdmin(int $id): bool
+    {
+        $user = $this->find($id);
+        if ($user === null || (string) $user['role'] !== 'admin' || (int) $user['is_active'] !== 1) {
+            return false;
+        }
+
+        $activeAdmins = (int) $this->db->scalar("SELECT COUNT(*) FROM users WHERE role = 'admin' AND is_active = 1");
+
+        return $activeAdmins <= 1;
+    }
+
+    /**
+     * Supprime si possible (cascade sur user_permissions, déjà ON DELETE
+     * CASCADE), sinon désactive pour préserver l'historique. Renvoie l'action
+     * réalisée. L'appelant doit avoir déjà écarté le cas isLastActiveAdmin()
+     * et l'auto-suppression avant d'appeler cette méthode.
+     */
+    public function deleteOrDeactivateUser(int $id): string
+    {
+        if ($this->userDeletable($id)) {
+            $this->db->run('DELETE FROM users WHERE id = :id', ['id' => $id]);
+
+            return 'deleted';
+        }
+
+        $this->setActive($id, false);
+
+        return 'deactivated';
+    }
+
+    /**
      * Remplace le mot de passe (hashé Argon2id).
      */
     public function updatePassword(int $id, string $plainPassword): void

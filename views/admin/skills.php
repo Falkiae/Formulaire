@@ -25,12 +25,19 @@
 
         <section class="kn-card">
             <?php foreach ($data['skills'] as $s): ?>
-                <form method="post" action="/admin/competences/<?= (int) $s['id'] ?>" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--kn-line);">
-                    <?= $data['csrf'] ?>
-                    <div class="kn-field" style="margin:0;"><label>Code</label><input type="text" name="code" value="<?= $e($s['code']) ?>" style="max-width:180px;"></div>
-                    <div class="kn-field" style="margin:0;flex:1;"><label>Libellé</label><input type="text" name="label" value="<?= $e($s['label']) ?>"></div>
-                    <button type="submit" class="kn-btn kn-btn-ghost kn-btn-sm">Enregistrer</button>
-                </form>
+                <div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--kn-line);">
+                    <form method="post" action="/admin/competences/<?= (int) $s['id'] ?>" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;flex:1;">
+                        <?= $data['csrf'] ?>
+                        <div class="kn-field" style="margin:0;"><label>Code</label><input type="text" name="code" value="<?= $e($s['code']) ?>" style="max-width:180px;"></div>
+                        <div class="kn-field" style="margin:0;flex:1;"><label>Libellé</label><input type="text" name="label" value="<?= $e($s['label']) ?>"></div>
+                        <button type="submit" class="kn-btn kn-btn-ghost kn-btn-sm">Enregistrer</button>
+                    </form>
+                    <form method="post" action="/admin/competences/<?= (int) $s['id'] ?>/supprimer"
+                          onsubmit="return confirm('Supprimer cette compétence ? Impossible si elle est utilisée par un technicien ou une prestation.');">
+                        <?= $data['csrf'] ?>
+                        <button type="submit" class="kn-btn kn-btn-danger kn-btn-sm">Suppr.</button>
+                    </form>
+                </div>
             <?php endforeach; ?>
             <?php if ($data['skills'] === []): ?><p class="kn-muted">Aucune compétence.</p><?php endif; ?>
         </section>

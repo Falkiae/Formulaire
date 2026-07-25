@@ -87,6 +87,22 @@ final class TechnicianController
     }
 
     /**
+     * POST /admin/techniciens/{id}/supprimer — supprime si jamais assigné à
+     * un job, sinon désactive pour préserver l'historique.
+     */
+    public function delete(Request $request): Response
+    {
+        $tech = $this->requireTech($request);
+        $result = $this->techs->deleteOrDeactivateTechnician((int) $tech['id']);
+        $this->session->flash(
+            'tech_ok',
+            $result === 'deleted' ? 'Technicien supprimé.' : 'Technicien désactivé (des rendez-vous lui sont associés).',
+        );
+
+        return Response::redirect('/admin/techniciens');
+    }
+
+    /**
      * POST /admin/techniciens/{id}/competences — synchronise les skills.
      */
     public function syncSkills(Request $request): Response
@@ -237,6 +253,22 @@ final class TechnicianController
             $request->string('label'),
         );
         $this->session->flash('skill_ok', 'Compétence enregistrée.');
+
+        return Response::redirect('/admin/competences');
+    }
+
+    /**
+     * POST /admin/competences/{id}/supprimer — suppression (bloquée si
+     * utilisée par un technicien ou une prestation).
+     */
+    public function deleteSkill(Request $request): Response
+    {
+        $id = (int) $request->attribute('id');
+        $deleted = $this->techs->deleteSkill($id);
+        $this->session->flash(
+            'skill_ok',
+            $deleted ? 'Compétence supprimée.' : 'Compétence utilisée par des techniciens ou prestations, suppression impossible.',
+        );
 
         return Response::redirect('/admin/competences');
     }

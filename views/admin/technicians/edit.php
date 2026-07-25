@@ -76,6 +76,14 @@ $weekdays = [1 => 'Lundi', 2 => 'Mardi', 3 => 'Mercredi', 4 => 'Jeudi', 5 => 'Ve
         </form>
 
         <?php if (!$isNew): ?>
+            <form method="post" action="/admin/techniciens/<?= $techId ?>/supprimer" style="margin-top:12px;"
+                  onsubmit="return confirm('Supprimer ce technicien ? S\'il a déjà des rendez-vous, il sera désactivé plutôt que supprimé.');">
+                <?= $data['csrf'] ?>
+                <button type="submit" class="kn-btn kn-btn-danger">Supprimer le technicien</button>
+            </form>
+        <?php endif; ?>
+
+        <?php if (!$isNew): ?>
             <!-- Compétences -->
             <section class="kn-card" style="margin-top:24px;">
                 <h2>Compétences</h2>
