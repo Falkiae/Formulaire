@@ -154,13 +154,16 @@ final class AvailabilityRepository
             );
         }
 
-        // Holds actifs (réservations temporaires du tunnel).
+        // Holds actifs (réservations temporaires du tunnel). Requête sans
+        // :excludeJobId (non applicable ici) — params reconstruits sans cette
+        // clé, sinon PDO (prepares natifs) rejette un paramètre lié non
+        // référencé dans la requête (SQLSTATE[HY093]).
         $now = Clock::nowUtc()->format('Y-m-d H:i:s');
         $holds = $this->db->select(
             'SELECT starts_at, ends_at FROM slot_holds
              WHERE technician_id = :id AND expires_at > :now
                AND starts_at BETWEEN :s AND :e',
-            $params + ['now' => $now],
+            ['id' => $techId, 's' => $params['s'], 'e' => $params['e'], 'now' => $now],
         );
         foreach ($holds as $hold) {
             $blocks[] = new BusyBlock(new Interval(
