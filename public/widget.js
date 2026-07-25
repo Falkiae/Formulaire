@@ -454,6 +454,11 @@
           postalMsgWrap.appendChild(outOfZoneMessage());
           return;
         }
+        // Synchronise dès la validation de zone, avant même l'étape
+        // Coordonnées : state.postal reste l'unique source de vérité, une
+        // correction faite ici (même après un premier passage par
+        // Coordonnées avec un code invalide) ne doit jamais rester figée.
+        state.address.postal_code = state.postal;
         proceedMode("onsite");
       });
     }
@@ -927,7 +932,13 @@
       body.appendChild(el('<h3 class="kn-h3">Adresse d\'intervention</h3>'));
       body.appendChild(textField("address", "street", "Rue", "address-line1", "text"));
       body.appendChild(textField("address", "number", "Numéro", "", "text"));
-      if (!state.address.postal_code) state.address.postal_code = state.postal;
+      // Toujours resynchronisé depuis state.postal (validé à l'étape « Où »),
+      // jamais figé à la première visite : un retour en arrière pour corriger
+      // le code postal ne doit jamais laisser une ancienne valeur invalide
+      // traîner jusqu'à l'étape créneau (state.address.postal_code y est lu
+      // en priorité, voir renderSlot()). L'utilisateur reste libre de la
+      // modifier manuellement ensuite dans ce champ.
+      state.address.postal_code = state.postal;
       body.appendChild(textField("address", "postal_code", "Code postal", "postal-code", "text"));
       body.appendChild(textField("address", "city", "Ville", "address-level2", "text"));
     }
