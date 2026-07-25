@@ -77,16 +77,38 @@ $jobCard = static function (array $j, callable $e): string {
         "use strict";
         var CSRF = <?= json_encode($data['csrf_token'], JSON_UNESCAPED_SLASHES) ?>;
         var dragged = null;
+        var hovered = null;
         document.addEventListener("dragstart", function (e) {
             var job = e.target.closest(".kn-job");
             if (job) dragged = job;
         });
-        document.querySelectorAll(".kn-col").forEach(function (col) {
-            col.addEventListener("dragover", function (e) { e.preventDefault(); col.classList.add("drag-over"); });
-            col.addEventListener("dragleave", function () { col.classList.remove("drag-over"); });
-            col.addEventListener("drop", function (e) {
+        // Délégation sur .kn-dispatch (plutôt qu'un listener par .kn-col) :
+        // reste fonctionnel après un remplacement du DOM (ex. rafraîchissement
+        // en arrière-plan depuis le panneau job, admin-job-panel.js), sans
+        // avoir à ré-attacher quoi que ce soit.
+        var board = document.querySelector(".kn-dispatch");
+        if (board) {
+            board.addEventListener("dragover", function (e) {
+                var col = e.target.closest(".kn-col");
+                if (!col) return;
+                e.preventDefault();
+                if (hovered && hovered !== col) hovered.classList.remove("drag-over");
+                col.classList.add("drag-over");
+                hovered = col;
+            });
+            board.addEventListener("dragleave", function (e) {
+                var col = e.target.closest(".kn-col");
+                if (col && col === hovered && !col.contains(e.relatedTarget)) {
+                    col.classList.remove("drag-over");
+                    hovered = null;
+                }
+            });
+            board.addEventListener("drop", function (e) {
+                var col = e.target.closest(".kn-col");
+                if (!col) return;
                 e.preventDefault();
                 col.classList.remove("drag-over");
+                hovered = null;
                 if (!dragged) return;
                 var techId = col.getAttribute("data-tech");
                 if (techId === "none") return;
@@ -108,7 +130,7 @@ $jobCard = static function (array $j, callable $e): string {
                       }
                   });
             });
-        });
+        }
     })();
     </script>
     <script src="/assets/vendor/leaflet/leaflet.js"></script>
