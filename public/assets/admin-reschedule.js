@@ -73,15 +73,25 @@
 
     onlyCurrent.addEventListener("change", renderSlots);
 
+    function fetchJson(url) {
+      return fetch(url, { headers: { Accept: "application/json" } }).then(function (r) {
+        if (!r.ok) {
+          throw new Error("http_" + r.status);
+        }
+        return r.json();
+      });
+    }
+
     function loadMonth() {
       var ym = viewYear + "-" + pad(viewMonth + 1);
       monthLabel.textContent = MONTHS[viewMonth] + " " + viewYear;
-      fetch("/admin/job/" + jobId + "/creneaux/mois?month=" + ym)
-        .then(function (r) {
-          return r.json();
-        })
+      calGrid.innerHTML = '<p class="kn-muted">Chargement…</p>';
+      fetchJson("/admin/job/" + jobId + "/creneaux/mois?month=" + ym)
         .then(function (data) {
           renderCalendar(data.dates || []);
+        })
+        .catch(function () {
+          calGrid.innerHTML = '<p class="kn-muted">Impossible de charger les disponibilités.</p>';
         });
     }
 
@@ -138,13 +148,13 @@
       btnEl.classList.add("is-selected");
 
       slotList.innerHTML = '<p class="kn-muted">Chargement…</p>';
-      fetch("/admin/job/" + jobId + "/creneaux?date=" + dateStr)
-        .then(function (r) {
-          return r.json();
-        })
+      fetchJson("/admin/job/" + jobId + "/creneaux?date=" + dateStr)
         .then(function (data) {
           lastSlots = data.slots || {};
           renderSlots();
+        })
+        .catch(function () {
+          slotList.innerHTML = '<p class="kn-muted">Impossible de charger les créneaux.</p>';
         });
     }
 

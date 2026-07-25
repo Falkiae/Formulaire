@@ -110,7 +110,8 @@ final class Request
 
     public function isJson(): bool
     {
-        return str_contains($this->headers['content-type'] ?? '', 'application/json');
+        return str_contains($this->headers['content-type'] ?? '', 'application/json')
+            || str_contains($this->headers['accept'] ?? '', 'application/json');
     }
 
     // --- Accès brut interne (utilisé par les accesseurs typés uniquement) ------

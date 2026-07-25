@@ -316,6 +316,7 @@ return static function (Router $router, Container $container): void {
         $c->get(CatalogRepository::class),
         $c->get(ZoneResolver::class),
         $c->get(GeoProviderInterface::class),
+        $c->get(AvailabilityService::class),
     ));
     $container->singleton(JobController::class, static fn (Container $c): JobController => new JobController(
         $c->get(View::class),
