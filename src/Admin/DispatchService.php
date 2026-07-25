@@ -193,11 +193,14 @@ final class DispatchService
 
         return $this->db->transaction(function (Database $db) use ($job, $jobId, $technicianId, $start, $end, $startStr, $endStr, $active, $userId): array {
             // 1. Conflit dur : chevauchement avec un AUTRE job du technicien.
+            // `scheduled_end IS NULL` traité comme occupé (jamais comme absent) :
+            // un `scheduled_end` manquant ne doit jamais faire disparaître un
+            // conflit réel de ce COUNT.
             $overlap = (int) $db->scalar(
                 "SELECT COUNT(*) FROM jobs
                  WHERE technician_id = :t AND id <> :self
                    AND status IN ('scheduled','en_route','in_progress')
-                   AND scheduled_start < :end AND scheduled_end > :start
+                   AND scheduled_start < :end AND (scheduled_end IS NULL OR scheduled_end > :start)
                  FOR UPDATE",
                 ['t' => $technicianId, 'self' => $jobId, 'start' => $startStr, 'end' => $endStr],
             );
@@ -342,11 +345,12 @@ final class DispatchService
             }
 
             // Conflit technicien (chevauchement avec un autre job planifié).
+            // `scheduled_end IS NULL` traité comme occupé, jamais comme absent.
             $overlap = (int) $db->scalar(
                 "SELECT COUNT(*) FROM jobs
                  WHERE technician_id = :t AND id <> :self
                    AND status IN ('scheduled','en_route','in_progress')
-                   AND scheduled_start < :end AND scheduled_end > :start
+                   AND scheduled_start < :end AND (scheduled_end IS NULL OR scheduled_end > :start)
                  FOR UPDATE",
                 ['t' => $technicianId, 'self' => $jobId, 'start' => $startStr, 'end' => $endStr],
             );
@@ -360,7 +364,7 @@ final class DispatchService
                     "SELECT COUNT(*) FROM jobs
                      WHERE bay_id = :b AND id <> :self
                        AND status IN ('scheduled','en_route','in_progress')
-                       AND scheduled_start < :end AND scheduled_end > :start
+                       AND scheduled_start < :end AND (scheduled_end IS NULL OR scheduled_end > :start)
                      FOR UPDATE",
                     ['b' => $bayId, 'self' => $jobId, 'start' => $startStr, 'end' => $endStr],
                 );

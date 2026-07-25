@@ -136,7 +136,8 @@ final class JobController
         }
         [$mode, $addressId] = $this->slotModeParams($request);
 
-        return Response::json(['dates' => $this->availability->datesWithSlots($id, $month, $mode, $addressId)]);
+        return Response::json(['dates' => $this->availability->datesWithSlots($id, $month, $mode, $addressId)])
+            ->withHeader('Cache-Control', 'no-store');
     }
 
     /**
@@ -152,7 +153,8 @@ final class JobController
         }
         [$mode, $addressId] = $this->slotModeParams($request);
 
-        return Response::json(['slots' => $this->availability->slotsForDate($id, $date, $mode, $addressId)]);
+        return Response::json(['slots' => $this->availability->slotsForDate($id, $date, $mode, $addressId)])
+            ->withHeader('Cache-Control', 'no-store');
     }
 
     /**

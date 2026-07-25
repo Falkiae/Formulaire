@@ -72,6 +72,6 @@ final class AvailabilityApiController
                 : ['status' => 'no_workshop'];
         }
 
-        return Response::json($result);
+        return Response::json($result)->withHeader('Cache-Control', 'no-store');
     }
 }

@@ -141,11 +141,18 @@ final class AvailabilityRepository
             $params,
         );
         foreach ($jobs as $job) {
+            $start = new \DateTimeImmutable((string) $job['scheduled_start'], new \DateTimeZone('UTC'));
+            // `scheduled_end` ne devrait jamais être NULL pour un job planifié
+            // (toujours posé avec scheduled_start — BookingService, DispatchService),
+            // mais si une donnée existante l'a malgré tout : ne jamais caster
+            // `null` en chaîne vide (PHP l'interpréterait comme "maintenant",
+            // un bloc occupé incohérent) — traiter comme occupé jusqu'à la
+            // borne haute de la fenêtre interrogée, jamais comme absent.
+            $end = $job['scheduled_end'] !== null
+                ? new \DateTimeImmutable((string) $job['scheduled_end'], new \DateTimeZone('UTC'))
+                : new \DateTimeImmutable($params['e'], new \DateTimeZone('UTC'));
             $blocks[] = new BusyBlock(
-                new Interval(
-                    new \DateTimeImmutable((string) $job['scheduled_start'], new \DateTimeZone('UTC')),
-                    new \DateTimeImmutable((string) $job['scheduled_end'], new \DateTimeZone('UTC')),
-                ),
+                new Interval($start, $end),
                 new GeoPoint(
                     $job['lat'] !== null ? (float) $job['lat'] : null,
                     $job['lng'] !== null ? (float) $job['lng'] : null,
