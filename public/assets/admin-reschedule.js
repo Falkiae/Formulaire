@@ -75,11 +75,32 @@
 
     function fetchJson(url) {
       return fetch(url, { headers: { Accept: "application/json" } }).then(function (r) {
-        if (!r.ok) {
-          throw new Error("http_" + r.status);
-        }
-        return r.json();
+        return r
+          .json()
+          .catch(function () {
+            return null;
+          })
+          .then(function (body) {
+            if (!r.ok) {
+              var err = new Error((body && body.error) || "http_" + r.status);
+              err.serverMessage = body && body.error;
+              throw err;
+            }
+            return body;
+          });
       });
+    }
+
+    function errorMessage(err) {
+      return (err && err.serverMessage) || "Impossible de charger les disponibilités.";
+    }
+
+    function showError(container, err) {
+      container.innerHTML = "";
+      var p = document.createElement("p");
+      p.className = "kn-muted";
+      p.textContent = errorMessage(err);
+      container.appendChild(p);
     }
 
     function loadMonth() {
@@ -90,8 +111,8 @@
         .then(function (data) {
           renderCalendar(data.dates || []);
         })
-        .catch(function () {
-          calGrid.innerHTML = '<p class="kn-muted">Impossible de charger les disponibilités.</p>';
+        .catch(function (err) {
+          showError(calGrid, err);
         });
     }
 
@@ -153,8 +174,8 @@
           lastSlots = data.slots || {};
           renderSlots();
         })
-        .catch(function () {
-          slotList.innerHTML = '<p class="kn-muted">Impossible de charger les créneaux.</p>';
+        .catch(function (err) {
+          showError(slotList, err);
         });
     }
 

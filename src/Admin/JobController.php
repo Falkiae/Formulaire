@@ -135,11 +135,7 @@ final class JobController
             $month = Clock::format(Clock::nowUtc(), 'Y-m');
         }
 
-        try {
-            return Response::json(['dates' => $this->availability->datesWithSlots($id, $month)]);
-        } catch (\Throwable) {
-            return Response::json(['error' => 'Erreur lors du calcul des disponibilités.'], 500);
-        }
+        return Response::json(['dates' => $this->availability->datesWithSlots($id, $month)]);
     }
 
     /**
@@ -154,11 +150,7 @@ final class JobController
             return Response::json(['error' => 'Date invalide.'], 422);
         }
 
-        try {
-            return Response::json(['slots' => $this->availability->slotsForDate($id, $date)]);
-        } catch (\Throwable) {
-            return Response::json(['error' => 'Erreur lors du calcul des disponibilités.'], 500);
-        }
+        return Response::json(['slots' => $this->availability->slotsForDate($id, $date)]);
     }
 
     public function updateStatus(Request $request): Response
