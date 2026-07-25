@@ -36,13 +36,37 @@
     var onlyCurrent = root.querySelector("#kn-resched-only-current");
     var startInput = root.querySelector("#kn-resched-start");
     var techInput = root.querySelector("#kn-resched-tech");
+    var modeInput = root.querySelector("#kn-resched-mode-input");
+    var addressInput = root.querySelector("#kn-resched-address-input");
+    var bayInput = root.querySelector("#kn-resched-bay-input");
     var form = root.querySelector("#kn-resched-form");
+    var confirmBtn = root.querySelector("#kn-resched-confirm");
+    var modeToggle = root.querySelectorAll('input[name="kn-resched-target-mode"]');
+    var addressSelect = root.querySelector("#kn-resched-address-select");
 
     var today = new Date();
     var viewYear = today.getFullYear();
     var viewMonth = today.getMonth(); // 0-indexed
     var selectedDate = null;
-    var lastSlots = {}; // "H:i" => [{id,name}, ...]
+    var lastSlots = {}; // "H:i" => [{id,name,bay_id?}, ...]
+    var targetMode = picker.getAttribute("data-current-mode") || "onsite";
+    var defaultAddressId = parseInt(picker.getAttribute("data-default-address-id"), 10) || 0;
+    var pending = null; // {time, tech}
+
+    function resolvedAddressId() {
+      if (addressSelect && addressSelect.value) return addressSelect.value;
+      return defaultAddressId ? String(defaultAddressId) : "0";
+    }
+
+    function setPending(next) {
+      pending = next;
+      if (confirmBtn) {
+        confirmBtn.disabled = !pending;
+        confirmBtn.textContent = pending
+          ? "Confirmer — " + pending.tech.name + ", " + pending.time
+          : "Confirmer la replanification";
+      }
+    }
 
     toggleBtn.addEventListener("click", function () {
       var hidden = panel.hasAttribute("hidden");
@@ -72,6 +96,34 @@
     });
 
     onlyCurrent.addEventListener("change", renderSlots);
+
+    modeToggle.forEach(function (radio) {
+      radio.addEventListener("change", function () {
+        if (!radio.checked) return;
+        targetMode = radio.value;
+        if (addressSelect) {
+          addressSelect.style.display = targetMode === "onsite" ? "" : "none";
+        }
+        setPending(null);
+        slotList.innerHTML = "";
+        loadMonth();
+      });
+    });
+    if (addressSelect) {
+      addressSelect.addEventListener("change", function () {
+        setPending(null);
+        var sel = calGrid.querySelector(".kn-resched-cal-day.is-selected");
+        if (selectedDate && sel) selectDate(selectedDate, sel);
+      });
+    }
+
+    function querySuffix() {
+      var suffix = "&mode=" + encodeURIComponent(targetMode);
+      if (targetMode === "onsite") {
+        suffix += "&address_id=" + encodeURIComponent(resolvedAddressId());
+      }
+      return suffix;
+    }
 
     function fetchJson(url) {
       return fetch(url, { headers: { Accept: "application/json" } }).then(function (r) {
@@ -107,7 +159,7 @@
       var ym = viewYear + "-" + pad(viewMonth + 1);
       monthLabel.textContent = MONTHS[viewMonth] + " " + viewYear;
       calGrid.innerHTML = '<p class="kn-muted">Chargement…</p>';
-      fetchJson("/admin/job/" + jobId + "/creneaux/mois?month=" + ym)
+      fetchJson("/admin/job/" + jobId + "/creneaux/mois?month=" + ym + querySuffix())
         .then(function (data) {
           renderCalendar(data.dates || []);
         })
@@ -141,8 +193,11 @@
       });
 
       for (var day = 1; day <= daysInMonth; day++) {
-        var dateStr = viewYear + "-" + pad(viewMonth + 1) + "-" + pad(day);
-        var btn = document.createElement("button");
+        // `let` : liaison neuve à chaque itération, capturée correctement par
+        // le gestionnaire de clic (contrairement à `var`, qui aurait fait
+        // pointer tous les clics vers le dernier jour généré par la boucle).
+        let dateStr = viewYear + "-" + pad(viewMonth + 1) + "-" + pad(day);
+        let btn = document.createElement("button");
         btn.type = "button";
         btn.className = "kn-resched-cal-day";
         btn.textContent = String(day);
@@ -151,11 +206,9 @@
         if (isPast || !hasSlots) {
           btn.disabled = true;
         } else {
-          btn.addEventListener("click", function (ds) {
-            return function () {
-              selectDate(ds, btn);
-            };
-          }(dateStr));
+          btn.addEventListener("click", function () {
+            selectDate(dateStr, btn);
+          });
         }
         calGrid.appendChild(btn);
       }
@@ -163,13 +216,14 @@
 
     function selectDate(dateStr, btnEl) {
       selectedDate = dateStr;
+      setPending(null);
       calGrid.querySelectorAll(".kn-resched-cal-day").forEach(function (b) {
         b.classList.remove("is-selected");
       });
       btnEl.classList.add("is-selected");
 
       slotList.innerHTML = '<p class="kn-muted">Chargement…</p>';
-      fetchJson("/admin/job/" + jobId + "/creneaux?date=" + dateStr)
+      fetchJson("/admin/job/" + jobId + "/creneaux?date=" + dateStr + querySuffix())
         .then(function (data) {
           lastSlots = data.slots || {};
           renderSlots();
@@ -227,11 +281,16 @@
           var avatars = document.createElement("span");
           avatars.className = "kn-resched-slot-avatars";
           techs.slice(0, 4).forEach(function (t) {
-            var av = document.createElement("span");
-            av.className = "kn-avatar";
+            var av = document.createElement("button");
+            av.type = "button";
+            av.className = "kn-avatar kn-avatar-pick";
             av.style.background = avatarColor(t.id);
-            av.title = t.name;
+            av.title = "Assigner à " + t.name;
             av.textContent = initials(t.name);
+            av.addEventListener("click", function (evt) {
+              evt.stopPropagation();
+              selectSlot(time, t, row, av);
+            });
             avatars.appendChild(av);
           });
           var count = document.createElement("span");
@@ -243,7 +302,11 @@
           row.appendChild(avatars);
 
           row.addEventListener("click", function () {
-            selectSlot(time, techs, row);
+            // Sélection rapide : technicien déjà assigné s'il est libre à ce
+            // créneau, sinon le premier proposé. Cliquer un avatar précis
+            // (ci-dessus) choisit explicitement CE technicien à la place.
+            var preferred = techs.find(function (t) { return t.id === currentTech; }) || techs[0];
+            selectSlot(time, preferred, row, null);
           });
           slotList.appendChild(row);
         });
@@ -254,19 +317,32 @@
       }
     }
 
-    function selectSlot(time, techs, rowEl) {
+    // Sélection sans soumission — le bouton "Confirmer" déclenche l'envoi
+    // réel, pour laisser le temps de choisir le technicien voulu et éviter
+    // toute replanification accidentelle au simple clic.
+    function selectSlot(time, tech, rowEl, avatarEl) {
       slotList.querySelectorAll(".kn-resched-slot").forEach(function (r) {
         r.classList.remove("is-selected");
       });
+      slotList.querySelectorAll(".kn-avatar-pick").forEach(function (a) {
+        a.classList.remove("is-selected");
+      });
       rowEl.classList.add("is-selected");
+      if (avatarEl) avatarEl.classList.add("is-selected");
 
-      // Préfère le technicien déjà assigné s'il est libre à ce créneau,
-      // sinon le premier technicien libre proposé.
-      var chosen = techs.find(function (t) { return t.id === currentTech; }) || techs[0];
+      setPending({ time: time, tech: tech });
+    }
 
-      startInput.value = selectedDate + "T" + time;
-      techInput.value = String(chosen.id);
-      form.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
+    if (confirmBtn) {
+      confirmBtn.addEventListener("click", function () {
+        if (!pending || !selectedDate) return;
+        startInput.value = selectedDate + "T" + pending.time;
+        techInput.value = String(pending.tech.id);
+        if (modeInput) modeInput.value = targetMode;
+        if (addressInput) addressInput.value = targetMode === "onsite" ? resolvedAddressId() : "0";
+        if (bayInput) bayInput.value = pending.tech.bay_id ? String(pending.tech.bay_id) : "0";
+        form.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
+      });
     }
   }
 

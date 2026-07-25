@@ -30,8 +30,11 @@ use Keepnew\Support\Clock;
  * reconstruire la ligne : une replanification ne doit jamais échouer à
  * cause d'un changement de configuration ultérieur.
  *
- * Le mode du job n'est PAS changé ici (changer de mode reste une action
- * distincte via le formulaire classique) — uniquement date/heure/technicien.
+ * Le sélecteur peut aussi rechercher des créneaux pour l'AUTRE mode que celui
+ * actuel du job (bascule Domicile/Atelier) : `$targetMode`/`$addressId`
+ * permettent de simuler « et si ce job était en {mode} » sans rien modifier
+ * en base — seule la confirmation finale (DispatchService::reschedule(), à la
+ * soumission du formulaire) écrit réellement le changement.
  */
 final class RescheduleAvailabilityService
 {
@@ -52,9 +55,9 @@ final class RescheduleAvailabilityService
      *
      * @return list<string> dates "Y-m-d"
      */
-    public function datesWithSlots(int $jobId, string $monthYm): array
+    public function datesWithSlots(int $jobId, string $monthYm, ?string $targetMode = null, ?int $addressId = null): array
     {
-        $job = $this->loadJob($jobId);
+        $job = $this->loadJob($jobId, $targetMode, $addressId);
         if ($job === null) {
             return [];
         }
@@ -83,11 +86,11 @@ final class RescheduleAvailabilityService
      * Créneaux libres d'un jour donné, groupés par heure avec la liste des
      * techniciens réellement disponibles à chacun.
      *
-     * @return array<string, list<array{id:int, name:string}>> "H:i" => [{id,name}, ...]
+     * @return array<string, list<array{id:int, name:string, bay_id:?int}>> "H:i" => [{id,name,bay_id}, ...]
      */
-    public function slotsForDate(int $jobId, string $date): array
+    public function slotsForDate(int $jobId, string $date, ?string $targetMode = null, ?int $addressId = null): array
     {
-        $job = $this->loadJob($jobId);
+        $job = $this->loadJob($jobId, $targetMode, $addressId);
         if ($job === null) {
             return [];
         }
@@ -105,7 +108,7 @@ final class RescheduleAvailabilityService
         foreach ($slots as $slot) {
             $time = Clock::format($slot->start, 'H:i');
             $techId = $slot->technicianId;
-            $grouped[$time][$techId] = ['id' => $techId, 'name' => $techNames[$techId] ?? ('#' . $techId)];
+            $grouped[$time][$techId] = ['id' => $techId, 'name' => $techNames[$techId] ?? ('#' . $techId), 'bay_id' => $slot->bayId];
         }
         foreach ($grouped as $time => $techs) {
             $grouped[$time] = array_values($techs);
@@ -118,12 +121,13 @@ final class RescheduleAvailabilityService
     /**
      * @return array{id:int, draft:JobDraft, mode:string, locationId:?int, point:?GeoPoint}|null
      */
-    private function loadJob(int $jobId): ?array
+    private function loadJob(int $jobId, ?string $targetMode = null, ?int $addressId = null): ?array
     {
         $job = $this->db->selectOne(
             'SELECT j.mode, j.active_duration_min, j.occupancy_duration_min, j.location_id,
-                    a.lat, a.lng, a.postal_code
+                    b.customer_id, a.lat, a.lng, a.postal_code
              FROM jobs j
+             JOIN bookings b ON b.id = j.booking_id
              LEFT JOIN addresses a ON a.id = j.address_id
              WHERE j.id = :id',
             ['id' => $jobId],
@@ -132,20 +136,55 @@ final class RescheduleAvailabilityService
             return null;
         }
 
-        $mode = (string) $job['mode'];
-        $point = $mode === 'onsite'
-            ? new GeoPoint(
-                $job['lat'] !== null ? (float) $job['lat'] : null,
-                $job['lng'] !== null ? (float) $job['lng'] : null,
-                $job['postal_code'],
-            )
-            : null;
+        $storedMode = (string) $job['mode'];
+        $mode = in_array($targetMode, ['onsite', 'workshop'], true) ? $targetMode : $storedMode;
+        $switchingMode = $mode !== $storedMode;
+
+        if ($mode === 'onsite') {
+            $addressRow = null;
+            if ($addressId !== null && $addressId > 0) {
+                $addressRow = $this->db->selectOne(
+                    'SELECT lat, lng, postal_code FROM addresses WHERE id = :id AND customer_id = :cid',
+                    ['id' => $addressId, 'cid' => (int) $job['customer_id']],
+                );
+            }
+            if ($addressRow === null && !$switchingMode) {
+                $addressRow = $job; // adresse déjà chargée du job (mode inchangé)
+            }
+            if ($addressRow === null) {
+                // Changement vers domicile sans adresse fournie : première adresse du client.
+                $addressRow = $this->db->selectOne(
+                    'SELECT lat, lng, postal_code FROM addresses WHERE customer_id = :cid ORDER BY id LIMIT 1',
+                    ['cid' => (int) $job['customer_id']],
+                );
+            }
+            $point = $addressRow !== null
+                ? new GeoPoint(
+                    $addressRow['lat'] !== null ? (float) $addressRow['lat'] : null,
+                    $addressRow['lng'] !== null ? (float) $addressRow['lng'] : null,
+                    $addressRow['postal_code'],
+                )
+                : null;
+        } else {
+            $point = null;
+        }
+
+        $locationId = $switchingMode && $mode === 'workshop'
+            ? $this->repo->defaultWorkshopLocationId()
+            : ($job['location_id'] !== null ? (int) $job['location_id'] : null);
+
+        // Client sans adresse du tout en ciblant le domicile : aucun créneau
+        // possible, plutôt qu'une erreur (cohérent avec le refus déjà en
+        // place à la soumission dans JobController::updateSchedule()).
+        if ($mode === 'onsite' && $point === null) {
+            return null;
+        }
 
         return [
             'id' => $jobId,
             'draft' => $this->buildDraft($jobId, $mode, $point, (int) $job['active_duration_min'], (int) $job['occupancy_duration_min']),
             'mode' => $mode,
-            'locationId' => $job['location_id'] !== null ? (int) $job['location_id'] : null,
+            'locationId' => $locationId,
             'point' => $point,
         ];
     }
@@ -171,9 +210,14 @@ final class RescheduleAvailabilityService
             ['j' => $jobId],
         );
 
+        // Le mode de chaque ligne est forcé au mode CIBLÉ (pas le mode
+        // d'origine stocké sur booking_items) : en cas de bascule de mode
+        // dans le sélecteur, on veut le prix/la durée/les compétences du
+        // catalogue pour le NOUVEAU mode, comme le fait déjà
+        // DispatchService::reschedule() à la soumission (recomputeDurations).
         $lines = array_map(static fn (array $r): array => [
             'service_id' => (int) $r['service_id'],
-            'mode' => (string) $r['mode'],
+            'mode' => $mode,
             'variant_id' => $r['variant_id'] !== null ? (int) $r['variant_id'] : null,
             'extra_ids' => $r['extra_ids'] !== null ? array_map('intval', explode(',', (string) $r['extra_ids'])) : [],
             'quantity' => (int) $r['quantity'],

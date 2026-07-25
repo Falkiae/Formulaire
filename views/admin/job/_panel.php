@@ -85,7 +85,28 @@ $title = $data['items'] !== []
 
         <div id="kn-resched-panel" hidden>
             <p class="kn-muted">Seuls les créneaux réellement libres (horaires, congés et rendez-vous déjà posés pris en compte) sont proposés.</p>
-            <div class="kn-resched-picker" id="kn-resched-picker" data-job-id="<?= (int) $j['id'] ?>" data-current-tech="<?= (int) ($j['technician_id'] ?? 0) ?>">
+
+            <div class="kn-mode-toggle" role="radiogroup" aria-label="Mode recherché">
+                <label class="kn-check">
+                    <input type="radio" name="kn-resched-target-mode" value="onsite" <?= $j['mode'] === 'onsite' ? 'checked' : '' ?>>
+                    Domicile
+                </label>
+                <label class="kn-check">
+                    <input type="radio" name="kn-resched-target-mode" value="workshop" <?= $j['mode'] === 'workshop' ? 'checked' : '' ?>>
+                    Atelier
+                </label>
+                <?php if (count($data['customer_addresses']) > 1): ?>
+                    <select id="kn-resched-address-select" class="kn-field" style="display:<?= $j['mode'] === 'onsite' ? '' : 'none' ?>;">
+                        <?php foreach ($data['customer_addresses'] as $a): ?>
+                            <option value="<?= (int) $a['id'] ?>" <?= (int) ($j['address_id'] ?? 0) === (int) $a['id'] ? 'selected' : '' ?>>
+                                <?= $e(trim((($a['label'] ?? '') !== '' ? $a['label'] . ' · ' : '') . ($a['street'] ?? '') . ' ' . ($a['number'] ?? '') . ', ' . ($a['postal_code'] ?? '') . ' ' . ($a['city'] ?? ''))) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                <?php endif; ?>
+            </div>
+
+            <div class="kn-resched-picker" id="kn-resched-picker" data-job-id="<?= (int) $j['id'] ?>" data-current-tech="<?= (int) ($j['technician_id'] ?? 0) ?>" data-current-mode="<?= $e($j['mode']) ?>" data-default-address-id="<?= (int) ($data['customer_addresses'][0]['id'] ?? 0) ?>">
                 <div class="kn-resched-cal">
                     <div class="kn-resched-cal-head">
                         <button type="button" class="kn-btn kn-btn-ghost kn-btn-sm" id="kn-resched-prev">←</button>
@@ -100,6 +121,7 @@ $title = $data['items'] !== []
                         Ne montrer que les disponibilités de <?= $j['tech_first'] ? $e($j['tech_first']) : 'ce technicien' ?>
                     </label>
                     <div id="kn-resched-slot-list"></div>
+                    <button type="button" class="kn-btn kn-btn-primary kn-btn-full" id="kn-resched-confirm" style="margin-top:10px;" disabled>Confirmer la replanification</button>
                 </div>
             </div>
 
@@ -108,77 +130,10 @@ $title = $data['items'] !== []
                 <input type="hidden" name="ajax" value="1">
                 <input type="hidden" name="scheduled_start" id="kn-resched-start">
                 <input type="hidden" name="technician_id" id="kn-resched-tech">
-                <input type="hidden" name="mode" value="<?= $e($j['mode']) ?>">
-                <input type="hidden" name="bay_id" value="<?= (int) ($j['bay_id'] ?? 0) ?>">
-                <input type="hidden" name="address_id" value="<?= (int) ($j['address_id'] ?? 0) ?>">
+                <input type="hidden" name="mode" id="kn-resched-mode-input" value="<?= $e($j['mode']) ?>">
+                <input type="hidden" name="bay_id" id="kn-resched-bay-input" value="<?= (int) ($j['bay_id'] ?? 0) ?>">
+                <input type="hidden" name="address_id" id="kn-resched-address-input" value="<?= (int) ($j['address_id'] ?? 0) ?>">
             </form>
-
-            <details style="margin-top:12px;">
-                <summary class="kn-muted">Changer aussi le mode (domicile ↔ atelier)</summary>
-                <form method="post" action="/admin/job/<?= (int) $j['id'] ?>/planifier" id="kn-resched-advanced" style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;margin-top:12px;">
-                    <?= $data['csrf'] ?>
-                    <input type="hidden" name="ajax" value="1">
-                    <div class="kn-field" style="margin:0;">
-                        <label for="sched-adv">Date et heure</label>
-                        <input type="datetime-local" id="sched-adv" name="scheduled_start" value="<?= $e($data['scheduled_local'] ?? '') ?>" required>
-                    </div>
-                    <div class="kn-field" style="margin:0;min-width:200px;">
-                        <label for="tech-adv">Technicien</label>
-                        <select id="tech-adv" name="technician_id" required>
-                            <option value="0">— Choisir —</option>
-                            <?php foreach ($data['technicians'] as $t): ?>
-                                <option value="<?= (int) $t['id'] ?>" <?= (int) ($j['technician_id'] ?? 0) === (int) $t['id'] ? 'selected' : '' ?>>
-                                    <?= $e(trim($t['first_name'] . ' ' . $t['last_name'])) ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                    <div class="kn-field" style="margin:0;">
-                        <label for="mode-adv">Mode</label>
-                        <select id="mode-adv" name="mode">
-                            <option value="onsite" <?= $j['mode'] === 'onsite' ? 'selected' : '' ?>>À domicile</option>
-                            <option value="workshop" <?= $j['mode'] === 'workshop' ? 'selected' : '' ?>>Atelier</option>
-                        </select>
-                    </div>
-                    <div class="kn-field kn-mode-workshop" style="margin:0;min-width:200px;">
-                        <label for="bay-adv">Poste d'atelier</label>
-                        <select id="bay-adv" name="bay_id">
-                            <option value="0">— Choisir —</option>
-                            <?php foreach ($data['active_bays'] as $b): ?>
-                                <option value="<?= (int) $b['id'] ?>" <?= (int) ($j['bay_id'] ?? 0) === (int) $b['id'] ? 'selected' : '' ?>>
-                                    <?= $e($b['location_name'] . ' — ' . $b['name']) ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                    <div class="kn-field kn-mode-onsite" style="margin:0;min-width:220px;">
-                        <label for="addr-adv">Adresse (domicile)</label>
-                        <select id="addr-adv" name="address_id">
-                            <option value="0">— Choisir —</option>
-                            <?php foreach ($data['customer_addresses'] as $a): ?>
-                                <option value="<?= (int) $a['id'] ?>" <?= (int) ($j['address_id'] ?? 0) === (int) $a['id'] ? 'selected' : '' ?>>
-                                    <?= $e(trim((($a['label'] ?? '') !== '' ? $a['label'] . ' · ' : '') . ($a['street'] ?? '') . ' ' . ($a['number'] ?? '') . ', ' . ($a['postal_code'] ?? '') . ' ' . ($a['city'] ?? ''))) ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                    <button type="submit" class="kn-btn kn-btn-primary">Déplacer</button>
-                </form>
-                <script>
-                (function () {
-                    var form = document.getElementById('kn-resched-advanced');
-                    if (!form) return;
-                    var mode = document.getElementById('mode-adv');
-                    function sync() {
-                        var ws = mode.value === 'workshop';
-                        form.querySelectorAll('.kn-mode-workshop').forEach(function (el) { el.style.display = ws ? '' : 'none'; });
-                        form.querySelectorAll('.kn-mode-onsite').forEach(function (el) { el.style.display = ws ? 'none' : ''; });
-                    }
-                    mode.addEventListener('change', sync);
-                    sync();
-                })();
-                </script>
-            </details>
         </div>
     </section>
 

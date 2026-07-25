@@ -134,8 +134,9 @@ final class JobController
         if (!preg_match('/^\d{4}-\d{2}$/', $month)) {
             $month = Clock::format(Clock::nowUtc(), 'Y-m');
         }
+        [$mode, $addressId] = $this->slotModeParams($request);
 
-        return Response::json(['dates' => $this->availability->datesWithSlots($id, $month)]);
+        return Response::json(['dates' => $this->availability->datesWithSlots($id, $month, $mode, $addressId)]);
     }
 
     /**
@@ -149,8 +150,24 @@ final class JobController
         if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
             return Response::json(['error' => 'Date invalide.'], 422);
         }
+        [$mode, $addressId] = $this->slotModeParams($request);
 
-        return Response::json(['slots' => $this->availability->slotsForDate($id, $date)]);
+        return Response::json(['slots' => $this->availability->slotsForDate($id, $date, $mode, $addressId)]);
+    }
+
+    /**
+     * Lit les surcharges optionnelles de mode/adresse de la bascule
+     * Domicile/Atelier du sélecteur (Phase Y) — absentes = mode actuel du job.
+     *
+     * @return array{0:?string, 1:?int}
+     */
+    private function slotModeParams(Request $request): array
+    {
+        $mode = $request->string('mode');
+        $mode = in_array($mode, ['onsite', 'workshop'], true) ? $mode : null;
+        $addressId = $request->int('address_id');
+
+        return [$mode, $addressId > 0 ? $addressId : null];
     }
 
     public function updateStatus(Request $request): Response
