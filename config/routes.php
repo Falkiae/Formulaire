@@ -65,6 +65,7 @@ use Keepnew\Http\Api\CartApiController;
 use Keepnew\Http\Api\CatalogApiController;
 use Keepnew\Http\Api\FormApiController;
 use Keepnew\Admin\FormBuilderController;
+use Keepnew\Admin\TunnelTextsController;
 use Keepnew\Form\FormRepository;
 use Keepnew\Form\FormValidator;
 use Keepnew\Admin\InvoiceController;
@@ -259,6 +260,12 @@ return static function (Router $router, Container $container): void {
         $c->get(Csrf::class),
         $c->get(FormRepository::class),
         $c->get(CatalogRepository::class),
+    ));
+    $container->singleton(TunnelTextsController::class, static fn (Container $c): TunnelTextsController => new TunnelTextsController(
+        $c->get(View::class),
+        $c->get(Session::class),
+        $c->get(Csrf::class),
+        $c->get(Database::class),
     ));
 
     // --- Middlewares -------------------------------------------------------
@@ -466,6 +473,10 @@ return static function (Router $router, Container $container): void {
             // Form builder
             $r->get('/formulaire', [FormBuilderController::class, 'index']);
             $r->post('/formulaire', [FormBuilderController::class, 'createVersion'], [CsrfMiddleware::class]);
+            // Déclarées avant /formulaire/{id} : le routeur fait matcher {id}
+            // sur n'importe quel segment (dont « textes »), premier match gagne.
+            $r->get('/formulaire/textes', [TunnelTextsController::class, 'index']);
+            $r->post('/formulaire/textes', [TunnelTextsController::class, 'update'], [CsrfMiddleware::class]);
             $r->get('/formulaire/{id}', [FormBuilderController::class, 'edit']);
             $r->post('/formulaire/{id}/publier', [FormBuilderController::class, 'publish'], [CsrfMiddleware::class]);
             $r->post('/formulaire/{id}/champ', [FormBuilderController::class, 'addField'], [CsrfMiddleware::class]);

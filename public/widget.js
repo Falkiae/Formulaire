@@ -131,6 +131,127 @@
     { key: "done", label: "Confirmé" },
   ];
 
+  // Textes fixes par défaut, éditables depuis /admin/formulaire/textes.
+  // Filet de secours uniquement (si /api/catalog échoue totalement) — la
+  // source de vérité normale est catalog.texts, fusionnée côté serveur sur
+  // les mêmes valeurs par défaut (src/Support/TunnelTexts.php).
+  var TEXT_DEFAULTS = {
+    where: {
+      title: "Où souhaitez-vous être nettoyé ?",
+      onsite_title: "Je veux qu'on vienne chez moi",
+      onsite_subtitle: "Un technicien se déplace à votre adresse.",
+      workshop_title: "Je viens à l'atelier",
+      workshop_subtitle: "Vous déposez, nous nettoyons. Souvent moins cher.",
+      postal_label: "Votre code postal",
+      postal_placeholder: "Ex. 4000",
+      continue_button: "Continuer",
+      zone_reassurance: "Oui, nous intervenons à Liège et dans un rayon de 25 km.",
+      postal_required_error: "Indiquez d'abord votre code postal.",
+      zone_check_error: "Impossible de vérifier votre zone pour le moment.",
+    },
+    what: {
+      title: "Quelle prestation ?",
+      back_link: "← Revenir",
+    },
+    details: {
+      title: "Configurez votre prestation",
+      variants_heading: "Votre modèle",
+      extras_heading: "Options",
+      price_reassurance: "Prix ferme. Aucun supplément le jour de l'intervention.",
+      add_to_cart_button: "Ajouter au panier",
+      price_duration_label: "TVAC · durée estimée",
+      unavailable_mode_error: "Indisponible dans ce mode.",
+      add_to_cart_error: "Impossible d'ajouter cette prestation au panier.",
+    },
+    cart: {
+      title: "Votre devis",
+      empty_message: "Votre panier est vide. Ajoutez une prestation pour commencer.",
+      empty_button: "Choisir une prestation",
+      onsite_badge: "À domicile",
+      workshop_badge: "Atelier",
+      discount_label: "Remise groupée",
+      total_label: "Total TVAC",
+      add_another_button: "Ajouter une autre prestation",
+      checkout_button: "Finaliser ma réservation",
+    },
+    intake: {
+      title: "Quelques précisions",
+      reassurance: "Si l'état diffère, on vous prévient avant de commencer. Vous restez libre de refuser.",
+      continue_button: "Continuer",
+      validation_error: "Merci de compléter les champs requis.",
+    },
+    contact: {
+      title: "Vos coordonnées",
+      first_name_label: "Prénom",
+      last_name_label: "Nom",
+      email_label: "Email",
+      phone_label: "Téléphone",
+      address_heading: "Adresse d'intervention",
+      street_label: "Rue",
+      number_label: "Numéro",
+      postal_label: "Code postal",
+      city_label: "Ville",
+      privacy_reassurance: "Vos données servent uniquement à organiser votre rendez-vous. Conservées le temps légal. Voir notre politique de confidentialité.",
+      consent_label: "J'accepte les conditions générales et la politique de confidentialité.",
+      continue_button: "Choisir un créneau",
+      required_error: "Merci d'indiquer au moins votre prénom et votre email.",
+      consent_error: "Merci d'accepter les conditions pour continuer.",
+    },
+    slot: {
+      title: "Choisissez votre créneau",
+      empty_onsite: "Aucun créneau à domicile disponible sur la période.",
+      empty_workshop: "Aucun créneau atelier disponible sur la période.",
+      onsite_heading: "À domicile",
+      workshop_heading: "À l'atelier",
+      sms_reassurance: "Vous recevez un SMS quand le technicien part vers chez vous.",
+      continue_button: "Continuer",
+      select_required_error: "Merci de choisir un créneau.",
+      load_error: "Impossible de vérifier les disponibilités pour le moment.",
+      retry_button: "Réessayer",
+      morning_label: "Matin",
+      afternoon_label: "Après-midi",
+      evening_label: "Soir",
+      workshop_slot_prefix: "Dépôt ",
+      workshop_slot_reprise: " · reprise ~",
+    },
+    recap: {
+      title: "Récapitulatif",
+      discount_label: "Remise groupée",
+      total_label: "Total TVAC",
+      promo_label: "Code promo",
+      promo_button: "Appliquer le code",
+      cancellation_reassurance: "Annulation sans frais jusqu'à 24 h avant. Vous payez après l'intervention.",
+      confirm_button: "Confirmer la demande",
+      slot_taken_error: "Ce créneau vient d'être réservé. Merci d'en choisir un autre.",
+    },
+    done: {
+      title: "C'est confirmé",
+      message_prefix: "Votre demande ",
+      message_suffix: " est bien enregistrée.",
+      subtext: "Vous recevez un email de confirmation. Vous payez après l'intervention.",
+      contact_prefix: "Une question ? Appelez-nous au ",
+      contact_fallback_phone: "+32 4 000 00 00",
+      restart_button: "Réserver une autre prestation",
+    },
+    shared: {
+      loading: "Chargement…",
+      generic_error: "Une erreur est survenue.",
+      out_of_zone_message: "Nous n'intervenons pas encore automatiquement à cette adresse. Contactez-nous pour un devis sur mesure :",
+      out_of_zone_fallback: "Contactez-nous depuis notre site.",
+    },
+  };
+  // Résout "étape.clé" depuis catalog.texts (édité en admin), avec repli sur
+  // TEXT_DEFAULTS si catalog n'est pas encore chargé ou si la clé est absente.
+  function t(path) {
+    var parts = path.split(".");
+    var custom = (catalog && catalog.texts) || {};
+    var def = TEXT_DEFAULTS;
+    var val = custom[parts[0]] && custom[parts[0]][parts[1]];
+    if (val) return val;
+    def = def[parts[0]] && def[parts[0]][parts[1]];
+    return def || "";
+  }
+
   // Éléments persistants du « chrome » (montés une fois par mountShell()).
   var scroller, progressFillEl, progressLabelEl, quoteBarSlot, stepObserver;
 
@@ -365,10 +486,10 @@
 
   // --- Étape 1 : OÙ (mode d'abord ; code postal seulement pour le domicile) --
   function renderWhere(body) {
-    body.appendChild(el('<h2 class="kn-h">Où souhaitez-vous être nettoyé ?</h2>'));
+    body.appendChild(el('<h2 class="kn-h">' + esc(t("where.title")) + "</h2>"));
 
     var cards = el('<div class="kn-cards"></div>');
-    var onsiteCard = choiceCard("🏠", "Je veux qu'on vienne chez moi", "Un technicien se déplace à votre adresse.", function () {
+    var onsiteCard = choiceCard("🏠", t("where.onsite_title"), t("where.onsite_subtitle"), function () {
       // Retour visuel immédiat : state.mode n'est posé qu'au clic sur
       // Continuer, mais la sélection doit déjà être visible pendant la
       // saisie du code postal.
@@ -376,7 +497,7 @@
       workshopCard.classList.remove("on");
       showPostal();
     }, state.mode === "onsite");
-    var workshopCard = choiceCard("🔧", "Je viens à l'atelier", "Vous déposez, nous nettoyons. Souvent moins cher.", function () {
+    var workshopCard = choiceCard("🔧", t("where.workshop_title"), t("where.workshop_subtitle"), function () {
       onsiteCard.classList.remove("on");
       workshopCard.classList.add("on");
       pickMode("workshop");
@@ -389,15 +510,15 @@
     // n'est révélé qu'après le choix « chez moi », jamais pour l'atelier.
     var postalWrap = el('<div class="kn-postal-wrap" hidden></div>');
     var field = el(
-      '<div class="kn-field"><label for="kn-postal">Votre code postal</label>' +
+      '<div class="kn-field"><label for="kn-postal">' + esc(t("where.postal_label")) + "</label>" +
         '<input id="kn-postal" inputmode="numeric" autocomplete="postal-code" maxlength="4" value="' +
         esc(state.postal) +
-        '" placeholder="Ex. 4000"></div>'
+        '" placeholder="' + esc(t("where.postal_placeholder")) + '"></div>'
     );
     postalWrap.appendChild(field);
     var postalMsgWrap = el("<div></div>");
     postalWrap.appendChild(postalMsgWrap);
-    var cont = el('<button class="kn-btn kn-btn-primary" type="button">Continuer</button>');
+    var cont = el('<button class="kn-btn kn-btn-primary" type="button">' + esc(t("where.continue_button")) + "</button>");
     cont.addEventListener("click", function () {
       pickMode("onsite");
     });
@@ -434,14 +555,14 @@
     }
     if (state.mode === "onsite") showPostal();
 
-    body.appendChild(reassure("Oui, nous intervenons à Liège et dans un rayon de 25 km."));
+    body.appendChild(reassure(t("where.zone_reassurance")));
 
     // Vérification autoritaire à la validation (toujours réévaluée, jamais de
     // cache pouvant être obsolète) : bloque le passage à l'étape suivante tant
     // que le code postal n'est pas couvert.
     function pickMode(mode) {
       if (mode === "onsite" && (!state.postal || state.postal.length < 4)) {
-        flash("Indiquez d'abord votre code postal.");
+        flash(t("where.postal_required_error"));
         return;
       }
       if (mode !== "onsite") {
@@ -479,14 +600,14 @@
         return !!r.ok;
       })
       .catch(function () {
-        flash("Impossible de vérifier votre zone pour le moment.");
+        flash(t("where.zone_check_error"));
         return true;
       });
   }
 
   // --- Étape 2 : QUOI (catégorie → service) ---------------------------------
   function renderWhat(body) {
-    body.appendChild(el('<h2 class="kn-h">Quelle prestation ?</h2>'));
+    body.appendChild(el('<h2 class="kn-h">' + esc(t("what.title")) + "</h2>"));
     if (!catalog) {
       body.appendChild(loading());
       api("/catalog").then(function (d) {
@@ -533,7 +654,7 @@
       body.appendChild(backLink(function () {
         state.categoryId = null;
         renderStepInto(clear(body), state.step);
-      }));
+      }, t("what.back_link")));
     }
     body.appendChild(cards);
   }
@@ -564,7 +685,7 @@
 
   // --- Étape 3 : DÉTAILS (variante + extras + prix live) --------------------
   function renderDetails(body) {
-    body.appendChild(el('<h2 class="kn-h">Configurez votre prestation</h2>'));
+    body.appendChild(el('<h2 class="kn-h">' + esc(t("details.title")) + "</h2>"));
     var cfg = state._serviceConfig;
     if (!cfg || cfg.id !== state.serviceId) {
       body.appendChild(loading());
@@ -586,7 +707,7 @@
       state.variantId = defaultVariant.id;
     }
     if (cfg.variants.length) {
-      body.appendChild(el('<h3 class="kn-h3">Votre modèle</h3>'));
+      body.appendChild(el('<h3 class="kn-h3">' + esc(t("details.variants_heading")) + "</h3>"));
       var vcards = el('<div class="kn-cards kn-cards-sm"></div>');
       cfg.variants.forEach(function (v) {
         vcards.appendChild(
@@ -601,7 +722,7 @@
 
     // Extras (choix multiple → jamais d'auto-avance).
     if (cfg.extras.length) {
-      body.appendChild(el('<h3 class="kn-h3">Options</h3>'));
+      body.appendChild(el('<h3 class="kn-h3">' + esc(t("details.extras_heading")) + "</h3>"));
       var list = el('<div class="kn-extras"></div>');
       cfg.extras.forEach(function (x) {
         var checked = state.extraIds.indexOf(x.id) >= 0;
@@ -629,14 +750,14 @@
       body.appendChild(list);
     }
 
-    body.appendChild(reassure("Prix ferme. Aucun supplément le jour de l'intervention."));
+    body.appendChild(reassure(t("details.price_reassurance")));
 
     var live = el('<div class="kn-live"></div>');
     body.appendChild(live);
     livePrice(live);
 
     var actions = el('<div class="kn-actions"></div>');
-    var add = el('<button class="kn-btn kn-btn-primary" type="button">Ajouter au panier</button>');
+    var add = el('<button class="kn-btn kn-btn-primary" type="button">' + esc(t("details.add_to_cart_button")) + "</button>");
     add.addEventListener("click", addToCart);
     actions.appendChild(add);
     body.appendChild(actions);
@@ -673,14 +794,14 @@
         liveEl.innerHTML =
           '<div class="kn-live-price">' +
           q.total_tvac_formatted +
-          '</div><div class="kn-muted">TVAC · durée estimée ' +
+          '</div><div class="kn-muted">' + esc(t("details.price_duration_label")) + " " +
           q.total_active_duration_min +
           " min</div>";
       })
       .catch(function (err) {
         liveEl.innerHTML =
           '<p class="kn-muted">' +
-          esc((err && err.data && err.data.error) || "Indisponible dans ce mode.") +
+          esc((err && err.data && err.data.error) || t("details.unavailable_mode_error")) +
           "</p>";
       });
   }
@@ -705,20 +826,20 @@
           goto("cart");
         })
         .catch(function (err) {
-          flash((err && err.data && err.data.error) || "Impossible d'ajouter cette prestation au panier.");
+          flash((err && err.data && err.data.error) || t("details.add_to_cart_error"));
         });
     });
   }
 
   // --- Étape 4 : PANIER ------------------------------------------------------
   function renderCart(body) {
-    body.appendChild(el('<h2 class="kn-h">Votre devis</h2>'));
+    body.appendChild(el('<h2 class="kn-h">' + esc(t("cart.title")) + "</h2>"));
     refreshCart().then(function () {
       clear(body);
-      body.appendChild(el('<h2 class="kn-h">Votre devis</h2>'));
+      body.appendChild(el('<h2 class="kn-h">' + esc(t("cart.title")) + "</h2>"));
       if (!state.cart || state.cart.item_count === 0) {
-        body.appendChild(el('<p class="kn-muted">Votre panier est vide. Ajoutez une prestation pour commencer.</p>'));
-        var add0 = el('<button class="kn-btn kn-btn-primary" type="button">Choisir une prestation</button>');
+        body.appendChild(el('<p class="kn-muted">' + esc(t("cart.empty_message")) + "</p>"));
+        var add0 = el('<button class="kn-btn kn-btn-primary" type="button">' + esc(t("cart.empty_button")) + "</button>");
         add0.addEventListener("click", function () {
           goto("what");
         });
@@ -732,7 +853,7 @@
           '<div class="kn-line"><div><strong>' +
             esc(it.label) +
             '</strong> <span class="kn-badge">' +
-            (it.mode === "onsite" ? "À domicile" : "Atelier") +
+            esc(it.mode === "onsite" ? t("cart.onsite_badge") : t("cart.workshop_badge")) +
             "</span><br><span class=\"kn-muted\">×" +
             it.quantity +
             " · " +
@@ -755,18 +876,18 @@
       var p = state.cart.pricing;
       if (p) {
         if (p.cumul_discount_cents > 0) {
-          ticket.appendChild(el('<div class="kn-line kn-ok"><span>Remise groupée</span><span>−' + tvac(p.cumul_discount_cents) + "</span></div>"));
+          ticket.appendChild(el('<div class="kn-line kn-ok"><span>' + esc(t("cart.discount_label")) + "</span><span>−" + tvac(p.cumul_discount_cents) + "</span></div>"));
         }
-        ticket.appendChild(el('<div class="kn-line kn-total"><span>Total TVAC</span><span>' + p.total_tvac_formatted + "</span></div>"));
+        ticket.appendChild(el('<div class="kn-line kn-total"><span>' + esc(t("cart.total_label")) + "</span><span>" + p.total_tvac_formatted + "</span></div>"));
       }
       body.appendChild(ticket);
 
       var actions = el('<div class="kn-actions"></div>');
-      var more = el('<button class="kn-btn kn-btn-ghost" type="button">Ajouter une autre prestation</button>');
+      var more = el('<button class="kn-btn kn-btn-ghost" type="button">' + esc(t("cart.add_another_button")) + "</button>");
       more.addEventListener("click", function () {
         goto("what");
       });
-      var cont = el('<button class="kn-btn kn-btn-primary" type="button">Finaliser ma réservation</button>');
+      var cont = el('<button class="kn-btn kn-btn-primary" type="button">' + esc(t("cart.checkout_button")) + "</button>");
       cont.addEventListener("click", function () {
         var p = state.cart && state.cart.pricing ? state.cart.pricing : null;
         dl("begin_checkout", { currency: "EUR", value: p ? p.total_tvac_cents / 100 : undefined, items: cartItemsForTracking() });
@@ -792,7 +913,7 @@
 
   // --- Étape 5 : QUESTIONS D'INTAKE (formulaire dynamique) ------------------
   function renderIntake(body) {
-    body.appendChild(el('<h2 class="kn-h">Quelques précisions</h2>'));
+    body.appendChild(el('<h2 class="kn-h">' + esc(t("intake.title")) + "</h2>"));
     if (!state._form) {
       body.appendChild(loading());
       api("/form?token=" + encodeURIComponent(state.token))
@@ -819,12 +940,12 @@
     body.appendChild(container);
     renderFormFields(container, hasOnsite);
 
-    body.appendChild(reassure("Si l'état diffère, on vous prévient avant de commencer. Vous restez libre de refuser."));
+    body.appendChild(reassure(t("intake.reassurance")));
     var actions = el('<div class="kn-actions"></div>');
-    var cont = el('<button class="kn-btn kn-btn-primary" type="button">Continuer</button>');
+    var cont = el('<button class="kn-btn kn-btn-primary" type="button">' + esc(t("intake.continue_button")) + "</button>");
     cont.addEventListener("click", function () {
       if (!validateForm(hasOnsite)) {
-        flash("Merci de compléter les champs requis.");
+        flash(t("intake.validation_error"));
         return;
       }
       goto("contact");
@@ -917,21 +1038,21 @@
 
   // --- Étape 6 : COORDONNÉES -------------------------------------------------
   function renderContact(body) {
-    body.appendChild(el('<h2 class="kn-h">Vos coordonnées</h2>'));
+    body.appendChild(el('<h2 class="kn-h">' + esc(t("contact.title")) + "</h2>"));
     var hasOnsite = cartHasMode("onsite");
     var fields = [
-      ["first_name", "Prénom", "given-name", "text"],
-      ["last_name", "Nom", "family-name", "text"],
-      ["email", "Email", "email", "email"],
-      ["phone", "Téléphone", "tel", "tel"],
+      ["first_name", t("contact.first_name_label"), "given-name", "text"],
+      ["last_name", t("contact.last_name_label"), "family-name", "text"],
+      ["email", t("contact.email_label"), "email", "email"],
+      ["phone", t("contact.phone_label"), "tel", "tel"],
     ];
     fields.forEach(function (f) {
       body.appendChild(textField("customer", f[0], f[1], f[2], f[3]));
     });
     if (hasOnsite) {
-      body.appendChild(el('<h3 class="kn-h3">Adresse d\'intervention</h3>'));
-      body.appendChild(textField("address", "street", "Rue", "address-line1", "text"));
-      body.appendChild(textField("address", "number", "Numéro", "", "text"));
+      body.appendChild(el('<h3 class="kn-h3">' + esc(t("contact.address_heading")) + "</h3>"));
+      body.appendChild(textField("address", "street", t("contact.street_label"), "address-line1", "text"));
+      body.appendChild(textField("address", "number", t("contact.number_label"), "", "text"));
       // Toujours resynchronisé depuis state.postal (validé à l'étape « Où »),
       // jamais figé à la première visite : un retour en arrière pour corriger
       // le code postal ne doit jamais laisser une ancienne valeur invalide
@@ -939,21 +1060,21 @@
       // en priorité, voir renderSlot()). L'utilisateur reste libre de la
       // modifier manuellement ensuite dans ce champ.
       state.address.postal_code = state.postal;
-      body.appendChild(textField("address", "postal_code", "Code postal", "postal-code", "text"));
-      body.appendChild(textField("address", "city", "Ville", "address-level2", "text"));
+      body.appendChild(textField("address", "postal_code", t("contact.postal_label"), "postal-code", "text"));
+      body.appendChild(textField("address", "city", t("contact.city_label"), "address-level2", "text"));
     }
-    body.appendChild(reassure("Vos données servent uniquement à organiser votre rendez-vous. Conservées le temps légal. Voir notre politique de confidentialité."));
-    var consent = el('<label class="kn-extra"><span>J\'accepte les conditions générales et la politique de confidentialité.</span><input type="checkbox" id="kn-consent"></label>');
+    body.appendChild(reassure(t("contact.privacy_reassurance")));
+    var consent = el('<label class="kn-extra"><span>' + esc(t("contact.consent_label")) + '</span><input type="checkbox" id="kn-consent"></label>');
     body.appendChild(consent);
     var actions = el('<div class="kn-actions"></div>');
-    var cont = el('<button class="kn-btn kn-btn-primary" type="button">Choisir un créneau</button>');
+    var cont = el('<button class="kn-btn kn-btn-primary" type="button">' + esc(t("contact.continue_button")) + "</button>");
     cont.addEventListener("click", function () {
       if (!state.customer.email || !state.customer.first_name) {
-        flash("Merci d'indiquer au moins votre prénom et votre email.");
+        flash(t("contact.required_error"));
         return;
       }
       if (!consent.querySelector("input").checked) {
-        flash("Merci d'accepter les conditions pour continuer.");
+        flash(t("contact.consent_error"));
         return;
       }
       state._consent = true;
@@ -982,7 +1103,7 @@
 
   // --- Étape 7 : RENDEZ-VOUS -------------------------------------------------
   function renderSlot(body) {
-    body.appendChild(el('<h2 class="kn-h">Choisissez votre créneau</h2>'));
+    body.appendChild(el('<h2 class="kn-h">' + esc(t("slot.title")) + "</h2>"));
     body.appendChild(loading());
     api("/availability", {
       method: "POST",
@@ -990,7 +1111,7 @@
     }).then(function (av) {
       state.availability = av;
       clear(body);
-      body.appendChild(el('<h2 class="kn-h">Choisissez votre créneau</h2>'));
+      body.appendChild(el('<h2 class="kn-h">' + esc(t("slot.title")) + "</h2>"));
 
       ["onsite", "workshop"].forEach(function (mode) {
         var block = av[mode];
@@ -1000,16 +1121,16 @@
           return;
         }
         if (block.status !== "ok" || !block.slots || !block.slots.length) {
-          body.appendChild(el('<p class="kn-muted">Aucun créneau ' + (mode === "onsite" ? "à domicile" : "atelier") + ' disponible sur la période.</p>'));
+          body.appendChild(el('<p class="kn-muted">' + esc(mode === "onsite" ? t("slot.empty_onsite") : t("slot.empty_workshop")) + "</p>"));
           return;
         }
-        body.appendChild(el('<h3 class="kn-h3">' + (mode === "onsite" ? "À domicile" : "À l'atelier") + "</h3>"));
+        body.appendChild(el('<h3 class="kn-h3">' + esc(mode === "onsite" ? t("slot.onsite_heading") : t("slot.workshop_heading")) + "</h3>"));
         body.appendChild(slotPicker(mode, block.slots));
       });
 
-      body.appendChild(reassure("Vous recevez un SMS quand le technicien part vers chez vous."));
+      body.appendChild(reassure(t("slot.sms_reassurance")));
       var actions = el('<div class="kn-actions"></div>');
-      var cont = el('<button class="kn-btn kn-btn-primary" type="button">Continuer</button>');
+      var cont = el('<button class="kn-btn kn-btn-primary" type="button">' + esc(t("slot.continue_button")) + "</button>");
       cont.addEventListener("click", function () {
         var need = [];
         if (av.onsite && av.onsite.status === "ok") need.push("onsite");
@@ -1018,7 +1139,7 @@
           return state.slots[m];
         });
         if (!ok) {
-          flash("Merci de choisir un créneau.");
+          flash(t("slot.select_required_error"));
           return;
         }
         goto("recap");
@@ -1028,14 +1149,14 @@
     })
     .catch(function (err) {
       clear(body);
-      body.appendChild(el('<h2 class="kn-h">Choisissez votre créneau</h2>'));
-      body.appendChild(el('<p class="kn-alert">Impossible de vérifier les disponibilités pour le moment.</p>'));
-      var retry = el('<button class="kn-btn kn-btn-ghost" type="button">Réessayer</button>');
+      body.appendChild(el('<h2 class="kn-h">' + esc(t("slot.title")) + "</h2>"));
+      body.appendChild(el('<p class="kn-alert">' + esc(t("slot.load_error")) + "</p>"));
+      var retry = el('<button class="kn-btn kn-btn-ghost" type="button">' + esc(t("slot.retry_button")) + "</button>");
       retry.addEventListener("click", function () {
         goto("slot");
       });
       body.appendChild(retry);
-      flash(err && err.data && err.data.error ? err.data.error : "Une erreur est survenue.");
+      flash(err && err.data && err.data.error ? err.data.error : t("shared.generic_error"));
     });
   }
   function slotPicker(mode, slots) {
@@ -1089,24 +1210,28 @@
   // journée a beaucoup de créneaux libres, ex. plusieurs techniciens).
   function timeOfDay(hhmm) {
     var h = parseInt(hhmm.split(":")[0], 10);
-    if (h < 12) return "Matin";
-    if (h < 18) return "Après-midi";
-    return "Soir";
+    if (h < 12) return "morning";
+    if (h < 18) return "afternoon";
+    return "evening";
   }
   function fillSlots(box, mode, slots) {
     box.innerHTML = "";
-    var buckets = { "Matin": [], "Après-midi": [], "Soir": [] };
+    var buckets = { morning: [], afternoon: [], evening: [] };
     groupSlotsByTime(slots).forEach(function (group) {
       buckets[timeOfDay(group[0].start_local.split(" ")[1])].push(group);
     });
 
-    ["Matin", "Après-midi", "Soir"].forEach(function (heading) {
-      var groups = buckets[heading];
+    [
+      ["morning", t("slot.morning_label")],
+      ["afternoon", t("slot.afternoon_label")],
+      ["evening", t("slot.evening_label")],
+    ].forEach(function (pair) {
+      var groups = buckets[pair[0]];
       if (!groups.length) return;
-      box.appendChild(el('<div class="kn-slot-heading">' + heading + "</div>"));
+      box.appendChild(el('<div class="kn-slot-heading">' + esc(pair[1]) + "</div>"));
       groups.forEach(function (group) {
         var s = group[0];
-        var label = mode === "onsite" ? s.start_local.split(" ")[1] : "Dépôt " + s.start_local.split(" ")[1] + " · reprise ~" + s.pickup_local;
+        var label = mode === "onsite" ? s.start_local.split(" ")[1] : t("slot.workshop_slot_prefix") + s.start_local.split(" ")[1] + t("slot.workshop_slot_reprise") + s.pickup_local;
         var chosen = state.slots[mode] && state.slots[mode].start_utc === s.start_utc;
         var b = el('<button type="button" class="kn-slot ' + (chosen ? "on" : "") + '">' + esc(label) + "</button>");
         b.addEventListener("click", function () {
@@ -1127,23 +1252,23 @@
 
   // --- Étape 8 : RÉCAPITULATIF ----------------------------------------------
   function renderRecap(body) {
-    body.appendChild(el('<h2 class="kn-h">Récapitulatif</h2>'));
+    body.appendChild(el('<h2 class="kn-h">' + esc(t("recap.title")) + "</h2>"));
     refreshCart().then(function () {
       clear(body);
-      body.appendChild(el('<h2 class="kn-h">Récapitulatif</h2>'));
+      body.appendChild(el('<h2 class="kn-h">' + esc(t("recap.title")) + "</h2>"));
       var p = state.cart.pricing;
       var ticket = el('<div class="kn-ticket"></div>');
       state.cart.items.forEach(function (it) {
         ticket.appendChild(el('<div class="kn-line"><span>' + esc(it.label) + " ×" + it.quantity + "</span><span>" + tvac(it.unit_price_cents * it.quantity) + "</span></div>"));
       });
-      if (p.cumul_discount_cents > 0) ticket.appendChild(el('<div class="kn-line kn-ok"><span>Remise groupée</span><span>−' + tvac(p.cumul_discount_cents) + "</span></div>"));
-      ticket.appendChild(el('<div class="kn-line kn-total"><span>Total TVAC</span><span>' + p.total_tvac_formatted + "</span></div>"));
+      if (p.cumul_discount_cents > 0) ticket.appendChild(el('<div class="kn-line kn-ok"><span>' + esc(t("recap.discount_label")) + "</span><span>−" + tvac(p.cumul_discount_cents) + "</span></div>"));
+      ticket.appendChild(el('<div class="kn-line kn-total"><span>' + esc(t("recap.total_label")) + "</span><span>" + p.total_tvac_formatted + "</span></div>"));
       body.appendChild(ticket);
 
       // Coupon.
-      var cf = el('<div class="kn-field"><label>Code promo</label><input id="kn-coupon" value="' + esc(state.cart.coupon_code || "") + '"></div>');
+      var cf = el('<div class="kn-field"><label>' + esc(t("recap.promo_label")) + '</label><input id="kn-coupon" value="' + esc(state.cart.coupon_code || "") + '"></div>');
       body.appendChild(cf);
-      var applyC = el('<button class="kn-link" type="button">Appliquer le code</button>');
+      var applyC = el('<button class="kn-link" type="button">' + esc(t("recap.promo_button")) + "</button>");
       applyC.addEventListener("click", function () {
         api("/cart/" + state.token + "/coupon", { method: "POST", body: { code: cf.querySelector("input").value } }).then(function (snap) {
           state.cart = snap;
@@ -1152,10 +1277,10 @@
       });
       body.appendChild(applyC);
 
-      body.appendChild(reassure("Annulation sans frais jusqu'à 24 h avant. Vous payez après l'intervention."));
+      body.appendChild(reassure(t("recap.cancellation_reassurance")));
 
       var actions = el('<div class="kn-actions"></div>');
-      var confirm = el('<button class="kn-btn kn-btn-primary" type="button">Confirmer la demande</button>');
+      var confirm = el('<button class="kn-btn kn-btn-primary" type="button">' + esc(t("recap.confirm_button")) + "</button>");
       confirm.addEventListener("click", submitBooking);
       actions.appendChild(confirm);
       body.appendChild(actions);
@@ -1190,8 +1315,8 @@
         reset(); // panier consommé
       })
       .catch(function (e) {
-        if (e.status === 409) flash("Ce créneau vient d'être réservé. Merci d'en choisir un autre.");
-        else flash(e.message || "Une erreur est survenue.");
+        if (e.status === 409) flash(t("recap.slot_taken_error"));
+        else flash(e.message || t("shared.generic_error"));
       });
   }
   // --- Tracking GA4 (dataLayer) ---------------------------------------------
@@ -1218,12 +1343,15 @@
   // --- Étape 9 : CONFIRMATION ------------------------------------------------
   function renderDone(body) {
     var ref = state.booking ? state.booking.reference : "";
+    var contact = (catalog && catalog.contact) || {};
+    var phone = contact.phone || t("done.contact_fallback_phone");
+    var phoneHref = "tel:" + phone.replace(/\s+/g, "");
     body.appendChild(el('<div class="kn-done"><div class="kn-done-mark">✓</div>' +
-      '<h2 class="kn-h">C\'est confirmé</h2>' +
-      '<p>Votre demande <strong>' + esc(ref) + '</strong> est bien enregistrée.</p>' +
-      '<p class="kn-muted">Vous recevez un email de confirmation. Vous payez après l\'intervention.</p>' +
-      '<p>Une question ? Appelez-nous au <a href="tel:+3240000000">+32 4 000 00 00</a>.</p></div>'));
-    var again = el('<button class="kn-btn kn-btn-ghost" type="button">Réserver une autre prestation</button>');
+      '<h2 class="kn-h">' + esc(t("done.title")) + "</h2>" +
+      '<p>' + esc(t("done.message_prefix")) + '<strong>' + esc(ref) + '</strong>' + esc(t("done.message_suffix")) + '</p>' +
+      '<p class="kn-muted">' + esc(t("done.subtext")) + '</p>' +
+      '<p>' + esc(t("done.contact_prefix")) + '<a href="' + esc(phoneHref) + '">' + esc(phone) + '</a>.</p></div>'));
+    var again = el('<button class="kn-btn kn-btn-ghost" type="button">' + esc(t("done.restart_button")) + "</button>");
     again.addEventListener("click", function () {
       state = load() || {};
       reset();
@@ -1274,9 +1402,9 @@
     }
     var wrap = el('<div class="kn-alert"></div>');
     wrap.appendChild(
-      el('<p style="margin:0 0 8px;">Nous n\'intervenons pas encore automatiquement à cette adresse. Contactez-nous pour un devis sur mesure :</p>')
+      el('<p style="margin:0 0 8px;">' + esc(t("shared.out_of_zone_message")) + "</p>")
     );
-    wrap.appendChild(el("<p style=\"margin:0;\">" + (links || "Contactez-nous depuis notre site.") + "</p>"));
+    wrap.appendChild(el("<p style=\"margin:0;\">" + (links || esc(t("shared.out_of_zone_fallback"))) + "</p>"));
     return wrap;
   }
   function backLink(onClick, label) {
@@ -1285,7 +1413,7 @@
     return b;
   }
   function loading() {
-    return el('<p class="kn-muted">Chargement…</p>');
+    return el('<p class="kn-muted">' + esc(t("shared.loading")) + "</p>");
   }
   function clear(node) {
     node.innerHTML = "";

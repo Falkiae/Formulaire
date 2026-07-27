@@ -8,6 +8,7 @@ use Keepnew\Catalog\CatalogRepository;
 use Keepnew\Core\Database;
 use Keepnew\Core\Request;
 use Keepnew\Core\Response;
+use Keepnew\Support\TunnelTexts;
 
 /**
  * API publique du catalogue (lecture seule) — consommée par le widget.
@@ -68,6 +69,11 @@ final class CatalogApiController
             // d'afficher des prix TVAC avant même qu'un devis serveur existe
             // (même repli que CartPricingService::rules()).
             'vat_rate_bp' => (int) ($contactByKey['finance.vat_rate_bp'] ?? 2100),
+            // Textes fixes des étapes du tunnel, éditables depuis
+            // /admin/formulaire/textes — préchargés ici (déjà fetché sans
+            // condition au démarrage du widget) pour être disponibles dès la
+            // première étape, contrairement à /api/form (fetché tardivement).
+            'texts' => TunnelTexts::resolve($this->db),
         ]);
     }
 

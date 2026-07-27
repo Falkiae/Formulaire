@@ -21,6 +21,7 @@
         <?php if (!empty($data['flash'])): ?><p class="kn-alert kn-alert-ok"><?= $e($data['flash']) ?></p><?php endif; ?>
         <h1>Formulaire dynamique</h1>
         <p class="kn-muted">Éditez un brouillon puis publiez-le : la version publiée devient le formulaire du tunnel.</p>
+        <p><a href="/admin/formulaire/textes">Textes des étapes du tunnel →</a></p>
 
         <section class="kn-card">
             <div class="kn-table-wrap">
