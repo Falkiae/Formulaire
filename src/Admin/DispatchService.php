@@ -29,45 +29,21 @@ final class DispatchService
     }
 
     /**
-     * Jobs planifiés d'une journée (date locale), avec client, adresse et lignes.
+     * Jobs sans date (prestations préconfigurées, statut `unscheduled`) —
+     * section « Non assigné » de la vue Jour, indépendante de toute date
+     * puisque ces jobs n'ont justement pas de `scheduled_start`.
      *
-     * @return array{technicians:list<array<string,mixed>>, jobs:list<array<string,mixed>>, unassigned:list<array<string,mixed>>}
+     * @return list<array<string,mixed>>
      */
-    public function day(string $date): array
+    public function unscheduledJobs(): array
     {
-        $window = \Keepnew\Availability\ScheduleBuilder::windowForDate($date, '00:00', '23:59');
-        $from = $window->start->modify('-3 hours')->format('Y-m-d H:i:s');
-        $to = $window->start->modify('+30 hours')->format('Y-m-d H:i:s');
-
-        $rows = $this->db->select(
-            "SELECT j.id, j.mode, j.status, j.technician_id, j.scheduled_start, j.scheduled_end,
-                    j.active_duration_min, j.travel_in_min, j.travel_out_min, j.bay_id,
-                    b.reference, c.first_name, c.last_name, c.phone,
-                    a.street, a.number, a.postal_code, a.city, a.lat, a.lng,
-                    GROUP_CONCAT(bi.label_snapshot SEPARATOR ' + ') AS services
-             FROM jobs j
-             JOIN bookings b ON b.id = j.booking_id
-             JOIN customers c ON c.id = b.customer_id
-             LEFT JOIN addresses a ON a.id = j.address_id
-             LEFT JOIN booking_items bi ON bi.job_id = j.id
-             WHERE j.scheduled_start BETWEEN :from AND :to
-               AND j.status NOT IN ('cancelled')
-             GROUP BY j.id
-             ORDER BY j.scheduled_start",
-            ['from' => $from, 'to' => $to],
-        );
-
-        $jobs = array_map([$this, 'formatJob'], $rows);
-
-        $technicians = $this->db->select('SELECT id, first_name, last_name FROM technicians WHERE is_active = 1 ORDER BY first_name');
-
-        // Jobs sans date (prestations préconfigurées) — colonne « à planifier ».
-        $unassigned = array_map([$this, 'formatJob'], $this->db->select(
+        return array_map([$this, 'formatJob'], $this->db->select(
             "SELECT j.id, j.mode, j.status, j.technician_id, j.scheduled_start, j.scheduled_end,
                     j.active_duration_min, j.travel_in_min, j.travel_out_min, j.bay_id,
                     b.reference, c.first_name, c.last_name, c.phone,
                     a.postal_code, a.city, a.lat, a.lng, a.street, a.number,
-                    GROUP_CONCAT(bi.label_snapshot SEPARATOR ' + ') AS services
+                    GROUP_CONCAT(bi.label_snapshot SEPARATOR ' + ') AS services,
+                    SUM(bi.line_total_cents) AS total_ht_cents
              FROM jobs j
              JOIN bookings b ON b.id = j.booking_id
              JOIN customers c ON c.id = b.customer_id
@@ -76,8 +52,6 @@ final class DispatchService
              WHERE j.status = 'unscheduled'
              GROUP BY j.id",
         ));
-
-        return ['technicians' => $technicians, 'jobs' => $jobs, 'unassigned' => $unassigned];
     }
 
     /**
@@ -123,7 +97,8 @@ final class DispatchService
                     j.active_duration_min, j.travel_in_min, j.travel_out_min, j.bay_id,
                     b.reference, c.first_name, c.last_name, c.phone,
                     a.street, a.number, a.postal_code, a.city, a.lat, a.lng,
-                    GROUP_CONCAT(bi.label_snapshot SEPARATOR ' + ') AS services
+                    GROUP_CONCAT(bi.label_snapshot SEPARATOR ' + ') AS services,
+                    SUM(bi.line_total_cents) AS total_ht_cents
              FROM jobs j
              JOIN bookings b ON b.id = j.booking_id
              JOIN customers c ON c.id = b.customer_id
@@ -535,11 +510,31 @@ final class DispatchService
         $start = $j['scheduled_start'] !== null ? new \DateTimeImmutable((string) $j['scheduled_start'], new \DateTimeZone('UTC')) : null;
         $end = $j['scheduled_end'] !== null ? new \DateTimeImmutable((string) $j['scheduled_end'], new \DateTimeZone('UTC')) : null;
 
+        // Statut affiché : dérive « En retard » d'un job `scheduled` dont
+        // l'heure de début est déjà passée ; sinon libellé/variante de badge
+        // directement mappés sur le statut brut.
+        $variants = [
+            'unscheduled' => ['Non planifié', 'off'],
+            'en_route' => ['En route', 'info'],
+            'in_progress' => ['En cours', 'info'],
+            'completed' => ['Terminé', 'complete'],
+            'no_show' => ['Absent', 'late'],
+            'cancelled' => ['Annulé', 'off'],
+        ];
+        if ($j['status'] === 'scheduled') {
+            $late = $start !== null && $start < Clock::nowUtc();
+            [$statusLabel, $statusVariant] = $late ? ['En retard', 'late'] : ['Planifié', 'scheduled'];
+        } else {
+            [$statusLabel, $statusVariant] = $variants[$j['status']] ?? [$j['status'], 'off'];
+        }
+
         return [
             'id' => (int) $j['id'],
             'reference' => $j['reference'],
             'mode' => $j['mode'],
             'status' => $j['status'],
+            'status_label' => $statusLabel,
+            'status_variant' => $statusVariant,
             'technician_id' => $j['technician_id'] !== null ? (int) $j['technician_id'] : null,
             'customer' => trim(($j['first_name'] ?? '') . ' ' . ($j['last_name'] ?? '')),
             'phone' => $j['phone'] ?? null,
@@ -551,8 +546,10 @@ final class DispatchService
             'end_local' => $end !== null ? Clock::format($end, 'H:i') : null,
             'date_local' => $start !== null ? Clock::format($start, 'Y-m-d') : null,
             'active_duration_min' => (int) $j['active_duration_min'],
+            'duration_min' => $start !== null && $end !== null ? (int) (($end->getTimestamp() - $start->getTimestamp()) / 60) : null,
             'travel_in_min' => $j['travel_in_min'] !== null ? (int) $j['travel_in_min'] : null,
             'travel_out_min' => $j['travel_out_min'] !== null ? (int) $j['travel_out_min'] : null,
+            'total_ht_cents' => (int) ($j['total_ht_cents'] ?? 0),
         ];
     }
 }

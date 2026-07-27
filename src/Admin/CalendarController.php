@@ -38,24 +38,6 @@ final class CalendarController
     }
 
     /**
-     * Zones et ateliers actifs pour la sidebar "Territoires" (mélangés dans
-     * une seule liste côté vue : une zone ne concerne que le domicile, un
-     * atelier que le workshop — cf. DispatchService::range()).
-     *
-     * @return array{zones:list<array<string,mixed>>, locations:list<array<string,mixed>>}
-     */
-    private function territories(): array
-    {
-        return [
-            'zones' => array_values(array_filter(
-                $this->zones->all(),
-                static fn (array $z): bool => (int) $z['is_active'] === 1,
-            )),
-            'locations' => $this->technicians->activeLocations(),
-        ];
-    }
-
-    /**
      * GET /admin/calendrier?date=YYYY-MM — vue mensuelle.
      */
     public function month(Request $request): Response
@@ -74,7 +56,7 @@ final class CalendarController
         $gridStart = $firstOfMonth->modify('-' . (((int) $firstOfMonth->format('N')) - 1) . ' days');
         $gridEnd = $lastOfMonth->modify('+' . (7 - (int) $lastOfMonth->format('N')) . ' days');
 
-        $filters = $this->filters($request);
+        $filters = ScheduleFilters::parse($request);
         $jobs = $this->dispatch->range($gridStart->format('Y-m-d'), $gridEnd->format('Y-m-d'), $filters);
         $byDate = $this->groupByDate($jobs);
 
@@ -109,10 +91,10 @@ final class CalendarController
             'next' => $anchor->modify('+1 month')->format('Y-m'),
             'week_of' => $firstOfMonth->format('Y-m-d'),
             'filters' => $filters,
-            'filter_qs' => $this->filterQuery($filters),
+            'filter_qs' => ScheduleFilters::queryString($filters),
             'technicians' => $this->dispatch->activeTechnicians(),
-            'territories' => $this->territories(),
-            'day_link' => '/admin/dispatch?date=' . $firstOfMonth->format('Y-m-d'),
+            'territories' => ScheduleFilters::territories($this->zones, $this->technicians),
+            'day_link' => '/admin/dispatch?date=' . $firstOfMonth->format('Y-m-d') . ScheduleFilters::queryString($filters),
             'user_name' => $this->session->get('user_name'),
         ]);
     }
@@ -132,7 +114,7 @@ final class CalendarController
         $monday = $anchor->modify('-' . (((int) $anchor->format('N')) - 1) . ' days');
         $sunday = $monday->modify('+6 days');
 
-        $filters = $this->filters($request);
+        $filters = ScheduleFilters::parse($request);
         $jobs = $this->dispatch->range($monday->format('Y-m-d'), $sunday->format('Y-m-d'), $filters);
         $byDate = $this->groupByDate($jobs);
 
@@ -158,54 +140,12 @@ final class CalendarController
             'next' => $monday->modify('+7 days')->format('Y-m-d'),
             'month_of' => $monday->format('Y-m'),
             'filters' => $filters,
-            'filter_qs' => $this->filterQuery($filters),
+            'filter_qs' => ScheduleFilters::queryString($filters),
             'technicians' => $this->dispatch->activeTechnicians(),
-            'territories' => $this->territories(),
-            'day_link' => '/admin/dispatch?date=' . $monday->format('Y-m-d'),
+            'territories' => ScheduleFilters::territories($this->zones, $this->technicians),
+            'day_link' => '/admin/dispatch?date=' . $monday->format('Y-m-d') . ScheduleFilters::queryString($filters),
             'user_name' => $this->session->get('user_name'),
         ]);
-    }
-
-    /**
-     * @return array{mode:string, technician_id:int, zone_id:int, location_id:int}
-     */
-    private function filters(Request $request): array
-    {
-        $mode = $request->string('mode');
-
-        return [
-            'mode' => in_array($mode, ['onsite', 'workshop'], true) ? $mode : '',
-            'technician_id' => $request->int('tech'),
-            // Mutuellement exclusifs côté UI (sidebar "Territoires" à sélection
-            // unique) : une zone ne concerne que le domicile, un atelier que
-            // le workshop — cf. DispatchService::range().
-            'zone_id' => $request->int('zone_id'),
-            'location_id' => $request->int('location_id'),
-        ];
-    }
-
-    /**
-     * Sérialise les filtres pour les préserver dans les liens de navigation.
-     *
-     * @param array{mode:string, technician_id:int, zone_id:int, location_id:int} $filters
-     */
-    private function filterQuery(array $filters): string
-    {
-        $qs = '';
-        if ($filters['mode'] !== '') {
-            $qs .= '&mode=' . $filters['mode'];
-        }
-        if ($filters['technician_id'] > 0) {
-            $qs .= '&tech=' . $filters['technician_id'];
-        }
-        if ($filters['zone_id'] > 0) {
-            $qs .= '&zone_id=' . $filters['zone_id'];
-        }
-        if ($filters['location_id'] > 0) {
-            $qs .= '&location_id=' . $filters['location_id'];
-        }
-
-        return $qs;
     }
 
     /**

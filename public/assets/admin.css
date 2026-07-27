@@ -350,6 +350,12 @@ table.kn-table {
 .kn-badge-workshop { background: #E7ECFB; color: var(--kn-accent-ink); border-color: transparent; }
 .kn-badge-off      { color: var(--kn-muted); background: var(--kn-paper); }
 
+/* Statuts de RDV (vue Jour du planning) : mêmes teintes que les alertes. */
+.kn-badge-late      { background: #FEF3E2; color: #92400E; border-color: transparent; }
+.kn-badge-complete  { background: #E7F4EE; color: var(--kn-success); border-color: transparent; }
+.kn-badge-scheduled { background: #E7ECFB; color: var(--kn-accent-ink); border-color: transparent; }
+.kn-badge-info      { background: var(--kn-blush); color: var(--kn-accent-ink); border-color: transparent; }
+
 /* --- Alertes --------------------------------------------------------------- */
 .kn-alert {
     display: flex;
@@ -418,50 +424,71 @@ table.kn-table {
 }
 .kn-daynav h1 { margin: 0; }
 
-/* --- Tableau de dispatch --------------------------------------------------- */
-.kn-dispatch {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: var(--kn-space-3);
-}
-@media (min-width: 560px)  { .kn-dispatch { grid-template-columns: 1fr 1fr; } }
-@media (min-width: 1024px) {
-    .kn-dispatch {
-        display: flex;
-        overflow-x: auto;
-        padding-bottom: var(--kn-space-4);
-        align-items: flex-start;
-    }
-}
+/* --- Planning (vue Jour) : liste de RDV + carte ----------------------------- */
+.kn-schedule-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: var(--kn-space-3); }
 
-.kn-col {
+.kn-schedule-summary {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--kn-space-2) var(--kn-space-4);
     background: var(--kn-surface);
     border: 1px solid var(--kn-line);
     border-radius: var(--kn-radius-card);
-    padding: var(--kn-space-3);
-    min-width: 0;
+    padding: var(--kn-space-3) var(--kn-space-4);
+    font-size: var(--kn-fs-small);
 }
-@media (min-width: 1024px) { .kn-col { min-width: 230px; flex: 0 0 230px; } }
-.kn-col h3 { margin: 4px 4px 10px; font-size: var(--kn-fs-body); }
-.kn-col.drag-over { outline: 2px dashed var(--kn-accent); outline-offset: 2px; }
+.kn-schedule-summary strong { font-variant-numeric: tabular-nums; color: var(--kn-ink); }
+.kn-schedule-summary .kn-schedule-route { margin-left: auto; }
 
-.kn-job {
-    background: var(--kn-paper);
+.kn-schedule-row { display: flex; gap: var(--kn-space-4); align-items: stretch; min-height: 420px; }
+
+.kn-schedule-list {
+    flex: 1 1 55%;
+    min-width: 0;
+    overflow-y: auto;
+    max-height: 70vh;
+}
+
+.kn-schedule-card {
+    display: block;
+    background: var(--kn-surface);
     border: 1px solid var(--kn-line);
     border-radius: var(--kn-radius-control);
     padding: var(--kn-space-3);
     margin-bottom: var(--kn-space-2);
-    cursor: grab;
+    text-decoration: none;
+    color: inherit;
     transition: box-shadow 0.15s;
 }
-.kn-job:hover { box-shadow: 0 2px 8px rgba(20,26,46,0.08); }
-.kn-job:active { cursor: grabbing; }
-.kn-job-time {
+.kn-schedule-card:hover { box-shadow: 0 2px 8px rgba(20,26,46,0.08); background: var(--kn-paper); }
+.kn-schedule-card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--kn-space-2);
+    margin-bottom: var(--kn-space-1);
+}
+.kn-schedule-time {
     font-variant-numeric: tabular-nums;
     font-size: var(--kn-fs-small);
     font-weight: 600;
     color: var(--kn-accent-ink);
-    margin-bottom: var(--kn-space-1);
+}
+.kn-schedule-ref { color: var(--kn-muted); font-size: var(--kn-fs-small); }
+
+.kn-schedule-map {
+    flex: 1 1 40%;
+    min-height: 420px;
+    border-radius: var(--kn-radius-card);
+    overflow: hidden;
+    border: 1px solid var(--kn-line);
+}
+
+@media (max-width: 900px) {
+    .kn-schedule-row { flex-direction: column; min-height: 0; }
+    .kn-schedule-list { max-height: none; }
+    .kn-schedule-map { min-height: 240px; flex: none; }
 }
 
 /* --- Liste catégories ------------------------------------------------------ */

@@ -313,6 +313,9 @@ return static function (Router $router, Container $container): void {
         $c->get(Session::class),
         $c->get(Csrf::class),
         $c->get(DispatchService::class),
+        $c->get(ZoneRepository::class),
+        $c->get(TechnicianRepository::class),
+        $c->get(Database::class),
     ));
     $container->singleton(RescheduleAvailabilityService::class, static fn (Container $c): RescheduleAvailabilityService => new RescheduleAvailabilityService(
         $c->get(Database::class),
