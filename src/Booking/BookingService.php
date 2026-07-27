@@ -237,21 +237,41 @@ final class BookingService
     }
 
     /**
-     * Annulation via token de gestion, selon la politique de préavis.
+     * Annulation via token de gestion (client).
      */
     public function cancel(string $manageToken): void
     {
-        $booking = $this->findByManageToken($manageToken);
+        $this->cancelBookingRow($this->findByManageToken($manageToken), null, 'Annulée par le client');
+    }
+
+    /**
+     * Annulation depuis l'admin (fiche prestation → « Annuler toute la
+     * commande »), même logique/cascade que l'annulation client.
+     */
+    public function cancelById(int $bookingId, ?int $userId): void
+    {
+        $booking = $this->db->selectOne('SELECT * FROM bookings WHERE id = :id', ['id' => $bookingId]);
+        if ($booking === null) {
+            throw new NotFoundException('Réservation introuvable.');
+        }
+        $this->cancelBookingRow($booking, $userId, 'Annulée depuis l\'admin');
+    }
+
+    /**
+     * @param array<string, mixed> $booking
+     */
+    private function cancelBookingRow(array $booking, ?int $userId, string $note): void
+    {
         if (in_array($booking['status'], ['cancelled', 'completed'], true)) {
             throw new HttpException(409, 'Cette réservation ne peut plus être annulée.');
         }
 
-        $this->db->transaction(function (Database $db) use ($booking): void {
+        $this->db->transaction(function (Database $db) use ($booking, $userId, $note): void {
             $db->run("UPDATE bookings SET status = 'cancelled' WHERE id = :id", ['id' => (int) $booking['id']]);
             $db->run("UPDATE jobs SET status = 'cancelled' WHERE booking_id = :id AND status NOT IN ('completed')", ['id' => (int) $booking['id']]);
             $db->insert('booking_status_history', [
                 'booking_id' => (int) $booking['id'], 'old_status' => $booking['status'],
-                'new_status' => 'cancelled', 'note' => 'Annulée par le client',
+                'new_status' => 'cancelled', 'changed_by' => $userId, 'note' => $note,
             ]);
         });
     }

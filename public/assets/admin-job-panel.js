@@ -125,6 +125,11 @@
   function onPanelSubmit(e) {
     var form = e.target;
     if (!(form instanceof HTMLFormElement)) return;
+    // Respecte un éventuel `onsubmit="return confirm(...)"` sur le
+    // formulaire (ex. boutons d'annulation) : si l'utilisateur a annulé la
+    // confirmation, le navigateur a déjà appelé preventDefault() avant que
+    // cet événement ne remonte jusqu'ici — ne pas soumettre quand même.
+    if (e.defaultPrevented) return;
     e.preventDefault();
     var fd = new FormData(form);
     fd.set("ajax", "1");

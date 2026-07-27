@@ -60,14 +60,48 @@ final class CustomerRepository
     }
 
     /**
+     * Commandes du client, chacune avec ses prestations (une commande peut en
+     * donner plusieurs — ex. domicile + atelier — pour permettre un lien
+     * direct vers chaque fiche prestation depuis la fiche client.
+     *
      * @return list<array<string, mixed>>
      */
     public function bookingsFor(int $id): array
     {
-        return $this->db->select(
-            'SELECT id, reference, status, total_cents, created_at FROM bookings WHERE customer_id = :id ORDER BY id DESC',
+        $rows = $this->db->select(
+            'SELECT b.id, b.reference, b.status, b.total_cents, b.created_at,
+                    j.id AS job_id, j.mode AS job_mode, j.status AS job_status, j.scheduled_start AS job_start
+               FROM bookings b
+               LEFT JOIN jobs j ON j.booking_id = b.id
+              WHERE b.customer_id = :id
+              ORDER BY b.id DESC, j.sequence_no',
             ['id' => $id],
         );
+
+        $bookings = [];
+        foreach ($rows as $r) {
+            $bid = (int) $r['id'];
+            if (!isset($bookings[$bid])) {
+                $bookings[$bid] = [
+                    'id' => $bid,
+                    'reference' => $r['reference'],
+                    'status' => $r['status'],
+                    'total_cents' => $r['total_cents'],
+                    'created_at' => $r['created_at'],
+                    'jobs' => [],
+                ];
+            }
+            if ($r['job_id'] !== null) {
+                $bookings[$bid]['jobs'][] = [
+                    'id' => (int) $r['job_id'],
+                    'mode' => $r['job_mode'],
+                    'status' => $r['job_status'],
+                    'scheduled_start' => $r['job_start'],
+                ];
+            }
+        }
+
+        return array_values($bookings);
     }
 
     public function ltvFor(int $id): int

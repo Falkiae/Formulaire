@@ -54,6 +54,22 @@ $title = $data['items'] !== []
         <?php endforeach; ?>
     </div>
 
+    <?php if (!$isException && $j['status'] !== 'completed'): ?>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0;">
+            <form method="post" action="/admin/job/<?= (int) $j['id'] ?>/statut"
+                  onsubmit="return confirm('Annuler cette prestation ? Les autres prestations de la même commande, s\'il y en a, ne seront pas affectées.');">
+                <?= $data['csrf'] ?>
+                <input type="hidden" name="status" value="cancelled">
+                <button type="submit" class="kn-btn kn-btn-danger kn-btn-sm">Annuler cette prestation</button>
+            </form>
+            <form method="post" action="/admin/job/<?= (int) $j['id'] ?>/annuler-commande"
+                  onsubmit="return confirm('Annuler TOUTE la commande ? Toutes ses prestations non terminées seront annulées.');">
+                <?= $data['csrf'] ?>
+                <button type="submit" class="kn-btn kn-btn-danger kn-btn-sm">Annuler toute la commande</button>
+            </form>
+        </div>
+    <?php endif; ?>
+
     <span class="kn-badge kn-badge-<?= $e($j['mode']) ?>"><?= $j['mode'] === 'onsite' ? 'À domicile' : 'Atelier' ?></span>
     <?php if ($j['tech_first']): ?><span class="kn-muted">· Technicien : <?= $e($j['tech_first'] . ' ' . $j['tech_last']) ?></span><?php endif; ?>
 

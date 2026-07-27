@@ -67,7 +67,19 @@ $addressFields = static function (array $a, callable $e): string {
                     <table class="kn-table">
                         <?php foreach ($data['bookings'] as $b): ?>
                             <tr>
-                                <td><?= $e($b['reference']) ?><br><span class="kn-muted"><?= $e(substr((string) $b['created_at'], 0, 10)) ?></span></td>
+                                <td>
+                                    <?= $e($b['reference']) ?><br><span class="kn-muted"><?= $e(substr((string) $b['created_at'], 0, 10)) ?></span>
+                                    <?php if ($b['jobs'] !== []): ?>
+                                        <div style="margin-top:4px;">
+                                            <?php foreach ($b['jobs'] as $j): ?>
+                                                <a href="/admin/job/<?= (int) $j['id'] ?>" class="kn-badge kn-badge-<?= $e($j['mode']) ?>" style="text-decoration:none;">
+                                                    <?= $j['mode'] === 'onsite' ? 'Domicile' : 'Atelier' ?>
+                                                    <?= $j['scheduled_start'] !== null ? ' · ' . $e(\Keepnew\Support\Clock::format(new \DateTimeImmutable((string) $j['scheduled_start'] . ' UTC'), 'd/m H:i')) : '' ?>
+                                                </a>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    <?php endif; ?>
+                                </td>
                                 <td><span class="kn-badge"><?= $e($b['status']) ?></span></td>
                                 <td class="kn-num"><?= $e($eur((int) $b['total_cents'])) ?> €</td>
                             </tr>

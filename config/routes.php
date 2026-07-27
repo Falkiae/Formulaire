@@ -326,6 +326,7 @@ return static function (Router $router, Container $container): void {
         $c->get(DispatchService::class),
         $c->get(RescheduleAvailabilityService::class),
         $c->get(NominatimGeocoder::class),
+        $c->get(BookingService::class),
     ));
     $container->singleton(CalendarController::class, static fn (Container $c): CalendarController => new CalendarController(
         $c->get(View::class),
@@ -484,6 +485,7 @@ return static function (Router $router, Container $container): void {
             $r->post('/job/{id}/statut', [JobController::class, 'updateStatus'], [CsrfMiddleware::class]);
             $r->post('/job/{id}/note', [JobController::class, 'addNote'], [CsrfMiddleware::class]);
             $r->post('/job/{id}/planifier', [JobController::class, 'updateSchedule'], [CsrfMiddleware::class]);
+            $r->post('/job/{id}/annuler-commande', [JobController::class, 'cancelBooking'], [CsrfMiddleware::class]);
             $r->get('/job/{id}/creneaux/mois', [JobController::class, 'slotDates']);
             $r->get('/job/{id}/creneaux', [JobController::class, 'slotsForDate']);
 

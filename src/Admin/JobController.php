@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Keepnew\Admin;
 
+use Keepnew\Booking\BookingService;
 use Keepnew\Core\Csrf;
 use Keepnew\Core\Database;
+use Keepnew\Core\Exception\HttpException;
 use Keepnew\Core\Exception\NotFoundException;
 use Keepnew\Core\Request;
 use Keepnew\Core\Response;
@@ -31,6 +33,7 @@ final class JobController
         private readonly DispatchService $dispatch,
         private readonly RescheduleAvailabilityService $availability,
         private readonly NominatimGeocoder $geocoder,
+        private readonly BookingService $bookings,
     ) {
     }
 
@@ -200,6 +203,29 @@ final class JobController
         });
 
         $this->session->flash('job_ok', 'Statut mis à jour.');
+
+        return $this->finish($request, $id);
+    }
+
+    /**
+     * POST /admin/job/{id}/annuler-commande — annule toute la commande de ce
+     * job (cascade sur toutes ses prestations non terminées), même logique
+     * que l'annulation client (BookingService::cancelById, partagée).
+     */
+    public function cancelBooking(Request $request): Response
+    {
+        $id = (int) $request->attribute('id');
+        $job = $this->db->selectOne('SELECT booking_id FROM jobs WHERE id = :id', ['id' => $id]);
+        if ($job === null) {
+            throw new NotFoundException('Job introuvable.');
+        }
+
+        try {
+            $this->bookings->cancelById((int) $job['booking_id'], $this->session->userId());
+            $this->session->flash('job_ok', 'Commande annulée (toutes ses prestations non terminées ont été annulées).');
+        } catch (HttpException $e) {
+            $this->session->flash('job_ok', $e->getMessage());
+        }
 
         return $this->finish($request, $id);
     }
