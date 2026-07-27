@@ -285,6 +285,7 @@ return static function (Router $router, Container $container): void {
         $c->get(CatalogRepository::class),
         $c->get(ExtraRepository::class),
         $catalogImages,
+        $c->get(Database::class),
     ));
     $container->singleton(CategoryController::class, static fn (Container $c): CategoryController => new CategoryController(
         $c->get(View::class),
@@ -299,6 +300,7 @@ return static function (Router $router, Container $container): void {
         $c->get(Csrf::class),
         $c->get(ExtraRepository::class),
         $catalogImages,
+        $c->get(Database::class),
     ));
 
     // --- Dispatch / opérationnel (Phase 7) ---------------------------------

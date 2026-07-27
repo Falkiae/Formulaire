@@ -6,11 +6,13 @@ namespace Keepnew\Admin;
 
 use Keepnew\Catalog\ExtraRepository;
 use Keepnew\Core\Csrf;
+use Keepnew\Core\Database;
 use Keepnew\Core\Request;
 use Keepnew\Core\Response;
 use Keepnew\Core\Session;
 use Keepnew\Core\View;
 use Keepnew\Support\ImageUpload;
+use Keepnew\Support\Money;
 
 /**
  * Catalogue central des extras + rattachement aux services (pivot).
@@ -23,6 +25,7 @@ final class ExtraController
         private readonly Csrf $csrf,
         private readonly ExtraRepository $extras,
         private readonly ImageUpload $images,
+        private readonly Database $db,
     ) {
     }
 
@@ -55,6 +58,7 @@ final class ExtraController
         return $this->view->render('admin/catalog/extras', [
             'csrf' => $this->csrf->field(),
             'extras' => $this->extras->all(),
+            'vat_rate_bp' => $this->vatRateBp(),
             'user_name' => $this->session->get('user_name'),
             'flash' => $this->session->pullFlash('extras_ok'),
         ]);
@@ -76,7 +80,7 @@ final class ExtraController
             'code' => null,
             'label' => $label,
             'description' => $request->string('description') ?: null,
-            'default_price_cents' => $this->eurosToCents($request->string('default_price')),
+            'default_price_cents' => $this->eurosTvacToHtCents($request->string('default_price')),
             'default_duration_min' => max(0, $request->int('default_duration')),
             'is_active' => 1,
         ]);
@@ -101,7 +105,7 @@ final class ExtraController
         $this->extras->update($id, [
             'label' => $request->string('label'),
             'description' => $request->string('description') ?: null,
-            'default_price_cents' => $this->eurosToCents($request->string('default_price')),
+            'default_price_cents' => $this->eurosTvacToHtCents($request->string('default_price')),
             'default_duration_min' => max(0, $request->int('default_duration')),
             'is_active' => $request->bool('is_active') ? 1 : 0,
         ]);
@@ -140,7 +144,7 @@ final class ExtraController
             $this->extras->attach(
                 $serviceId,
                 $extraId,
-                $request->string('price') !== '' ? $this->eurosToCents($request->string('price')) : null,
+                $request->string('price') !== '' ? $this->eurosTvacToHtCents($request->string('price')) : null,
                 $request->has('duration') && $request->string('duration') !== '' ? max(0, $request->int('duration')) : null,
                 $request->string('selection_type', 'checkbox') === 'radio' ? 'radio' : 'checkbox',
                 $request->string('exclusive_group') ?: null,
@@ -172,5 +176,22 @@ final class ExtraController
         }
 
         return (int) round(((float) $normalized) * 100);
+    }
+
+    /**
+     * Taux de TVA courant (points de base), pour convertir les prix saisis
+     * en TVAC (formulaires admin) vers le HT stocké en base.
+     */
+    private function vatRateBp(): int
+    {
+        return (int) ($this->db->scalar("SELECT `value` FROM settings WHERE `key` = 'finance.vat_rate_bp'") ?? 2100);
+    }
+
+    /**
+     * Convertit un montant saisi en euros TVAC vers des centimes HT.
+     */
+    private function eurosTvacToHtCents(string $euros): int
+    {
+        return Money::removeVat($this->eurosToCents($euros), $this->vatRateBp());
     }
 }

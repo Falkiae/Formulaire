@@ -6,6 +6,11 @@
  * @var callable $e
  */
 $centsToEuros = static fn (int $c): string => number_format($c / 100, 2, ',', ' ');
+$vatRateBp = (int) $data['vat_rate_bp'];
+// Colonnes stockées en HT ; l'admin saisit et voit du TVAC ici (converti à
+// l'affichage, reconverti en HT à l'enregistrement par ExtraController).
+$tvacEuros = static fn (int $htCents): string =>
+    $centsToEuros(\Keepnew\Support\Money::addVat($htCents, $vatRateBp));
 ?>
 <!doctype html>
 <html lang="fr">
@@ -26,12 +31,13 @@ $centsToEuros = static fn (int $c): string => number_format($c / 100, 2, ',', ' 
 
         <h1>Extras</h1>
         <p class="kn-muted">Catalogue central : un extra est créé une fois, puis rattaché à plusieurs prestations depuis leur fiche.</p>
+        <p class="kn-muted" style="font-size:.85rem;">Prix TVA comprise (<?= number_format($vatRateBp / 100, 2, ',', ' ') ?> %) — le montant hors TVA est calculé automatiquement pour la facturation.</p>
 
         <section class="kn-card">
             <div class="kn-table-wrap">
                 <table class="kn-table">
                     <thead>
-                        <tr><th>Extra</th><th class="kn-num">Prix défaut (HT)</th><th class="kn-num">Durée</th><th>État</th><th></th></tr>
+                        <tr><th>Extra</th><th class="kn-num">Prix défaut (TVAC)</th><th class="kn-num">Durée</th><th>État</th><th></th></tr>
                     </thead>
                     <tbody>
                         <?php foreach ($data['extras'] as $x): ?>
@@ -43,7 +49,7 @@ $centsToEuros = static fn (int $c): string => number_format($c / 100, 2, ',', ' 
                                             <img src="/uploads/<?= $e($x['image_path']) ?>" alt="" style="width:40px;height:40px;object-fit:cover;border-radius:6px;">
                                         <?php endif; ?>
                                         <input type="text" name="label" value="<?= $e($x['label']) ?>" style="max-width:200px;">
-                                        <input type="text" name="default_price" value="<?= $e($centsToEuros((int) $x['default_price_cents'])) ?>" inputmode="decimal" style="max-width:90px;" aria-label="Prix (HT)">
+                                        <input type="text" name="default_price" value="<?= $e($tvacEuros((int) $x['default_price_cents'])) ?>" inputmode="decimal" style="max-width:90px;" aria-label="Prix (TVAC)">
                                         <input type="number" name="default_duration" value="<?= (int) $x['default_duration_min'] ?>" min="0" style="max-width:80px;" aria-label="Durée">
                                         <label class="kn-check">
                                             <input type="checkbox" name="is_active" value="1" <?= ((int) $x['is_active'] === 1) ? 'checked' : '' ?>> actif
@@ -55,7 +61,7 @@ $centsToEuros = static fn (int $c): string => number_format($c / 100, 2, ',', ' 
                                         <button type="submit" class="kn-btn kn-btn-ghost kn-btn-sm">Enregistrer</button>
                                     </form>
                                 </td>
-                                <td class="kn-num"><?= $e($centsToEuros((int) $x['default_price_cents'])) ?> €</td>
+                                <td class="kn-num"><?= $e($tvacEuros((int) $x['default_price_cents'])) ?> €</td>
                                 <td class="kn-num"><?= (int) $x['default_duration_min'] ?> min</td>
                                 <td><?= ((int) $x['is_active'] === 1) ? 'actif' : '<span class="kn-muted">inactif</span>' ?></td>
                                 <td>
@@ -85,7 +91,7 @@ $centsToEuros = static fn (int $c): string => number_format($c / 100, 2, ',', ' 
                 </div>
                 <div class="kn-grid kn-grid-2">
                     <div class="kn-field">
-                        <label for="default_price">Prix par défaut (€ HT)</label>
+                        <label for="default_price">Prix par défaut (€ TVAC)</label>
                         <input type="text" id="default_price" name="default_price" inputmode="decimal" value="0">
                     </div>
                     <div class="kn-field">

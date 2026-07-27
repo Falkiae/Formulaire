@@ -7,12 +7,14 @@ namespace Keepnew\Admin;
 use Keepnew\Catalog\CatalogRepository;
 use Keepnew\Catalog\ExtraRepository;
 use Keepnew\Core\Csrf;
+use Keepnew\Core\Database;
 use Keepnew\Core\Exception\NotFoundException;
 use Keepnew\Core\Request;
 use Keepnew\Core\Response;
 use Keepnew\Core\Session;
 use Keepnew\Core\View;
 use Keepnew\Support\ImageUpload;
+use Keepnew\Support\Money;
 
 /**
  * Back-office catalogue : liste des catégories/services, fiche service éditable
@@ -28,6 +30,7 @@ final class CatalogController
         private readonly CatalogRepository $catalog,
         private readonly ExtraRepository $extras,
         private readonly ImageUpload $images,
+        private readonly Database $db,
     ) {
     }
 
@@ -41,6 +44,7 @@ final class CatalogController
             'tree' => $this->catalog->categoryTree(),
             'categories' => $this->catalog->allCategories(),
             'services' => $this->catalog->allServices(),
+            'vat_rate_bp' => $this->vatRateBp(),
             'user_name' => $this->session->get('user_name'),
             'flash' => $this->session->pullFlash('catalog_ok'),
         ]);
@@ -72,6 +76,7 @@ final class CatalogController
             'variants' => $this->catalog->serviceVariants($id, false),
             'extras' => $this->catalog->serviceExtras($id, false),
             'available_extras' => array_values($available),
+            'vat_rate_bp' => $this->vatRateBp(),
             'user_name' => $this->session->get('user_name'),
             'flash' => $this->session->pullFlash('catalog_ok'),
         ]);
@@ -103,9 +108,10 @@ final class CatalogController
             ]);
         }
 
-        // Prix en euros saisis côté formulaire → conversion en centimes.
+        // Prix TVAC saisis côté formulaire → conversion en centimes HT (le
+        // stockage/moteur de tarification/facturation restent en HT).
         $this->catalog->updateServiceBase($id, [
-            'base_price_cents' => $this->eurosToCents($request->string('base_price')),
+            'base_price_cents' => $this->eurosTvacToHtCents($request->string('base_price')),
             'base_duration_min' => max(0, $request->int('base_duration')),
             'is_active' => $request->bool('is_active') ? 1 : 0,
         ], $userId);
@@ -135,7 +141,7 @@ final class CatalogController
             $this->catalog->updateModePricing(
                 $id,
                 $mode,
-                $request->string("price_{$mode}") !== '' ? $this->eurosToCents($request->string("price_{$mode}")) : null,
+                $request->string("price_{$mode}") !== '' ? $this->eurosTvacToHtCents($request->string("price_{$mode}")) : null,
                 $request->has("duration_{$mode}") ? max(0, $request->int("duration_{$mode}")) : null,
                 $request->has("occupancy_{$mode}") ? max(0, $request->int("occupancy_{$mode}")) : null,
                 $userId,
@@ -178,7 +184,7 @@ final class CatalogController
         $id = $this->catalog->createService([
             'category_id' => $categoryId,
             'name' => $name,
-            'base_price_cents' => $this->eurosToCents($request->string('base_price')),
+            'base_price_cents' => $this->eurosTvacToHtCents($request->string('base_price')),
             'base_duration_min' => max(0, $request->int('base_duration', 60)),
         ]);
 
@@ -230,7 +236,7 @@ final class CatalogController
         if ($label !== '') {
             $this->catalog->createVariant($id, [
                 'label' => $label,
-                'price_delta_cents' => $this->eurosToCents($request->string('price_delta')),
+                'price_delta_cents' => $this->eurosTvacToHtCents($request->string('price_delta')),
                 'duration_delta_min' => $request->int('duration_delta'),
                 'is_active' => 1,
             ]);
@@ -249,7 +255,7 @@ final class CatalogController
         $variantId = (int) $request->attribute('variantId');
         $this->catalog->updateVariant($variantId, $id, [
             'label' => $request->string('label'),
-            'price_delta_cents' => $this->eurosToCents($request->string('price_delta')),
+            'price_delta_cents' => $this->eurosTvacToHtCents($request->string('price_delta')),
             'duration_delta_min' => $request->int('duration_delta'),
             'is_active' => $request->bool('is_active') ? 1 : 0,
             'is_default' => $request->bool('is_default'),
@@ -308,5 +314,22 @@ final class CatalogController
         }
 
         return (int) round(((float) $normalized) * 100);
+    }
+
+    /**
+     * Taux de TVA courant (points de base), pour convertir les prix saisis
+     * en TVAC (formulaires admin) vers le HT stocké en base.
+     */
+    private function vatRateBp(): int
+    {
+        return (int) ($this->db->scalar("SELECT `value` FROM settings WHERE `key` = 'finance.vat_rate_bp'") ?? 2100);
+    }
+
+    /**
+     * Convertit un montant saisi en euros TVAC vers des centimes HT.
+     */
+    private function eurosTvacToHtCents(string $euros): int
+    {
+        return Money::removeVat($this->eurosToCents($euros), $this->vatRateBp());
     }
 }

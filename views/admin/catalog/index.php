@@ -25,6 +25,11 @@ $renderTree = static function (array $nodes, callable $e) use (&$renderTree): st
 };
 
 $centsToEuros = static fn (int $c): string => number_format($c / 100, 2, ',', ' ');
+$vatRateBp = (int) $data['vat_rate_bp'];
+// Colonne stockée en HT ; affichage TVAC pour cohérence avec la fiche
+// service, où le prix est désormais saisi en TVAC.
+$tvacEuros = static fn (int $htCents): string =>
+    $centsToEuros(\Keepnew\Support\Money::addVat($htCents, $vatRateBp));
 ?>
 <!doctype html>
 <html lang="fr">
@@ -89,7 +94,7 @@ $centsToEuros = static fn (int $c): string => number_format($c / 100, 2, ',', ' 
                             <tr>
                                 <th>Prestation</th>
                                 <th>Catégorie</th>
-                                <th class="kn-num">Prix base (HT)</th>
+                                <th class="kn-num">Prix base (TVAC)</th>
                                 <th class="kn-num">Durée</th>
                                 <th>État</th>
                                 <th></th>
@@ -100,7 +105,7 @@ $centsToEuros = static fn (int $c): string => number_format($c / 100, 2, ',', ' 
                                 <tr draggable="true" data-id="<?= (int) $s['id'] ?>">
                                     <td><a href="/admin/catalogue/service/<?= (int) $s['id'] ?>"><?= $e($s['name']) ?></a></td>
                                     <td class="kn-muted"><?= $e($s['category_name']) ?></td>
-                                    <td class="kn-num"><?= $e($centsToEuros((int) $s['base_price_cents'])) ?> €</td>
+                                    <td class="kn-num"><?= $e($tvacEuros((int) $s['base_price_cents'])) ?> €</td>
                                     <td class="kn-num"><?= (int) $s['base_duration_min'] ?> min</td>
                                     <td>
                                         <?php if ((int) $s['is_active'] === 1): ?>
@@ -139,7 +144,7 @@ $centsToEuros = static fn (int $c): string => number_format($c / 100, 2, ',', ' 
                         </div>
                         <div class="kn-grid kn-grid-2">
                             <div class="kn-field">
-                                <label for="svc_price">Prix de base (€ HT)</label>
+                                <label for="svc_price">Prix de base (€ TVAC)</label>
                                 <input type="text" id="svc_price" name="base_price" inputmode="decimal" value="0">
                             </div>
                             <div class="kn-field">

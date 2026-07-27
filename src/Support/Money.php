@@ -35,6 +35,14 @@ final class Money
     }
 
     /**
+     * Retire la TVA d'un montant TVAC et renvoie le HT (en centimes).
+     */
+    public static function removeVat(int $amountCentsTvac, int $rateBp): int
+    {
+        return self::roundHalfUp($amountCentsTvac * 10000, 10000 + $rateBp);
+    }
+
+    /**
      * Applique un pourcentage (en points de base) à un montant.
      * Ex. remise de 10 % sur 11900 → percentOf(11900, 1000) = 1190.
      */
