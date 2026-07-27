@@ -1478,6 +1478,12 @@
   if (!catalog) {
     api("/catalog").then(function (d) {
       catalog = d;
+      // Le tout premier rendu (fait avant même le départ de cet appel, pour
+      // un affichage instantané) a forcément utilisé les textes par défaut
+      // faute de catalog.texts — on rafraîchit l'étape actuellement affichée
+      // dès que possible, si son panneau existe toujours.
+      var panel = findPanel(state.step);
+      if (panel) renderStepInto(clear(panel), state.step);
     });
   }
 
