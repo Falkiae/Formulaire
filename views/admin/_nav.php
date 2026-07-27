@@ -30,6 +30,7 @@ $_knItems = [
     ['href' => '/admin/simulateur',    'label' => 'Simulateur',   'match' => '/admin/simulateur',   'roles' => ['admin', 'dispatcher']],
     ['href' => '/admin/utilisateurs',  'label' => 'Utilisateurs', 'match' => '/admin/utilisateurs', 'roles' => ['admin']],
     ['href' => '/admin/notifications', 'label' => 'Notifications', 'match' => '/admin/notifications', 'roles' => ['admin']],
+    ['href' => '/admin/reglages',      'label' => 'Réglages',      'match' => '/admin/reglages',      'roles' => ['admin']],
 ];
 ?>
 <header class="kn-header" id="kn-header">

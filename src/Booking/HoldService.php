@@ -26,18 +26,29 @@ final class HoldService
     /**
      * Vérifie qu'un technicien est libre sur [start, end] (jobs + holds), sous
      * verrou. À appeler DANS une transaction déjà ouverte.
+     *
+     * @param int $excludeJobId  Job à exclure du contrôle (replanification :
+     *                           son propre ancien créneau ne doit pas se
+     *                           bloquer lui-même).
      */
-    public function technicianFree(Database $db, int $technicianId, string $startUtc, string $endUtc): bool
+    public function technicianFree(Database $db, int $technicianId, string $startUtc, string $endUtc, int $excludeJobId = 0): bool
     {
         $now = Clock::nowUtc()->format('Y-m-d H:i:s');
 
+        $excludeSql = '';
+        $params = ['t' => $technicianId, 'start' => $startUtc, 'end' => $endUtc];
+        if ($excludeJobId > 0) {
+            $excludeSql = ' AND id <> :excludeJobId';
+            $params['excludeJobId'] = $excludeJobId;
+        }
         $jobConflict = (int) $db->scalar(
             "SELECT COUNT(*) FROM jobs
              WHERE technician_id = :t
                AND status IN ('scheduled','en_route','in_progress')
                AND scheduled_start < :end AND scheduled_end > :start
+               {$excludeSql}
              FOR UPDATE",
-            ['t' => $technicianId, 'start' => $startUtc, 'end' => $endUtc],
+            $params,
         );
 
         $holdConflict = (int) $db->scalar(
@@ -53,17 +64,26 @@ final class HoldService
 
     /**
      * Idem pour un poste d'atelier.
+     *
+     * @param int $excludeJobId  Voir technicianFree().
      */
-    public function bayFree(Database $db, int $bayId, string $startUtc, string $endUtc): bool
+    public function bayFree(Database $db, int $bayId, string $startUtc, string $endUtc, int $excludeJobId = 0): bool
     {
         $now = Clock::nowUtc()->format('Y-m-d H:i:s');
 
+        $excludeSql = '';
+        $params = ['b' => $bayId, 'start' => $startUtc, 'end' => $endUtc];
+        if ($excludeJobId > 0) {
+            $excludeSql = ' AND id <> :excludeJobId';
+            $params['excludeJobId'] = $excludeJobId;
+        }
         $jobConflict = (int) $db->scalar(
             "SELECT COUNT(*) FROM jobs
              WHERE bay_id = :b AND status IN ('scheduled','en_route','in_progress')
                AND scheduled_start < :end AND scheduled_end > :start
+               {$excludeSql}
              FOR UPDATE",
-            ['b' => $bayId, 'start' => $startUtc, 'end' => $endUtc],
+            $params,
         );
         $holdConflict = (int) $db->scalar(
             'SELECT COUNT(*) FROM slot_holds

@@ -22,7 +22,9 @@ use Keepnew\Admin\LocationController;
 use Keepnew\Admin\RescheduleAvailabilityService;
 use Keepnew\Admin\SimulatorController;
 use Keepnew\Admin\NotificationController;
+use Keepnew\Admin\SettingsController;
 use Keepnew\Admin\TechnicianController;
+use Keepnew\Public\ManageBookingController;
 use Keepnew\Admin\UserController;
 use Keepnew\Admin\ZoneController;
 use Keepnew\Availability\EngineConfig;
@@ -368,6 +370,19 @@ return static function (Router $router, Container $container): void {
         $c->get(Csrf::class),
         $c->get(Database::class),
     ));
+    $container->singleton(SettingsController::class, static fn (Container $c): SettingsController => new SettingsController(
+        $c->get(View::class),
+        $c->get(Session::class),
+        $c->get(Csrf::class),
+        $c->get(Database::class),
+    ));
+    $container->singleton(ManageBookingController::class, static fn (Container $c): ManageBookingController => new ManageBookingController(
+        $c->get(View::class),
+        $c->get(Csrf::class),
+        $c->get(Database::class),
+        $c->get(BookingService::class),
+        $c->get(RescheduleAvailabilityService::class),
+    ));
     $container->singleton(ZoneRepository::class, static fn (Container $c): ZoneRepository => new ZoneRepository($c->get(Database::class)));
     $container->singleton(ZoneController::class, static fn (Container $c): ZoneController => new ZoneController(
         $c->get(View::class),
@@ -474,6 +489,10 @@ return static function (Router $router, Container $container): void {
             // Notifications email/SMS (textes, délais, canaux)
             $r->get('/notifications', [NotificationController::class, 'index']);
             $r->post('/notifications/{id}', [NotificationController::class, 'update'], [CsrfMiddleware::class]);
+
+            // Réglages généraux (contact, CGV, délai libre-service client)
+            $r->get('/reglages', [SettingsController::class, 'index']);
+            $r->post('/reglages', [SettingsController::class, 'update'], [CsrfMiddleware::class]);
 
             // Zones de service (chalandise) : couverture, règles tarifaires, techniciens
             $r->get('/zones', [ZoneController::class, 'index']);
@@ -612,6 +631,19 @@ return static function (Router $router, Container $container): void {
         $r->get('/bookings/{token}', [BookingApiController::class, 'show']);
         $r->post('/bookings/{token}/schedule', [BookingApiController::class, 'schedule'], [$bookingLimit]);
         $r->post('/bookings/{token}/cancel', [BookingApiController::class, 'cancel']);
+    });
+
+    // --- Espace client self-service (page /rdv/{token}, sans compte) ------
+    // Même origine que le back-office (page server-rendue classique) : CSRF
+    // par jeton de session comme partout ailleurs dans l'admin, contrairement
+    // au widget cross-site ci-dessus.
+    $manageBookingLimit = new RateLimitMiddleware($db, 'manage_booking', 30, 60);
+    $router->group('/rdv', [], static function (Router $r) use ($manageBookingLimit): void {
+        $r->get('/{token}', [ManageBookingController::class, 'show'], [$manageBookingLimit]);
+        $r->get('/{token}/creneaux/mois', [ManageBookingController::class, 'slotDates'], [$manageBookingLimit]);
+        $r->get('/{token}/creneaux', [ManageBookingController::class, 'slotsForDate'], [$manageBookingLimit]);
+        $r->post('/{token}/replanifier', [ManageBookingController::class, 'reschedule'], [$manageBookingLimit, CsrfMiddleware::class]);
+        $r->post('/{token}/annuler', [ManageBookingController::class, 'cancel'], [$manageBookingLimit, CsrfMiddleware::class]);
     });
 
     // --- Emplacement réservé à la Phase 6 ----------------------------------

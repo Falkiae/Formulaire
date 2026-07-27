@@ -189,6 +189,7 @@ final class BookingService
     public function schedule(string $manageToken, array $slots): void
     {
         $booking = $this->findByManageToken($manageToken);
+        $this->assertWithinSelfServiceWindow((int) $booking['id']);
 
         $this->db->transaction(function (Database $db) use ($booking, $slots): void {
             $jobs = $db->select('SELECT * FROM jobs WHERE booking_id = :b', ['b' => (int) $booking['id']]);
@@ -203,7 +204,11 @@ final class BookingService
                 $start = $slot['start_utc'];
                 $endActive = (new \DateTimeImmutable($start, new \DateTimeZone('UTC')))->modify("+{$active} minutes")->format('Y-m-d H:i:s');
 
-                if (!$this->holds->technicianFree($db, (int) $slot['technician_id'], $start, $endActive)) {
+                // Exclut le job lui-même de son propre contrôle de conflit — une
+                // replanification vers un créneau qui chevaucherait son ANCIEN
+                // horaire actuel (ex. reprogrammer au même moment) ne doit
+                // jamais se bloquer elle-même.
+                if (!$this->holds->technicianFree($db, (int) $slot['technician_id'], $start, $endActive, (int) $job['id'])) {
                     throw new HttpException(409, 'Ce créneau vient d\'être réservé.');
                 }
 
@@ -241,7 +246,9 @@ final class BookingService
      */
     public function cancel(string $manageToken): void
     {
-        $this->cancelBookingRow($this->findByManageToken($manageToken), null, 'Annulée par le client');
+        $booking = $this->findByManageToken($manageToken);
+        $this->assertWithinSelfServiceWindow((int) $booking['id']);
+        $this->cancelBookingRow($booking, null, 'Annulée par le client');
     }
 
     /**
@@ -255,6 +262,53 @@ final class BookingService
             throw new NotFoundException('Réservation introuvable.');
         }
         $this->cancelBookingRow($booking, $userId, 'Annulée depuis l\'admin');
+    }
+
+    /**
+     * Garde-fou serveur (pas seulement visuel côté page client) : passé le
+     * délai configuré avant le rendez-vous le plus proche de la commande, le
+     * client ne peut plus modifier/annuler lui-même — protège aussi bien la
+     * nouvelle page /rdv/{token} que l'API JSON existante
+     * (POST /api/bookings/{token}/schedule|cancel), déjà appelées par les deux.
+     * Aucune restriction si la commande n'a encore aucun rendez-vous planifié
+     * (rien à comparer à un délai).
+     */
+    private function assertWithinSelfServiceWindow(int $bookingId): void
+    {
+        if (!$this->withinSelfServiceWindowFor($bookingId)) {
+            throw new HttpException(403, 'Le délai de modification/annulation en ligne est dépassé pour cette réservation. Merci de nous contacter directement.');
+        }
+    }
+
+    /**
+     * Vrai si le client peut encore modifier/annuler lui-même cette
+     * réservation (avant le délai configuré, ou aucun rendez-vous encore
+     * planifié auquel comparer un délai). Utilisé par la page /rdv/{token}
+     * pour savoir si les actions doivent être affichées.
+     */
+    public function withinSelfServiceWindow(string $manageToken): bool
+    {
+        return $this->withinSelfServiceWindowFor((int) $this->findByManageToken($manageToken)['id']);
+    }
+
+    private function withinSelfServiceWindowFor(int $bookingId): bool
+    {
+        $nearestStart = $this->db->scalar(
+            "SELECT MIN(scheduled_start) FROM jobs
+             WHERE booking_id = :b AND scheduled_start IS NOT NULL AND status NOT IN ('cancelled', 'completed')",
+            ['b' => $bookingId],
+        );
+        if ($nearestStart === null) {
+            return true;
+        }
+
+        $deadlineHours = (int) ($this->db->scalar(
+            "SELECT `value` FROM settings WHERE `key` = 'booking.self_service_deadline_hours'",
+        ) ?? 48);
+        $cutoff = (new \DateTimeImmutable((string) $nearestStart, new \DateTimeZone('UTC')))
+            ->modify("-{$deadlineHours} hours");
+
+        return Clock::nowUtc() < $cutoff;
     }
 
     /**
@@ -298,7 +352,7 @@ final class BookingService
     {
         $booking = $this->findByManageToken($manageToken);
         $items = $this->db->select('SELECT label_snapshot, mode, quantity, line_total_cents FROM booking_items WHERE booking_id = :b', ['b' => (int) $booking['id']]);
-        $jobs = $this->db->select('SELECT mode, status, scheduled_start, arrival_from, arrival_to FROM jobs WHERE booking_id = :b', ['b' => (int) $booking['id']]);
+        $jobs = $this->db->select('SELECT id, mode, status, scheduled_start, arrival_from, arrival_to FROM jobs WHERE booking_id = :b', ['b' => (int) $booking['id']]);
 
         return [
             'reference' => $booking['reference'],
@@ -307,6 +361,7 @@ final class BookingService
             'total_cents' => (int) $booking['total_cents'],
             'items' => $items,
             'jobs' => array_map(static fn (array $j): array => [
+                'id' => (int) $j['id'],
                 'mode' => $j['mode'],
                 'status' => $j['status'],
                 'scheduled_local' => $j['scheduled_start'] !== null
