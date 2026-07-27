@@ -371,7 +371,7 @@ INSERT INTO notification_events (id, event_key, label, is_active) VALUES
 
 INSERT INTO notification_templates (event_id, channel, offset_minutes, subject, body, is_active) VALUES
 (1, 'email', 0, 'Votre demande Keepnew {{booking.reference}}', 'Bonjour {{customer.first_name}}, nous avons bien reçu votre demande. Nous revenons vers vous très vite.', 1),
-(2, 'email', 0, 'C''est confirmé — {{booking.reference}}', 'Bonjour {{customer.first_name}}, votre rendez-vous est confirmé pour le {{job.date}}. Vous payez après l''intervention.', 1),
+(2, 'email', 0, 'C''est confirmé — {{booking.reference}}', 'Bonjour {{customer.first_name}}, votre rendez-vous est confirmé pour le {{job.date}}. Vous payez après l''intervention. Pour consulter, modifier ou annuler votre réservation : {{booking.manage_url}}', 1),
 (3, 'email', -2880, 'Rappel — rendez-vous Keepnew dans 48 h', 'Bonjour {{customer.first_name}}, petit rappel de votre rendez-vous le {{job.date}}.', 1),
 (4, 'sms',   -120, NULL, 'Keepnew : votre technicien passera vers {{job.arrival_from}}. À tout à l''heure !', 1),
 (5, 'sms',   0, NULL, 'Keepnew : {{technician.first_name}} vient de partir vers chez vous.', 1),

@@ -21,6 +21,7 @@ use Keepnew\Admin\JobController;
 use Keepnew\Admin\LocationController;
 use Keepnew\Admin\RescheduleAvailabilityService;
 use Keepnew\Admin\SimulatorController;
+use Keepnew\Admin\NotificationController;
 use Keepnew\Admin\TechnicianController;
 use Keepnew\Admin\UserController;
 use Keepnew\Admin\ZoneController;
@@ -361,6 +362,12 @@ return static function (Router $router, Container $container): void {
         $c->get(Csrf::class),
         $c->get(TechnicianRepository::class),
     ));
+    $container->singleton(NotificationController::class, static fn (Container $c): NotificationController => new NotificationController(
+        $c->get(View::class),
+        $c->get(Session::class),
+        $c->get(Csrf::class),
+        $c->get(Database::class),
+    ));
     $container->singleton(ZoneRepository::class, static fn (Container $c): ZoneRepository => new ZoneRepository($c->get(Database::class)));
     $container->singleton(ZoneController::class, static fn (Container $c): ZoneController => new ZoneController(
         $c->get(View::class),
@@ -463,6 +470,10 @@ return static function (Router $router, Container $container): void {
             $r->post('/competences', [TechnicianController::class, 'createSkill'], [CsrfMiddleware::class]);
             $r->post('/competences/{id}', [TechnicianController::class, 'updateSkill'], [CsrfMiddleware::class]);
             $r->post('/competences/{id}/supprimer', [TechnicianController::class, 'deleteSkill'], [CsrfMiddleware::class]);
+
+            // Notifications email/SMS (textes, délais, canaux)
+            $r->get('/notifications', [NotificationController::class, 'index']);
+            $r->post('/notifications/{id}', [NotificationController::class, 'update'], [CsrfMiddleware::class]);
 
             // Zones de service (chalandise) : couverture, règles tarifaires, techniciens
             $r->get('/zones', [ZoneController::class, 'index']);
