@@ -41,6 +41,16 @@ $v = $data['values'];
                 <input type="url" id="company_terms_url" name="company_terms_url" value="<?= $e($v['company.terms_url'] ?? '') ?>" placeholder="https://…">
             </div>
 
+            <h2>Signature email</h2>
+            <div class="kn-field">
+                <label for="company_email_signature_html">Signature HTML (ajoutée automatiquement en fin de chaque email envoyé)</label>
+                <textarea id="company_email_signature_html" name="company_email_signature_html" rows="6" style="width:100%;padding:8px;border:1px solid var(--kn-line);border-radius:8px;font:inherit;font-family:monospace;font-size:.85rem;"><?= $e($v['company.email_signature_html'] ?? '') ?></textarea>
+                <p class="kn-muted" style="margin-top:6px;">
+                    Code HTML (liens, boutons, logo…) — mêmes variables que les modèles de notification, ex. <code>{{booking.manage_url}}</code>.
+                    Laisser vide pour ne rien ajouter.
+                </p>
+            </div>
+
             <h2>Espace client (mes-rdv)</h2>
             <div class="kn-field" style="max-width:260px;">
                 <label for="booking_self_service_deadline_hours">Délai de modification/annulation (heures avant le RDV)</label>

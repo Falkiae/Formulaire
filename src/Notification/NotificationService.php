@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Keepnew\Notification;
 
+use Keepnew\Core\Config;
 use Keepnew\Core\Database;
 use Keepnew\Support\Clock;
 
@@ -28,6 +29,7 @@ final class NotificationService
         private readonly TemplateRenderer $renderer,
         private readonly MailerInterface $mailer,
         private readonly SmsProviderInterface $sms,
+        private readonly Config $config,
     ) {
     }
 
@@ -128,7 +130,7 @@ final class NotificationService
                 $ref = $this->sms->send((string) $log['recipient'], $body);
             } else {
                 $subject = $this->renderer->render((string) ($tpl['subject'] ?? ''), $context, false);
-                $body = $this->renderer->render((string) $tpl['body'], $context, true);
+                $body = $this->renderer->render((string) $tpl['body'], $context, true) . $this->emailSignature($context);
                 $ref = $this->mailer->send((string) $log['recipient'], $subject, $body);
             }
             $this->db->run(
@@ -177,7 +179,7 @@ final class NotificationService
             'booking' => [
                 'reference' => $booking['reference'],
                 'total' => number_format(((int) $booking['total_cents']) / 100, 2, ',', ' ') . ' €',
-                'manage_url' => '/rdv/' . $booking['manage_token'],
+                'manage_url' => rtrim((string) $this->config->get('app.url', ''), '/') . '/rdv/' . $booking['manage_token'],
             ],
             'customer' => [
                 'first_name' => $booking['first_name'],
@@ -193,5 +195,25 @@ final class NotificationService
                 'first_name' => $job['tech_first'] ?? '',
             ],
         ];
+    }
+
+    /**
+     * Signature HTML commune ajoutée en fin de chaque email (réglage
+     * `company.email_signature_html`, éditée une seule fois dans
+     * /admin/reglages plutôt que dupliquée dans chacun des 9 modèles).
+     * Rendue avec le même contexte que le corps du message (mêmes variables
+     * disponibles, ex. {{booking.manage_url}}) ; vide si non configurée.
+     */
+    private function emailSignature(array $context): string
+    {
+        $html = (string) ($this->db->scalar(
+            "SELECT `value` FROM settings WHERE `key` = 'company.email_signature_html'",
+        ) ?? '');
+
+        if ($html === '') {
+            return '';
+        }
+
+        return "\n" . $this->renderer->render($html, $context, true);
     }
 }

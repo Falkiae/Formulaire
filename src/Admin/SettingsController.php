@@ -20,7 +20,10 @@ use Keepnew\Core\View;
 final class SettingsController
 {
     /** @var list<string> */
-    private const KEYS = ['company.phone', 'company.email', 'company.terms_url', 'booking.self_service_deadline_hours'];
+    private const KEYS = [
+        'company.phone', 'company.email', 'company.terms_url',
+        'booking.self_service_deadline_hours', 'company.email_signature_html',
+    ];
 
     public function __construct(
         private readonly View $view,
@@ -62,6 +65,7 @@ final class SettingsController
         $this->set('company.email', $request->string('company_email'), 'general', 'E-mail de contact');
         $this->set('company.terms_url', $request->string('company_terms_url'), 'general', 'Lien CGV');
         $this->set('booking.self_service_deadline_hours', (string) max(1, $deadline), 'booking', 'Délai (h) de modification/annulation en libre-service client');
+        $this->set('company.email_signature_html', $request->string('company_email_signature_html'), 'general', 'Signature HTML ajoutée en fin de chaque email');
 
         $this->session->flash('settings_ok', 'Réglages enregistrés.');
 

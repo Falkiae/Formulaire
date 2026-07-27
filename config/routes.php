@@ -205,6 +205,7 @@ return static function (Router $router, Container $container): void {
         $c->get(TemplateRenderer::class),
         $c->get(MailerInterface::class),
         $c->get(SmsProviderInterface::class),
+        $c->get(Config::class),
     ));
 
     // --- Facturation & Peppol ----------------------------------------------

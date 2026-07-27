@@ -23,7 +23,12 @@ $channelLabels = ['email' => 'Email', 'sms' => 'SMS'];
         <h1>Notifications</h1>
         <p class="kn-muted">
             Texte, délai et activation par canal pour chaque événement déclenché automatiquement.
-            Variables disponibles : <?php foreach ($data['variables'] as $v): ?><code style="margin-right:6px;">{{<?= $e($v) ?>}}</code><?php endforeach; ?>
+            Le corps des emails accepte le HTML (liens, boutons…). Variables disponibles :
+            <?php foreach ($data['variables'] as $v): ?><code style="margin-right:6px;">{{<?= $e($v) ?>}}</code><?php endforeach; ?>
+        </p>
+        <p class="kn-muted">
+            Une signature commune (logo, coordonnées, liens…) peut être ajoutée automatiquement en fin de
+            chaque email depuis <a href="/admin/reglages">Réglages</a> — inutile de la répéter dans chaque modèle.
         </p>
 
         <?php foreach ($data['events'] as $event): ?>
