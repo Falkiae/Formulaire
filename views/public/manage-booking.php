@@ -25,7 +25,7 @@ $statusLabels = [
     <style>
         body { background: var(--kn-paper); }
         .kn-manage-wrap { max-width: 640px; margin: 0 auto; padding: 24px 16px 60px; }
-        .kn-manage-logo { font-weight: 800; font-size: 1.3rem; margin-bottom: 20px; display: block; }
+        .kn-manage-logo { font-family: var(--kn-font-display); font-weight: 600; font-size: 1rem; text-transform: uppercase; letter-spacing: 0.22em; margin-bottom: 20px; display: block; }
     </style>
 </head>
 <body>

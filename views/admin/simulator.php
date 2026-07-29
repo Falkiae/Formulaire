@@ -53,7 +53,7 @@
                     <input type="number" id="quantity" min="1" value="1">
                 </div>
 
-                <fieldset id="extras-field" style="border:1px solid var(--kn-line);border-radius:12px;padding:16px;" hidden>
+                <fieldset id="extras-field" style="border:1px solid var(--kn-line);border-radius:6px;padding:16px;" hidden>
                     <legend>Extras</legend>
                     <div id="extras"></div>
                 </fieldset>

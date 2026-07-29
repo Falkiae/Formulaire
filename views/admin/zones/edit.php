@@ -46,7 +46,7 @@ $techZoneIds = $data['zone_technician_ids'];
 
             <div class="kn-field">
                 <label for="postal_codes">Codes postaux couverts (un par ligne, ou séparés par des virgules)</label>
-                <textarea id="postal_codes" name="postal_codes" rows="5" style="width:100%;padding:8px;border:1px solid var(--kn-line);border-radius:8px;resize:vertical;"><?= $e(implode("\n", $data['postal_codes'])) ?></textarea>
+                <textarea id="postal_codes" name="postal_codes" rows="5" style="width:100%;padding:8px;border:1px solid var(--kn-line);border-radius:4px;resize:vertical;"><?= $e(implode("\n", $data['postal_codes'])) ?></textarea>
             </div>
 
             <div class="kn-grid kn-grid-2">

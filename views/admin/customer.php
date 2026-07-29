@@ -140,7 +140,7 @@ $addressFields = static function (array $a, callable $e): string {
                         <?= $data['csrf'] ?>
                         <div class="kn-field">
                             <label for="note">Nouvelle note</label>
-                            <textarea id="note" name="body" rows="2" style="width:100%;padding:8px;border:1px solid var(--kn-line);border-radius:8px;resize:vertical;"></textarea>
+                            <textarea id="note" name="body" rows="2" style="width:100%;padding:8px;border:1px solid var(--kn-line);border-radius:4px;resize:vertical;"></textarea>
                         </div>
                         <button type="submit" class="kn-btn kn-btn-ghost">Ajouter la note</button>
                     </form>

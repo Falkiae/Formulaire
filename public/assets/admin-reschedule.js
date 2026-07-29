@@ -12,7 +12,7 @@
   }
 
   function avatarColor(id) {
-    var palette = ["#F7D7E2", "#E7ECFB", "#D8F0DF", "#FCE8C8", "#E4D9F7", "#D6EFF3"];
+    var palette = ["#EFC6CB", "#E5E9FB", "#E4EFE7", "#F6EDD8", "#DDE3EF", "#E4AEB7"];
     return palette[id % palette.length];
   }
 

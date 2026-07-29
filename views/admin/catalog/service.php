@@ -80,7 +80,7 @@ foreach ($data['modes'] as $m) {
                 <div class="kn-field">
                     <label>Image (affichée dans le tunnel client)</label>
                     <?php if (($service['image_path'] ?? '') !== ''): ?>
-                        <img src="/uploads/<?= $e($service['image_path']) ?>" alt="" style="max-width:140px;border-radius:8px;display:block;margin-bottom:8px;">
+                        <img src="/uploads/<?= $e($service['image_path']) ?>" alt="" style="max-width:140px;border-radius:4px;display:block;margin-bottom:8px;">
                         <label class="kn-check"><input type="checkbox" name="remove_image" value="1"> Retirer l'image</label>
                     <?php endif; ?>
                     <input type="file" name="image" accept="image/jpeg,image/png,image/webp">
@@ -116,7 +116,7 @@ foreach ($data['modes'] as $m) {
 
                 <?php foreach (['onsite' => 'À domicile', 'workshop' => 'Atelier'] as $mode => $label): ?>
                     <?php $m = $modesByName[$mode] ?? null; ?>
-                    <fieldset style="border:1px solid var(--kn-line);border-radius:12px;padding:16px;margin-bottom:16px;">
+                    <fieldset style="border:1px solid var(--kn-line);border-radius:6px;padding:16px;margin-bottom:16px;">
                         <legend>
                             <span class="kn-badge kn-badge-<?= $mode ?>"><?= $e($label) ?></span>
                         </legend>

@@ -57,7 +57,7 @@ foreach ($data['fields'] as $f) { $fieldsById[(int) $f['id']] = $f; }
                                         <summary class="kn-muted">modifier</summary>
                                         <form method="post" action="/admin/formulaire/<?= (int) $version['id'] ?>/champ/<?= (int) $f['id'] ?>/services" style="margin-top:4px;">
                                             <?= $data['csrf'] ?>
-                                            <div style="max-height:160px;overflow-y:auto;border:1px solid var(--kn-line);border-radius:8px;padding:8px;">
+                                            <div style="max-height:160px;overflow-y:auto;border:1px solid var(--kn-line);border-radius:4px;padding:8px;">
                                                 <?php foreach ($data['services_by_category'] as $catName => $catServices): ?>
                                                     <p class="kn-muted" style="margin:4px 0 2px;font-weight:600;"><?= $e($catName) ?></p>
                                                     <?php foreach ($catServices as $svc): ?>

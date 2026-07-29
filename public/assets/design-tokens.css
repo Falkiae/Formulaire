@@ -1,33 +1,50 @@
 /* =============================================================================
    Keepnew — design tokens
-   Mode clair d'abord, mode sombre optionnel. Un seul accent, jamais deux.
-   Référence : direction UX/UI du cahier des charges (§11).
+   Direction artistique 2026 : vintage, classique, luxe (le majordome).
+   Navy / crème / rose poudré / bleu royal. Un seul accent d'action : le royal.
    ============================================================================= */
 
+@import url('https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..700;1,6..96,400..700&family=Jost:ital,wght@0,300..700;1,400&family=Great+Vibes&display=swap');
+
 :root {
-    /* Couleur — un accent unique */
-    --kn-accent: #586FF3;       /* action primaire, sélection, focus */
-    --kn-accent-ink: #3A4BC0;   /* texte accentué sur fond clair, hover */
-    --kn-blush: #F7D7E2;        /* surface et badges UNIQUEMENT, jamais sous du texte */
-    --kn-ink: #141A2E;          /* texte principal (encre bleutée, pas de noir pur) */
-    --kn-muted: #5C6479;        /* texte secondaire, contraste >= 4.5:1 vérifié */
-    --kn-paper: #FBFBFD;        /* fond de page, blanc légèrement froid */
+    /* Couleur */
+    --kn-accent: #4A63E7;       /* bleu royal — action primaire, sélection, focus */
+    --kn-accent-ink: #3B50C9;   /* texte accentué sur fond clair, hover */
+    --kn-royal-soft: #E5E9FB;   /* fond doux royal (badges "atelier") */
+    --kn-blush: #EFC6CB;        /* rose poudré — surface et badges UNIQUEMENT, jamais sous du texte */
+    --kn-navy: #24355C;         /* navy signature — fonds inversés, surfaces cérémonielles */
+    --kn-navy-deep: #1B2A4A;    /* navy profond — hover sur fond inversé */
+    --kn-ink: #1B2A4A;          /* texte principal (navy, jamais de noir pur) */
+    --kn-muted: #6E7891;        /* texte secondaire, contraste >= 4.5:1 vérifié */
+    --kn-paper: #F7F4EC;        /* fond de page — crème, jamais blanc pur */
+    --kn-paper-raised: #FDFCF8; /* fond légèrement relevé sur crème */
     --kn-surface: #FFFFFF;      /* cartes */
-    --kn-line: #E4E6EF;         /* filets 1 px */
-    --kn-success: #1D7A54;      /* confirmation, remise obtenue */
-    --kn-alert: #B4322D;        /* erreur */
+    --kn-line: #E4DECF;         /* filets 1 px, hairline crème */
+    --kn-line-strong: #C9C2AF;  /* filets renforcés */
 
-    /* Typographie */
-    --kn-font-body: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
-    --kn-font-display: "Familjen Grotesk", var(--kn-font-body);
+    /* Statuts — feutrés, classiques */
+    --kn-success: #3E7C4F;
+    --kn-success-bg: #E4EFE7;
+    --kn-success-border: #BFDAC7;
+    --kn-warning: #8A631A;
+    --kn-warning-bg: #F6EDD8;
+    --kn-warning-border: #E6D2A0;
+    --kn-alert: #B3453E;
+    --kn-alert-bg: #F7E4E2;
+    --kn-alert-border: #E8BEB9;
 
-    /* Échelle : 32 / 24 / 18 / 16 / 14 — corps >= 16, jamais < 14 */
-    --kn-fs-1: 2rem;      /* 32 */
-    --kn-fs-2: 1.5rem;    /* 24 */
-    --kn-fs-3: 1.125rem;  /* 18 */
-    --kn-fs-body: 1rem;   /* 16 */
+    /* Typographie — display didone, UI géométrique vintage, script en accent rare */
+    --kn-font-body: "Jost", "Century Gothic", Futura, system-ui, sans-serif;
+    --kn-font-display: "Bodoni Moda", Didot, "Bodoni MT", serif;
+    --kn-font-script: "Great Vibes", cursive;
+
+    /* Échelle : corps >= 16, jamais < 14 */
+    --kn-fs-1: 2.25rem;     /* 36 */
+    --kn-fs-2: 1.5rem;      /* 24 */
+    --kn-fs-3: 1.375rem;    /* 22 */
+    --kn-fs-body: 1rem;     /* 16 */
     --kn-fs-small: 0.875rem; /* 14 */
-    --kn-lh-body: 1.6;
+    --kn-lh-body: 1.55;
 
     /* Espacement — grille de 4 px */
     --kn-space-1: 4px;
@@ -37,23 +54,29 @@
     --kn-space-5: 24px;
     --kn-space-6: 32px;
 
-    /* Rayons */
-    --kn-radius-control: 8px;
-    --kn-radius-card: 12px;
-    --kn-radius-pill: 20px;
+    /* Rayons — quasi carrés, classiques. Pilule réservée aux badges/tags. */
+    --kn-radius-control: 4px;
+    --kn-radius-card: 6px;
+    --kn-radius-pill: 999px;
+
+    /* Ombres — douces, teintées navy */
+    --kn-shadow-card: 0 1px 2px rgba(27, 42, 74, .06), 0 8px 24px rgba(27, 42, 74, .08);
+    --kn-shadow-raised: 0 2px 6px rgba(27, 42, 74, .10), 0 16px 40px rgba(27, 42, 74, .14);
 
     /* Cibles tactiles */
     --kn-touch: 48px;
 }
 
-/* Mode sombre optionnel — surfaces plates, mêmes principes */
+/* Mode sombre optionnel — navy comme fond, mêmes principes */
 @media (prefers-color-scheme: dark) {
     :root {
-        --kn-ink: #EEF0F7;
-        --kn-muted: #A2A9BD;
-        --kn-paper: #12141C;
-        --kn-surface: #1A1D28;
-        --kn-line: #2A2E3D;
+        --kn-ink: #F2EFE6;
+        --kn-muted: #A9B0C6;
+        --kn-paper: #1B2A4A;
+        --kn-paper-raised: #24355C;
+        --kn-surface: #24355C;
+        --kn-line: rgba(247, 244, 236, .16);
+        --kn-line-strong: rgba(247, 244, 236, .28);
         --kn-accent: #7E90F6;
         --kn-accent-ink: #A9B6F9;
     }

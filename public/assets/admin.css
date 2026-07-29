@@ -49,9 +49,10 @@ img { max-width: 100%; }
     text-decoration: none;
     color: var(--kn-ink);
     font-family: var(--kn-font-display);
-    font-size: var(--kn-fs-3);
-    font-weight: 700;
-    letter-spacing: -0.02em;
+    font-size: var(--kn-fs-body);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.22em;
 }
 
 /* Bouton hamburger */
@@ -106,9 +107,9 @@ img { max-width: 100%; }
 }
 .kn-nav a:hover { background: var(--kn-paper); }
 .kn-nav a[aria-current="page"] {
-    color: var(--kn-accent);
-    font-weight: 700;
-    background: color-mix(in srgb, var(--kn-accent) 8%, transparent);
+    color: var(--kn-accent-ink);
+    font-weight: 600;
+    background: var(--kn-blush);
 }
 .kn-nav-logout {
     margin-top: var(--kn-space-2) !important;
@@ -278,7 +279,7 @@ input:not(:focus):hover, select:not(:focus):hover, textarea:not(:focus):hover {
     color: var(--kn-alert);
     border-color: var(--kn-line);
 }
-.kn-btn-danger:hover { background: #FBEAE9; border-color: #F0C5C3; }
+.kn-btn-danger:hover { background: var(--kn-alert-bg); border-color: var(--kn-alert-border); }
 .kn-btn-sm { min-height: 36px; padding: 0 var(--kn-space-4); font-size: var(--kn-fs-small); }
 .kn-btn-full { width: 100%; }
 
@@ -347,13 +348,13 @@ table.kn-table {
     color: var(--kn-muted);
 }
 .kn-badge-onsite   { background: var(--kn-blush); color: var(--kn-accent-ink); border-color: transparent; }
-.kn-badge-workshop { background: #E7ECFB; color: var(--kn-accent-ink); border-color: transparent; }
+.kn-badge-workshop { background: var(--kn-royal-soft); color: var(--kn-accent-ink); border-color: transparent; }
 .kn-badge-off      { color: var(--kn-muted); background: var(--kn-paper); }
 
 /* Statuts de RDV (vue Jour du planning) : mêmes teintes que les alertes. */
-.kn-badge-late      { background: #FEF3E2; color: #92400E; border-color: transparent; }
-.kn-badge-complete  { background: #E7F4EE; color: var(--kn-success); border-color: transparent; }
-.kn-badge-scheduled { background: #E7ECFB; color: var(--kn-accent-ink); border-color: transparent; }
+.kn-badge-late      { background: var(--kn-warning-bg); color: var(--kn-warning); border-color: transparent; }
+.kn-badge-complete  { background: var(--kn-success-bg); color: var(--kn-success); border-color: transparent; }
+.kn-badge-scheduled { background: var(--kn-royal-soft); color: var(--kn-accent-ink); border-color: transparent; }
 .kn-badge-info      { background: var(--kn-blush); color: var(--kn-accent-ink); border-color: transparent; }
 
 /* --- Alertes --------------------------------------------------------------- */
@@ -367,9 +368,9 @@ table.kn-table {
     font-weight: 500;
     border: 1px solid transparent;
 }
-.kn-alert-error   { background: #FBEAE9; color: var(--kn-alert);   border-color: #F0C5C3; }
-.kn-alert-ok      { background: #E7F4EE; color: var(--kn-success); border-color: #C3E6D5; }
-.kn-alert-warning { background: #FEF3E2; color: #92400E;           border-color: #FCD38D; }
+.kn-alert-error   { background: var(--kn-alert-bg);   color: var(--kn-alert);   border-color: var(--kn-alert-border); }
+.kn-alert-ok      { background: var(--kn-success-bg); color: var(--kn-success); border-color: var(--kn-success-border); }
+.kn-alert-warning { background: var(--kn-warning-bg); color: var(--kn-warning); border-color: var(--kn-warning-border); }
 
 /* --- KPIs (rapports) ------------------------------------------------------- */
 .kn-kpis {
@@ -534,9 +535,9 @@ table.kn-table {
     background: var(--kn-line);
     color: var(--kn-muted);
 }
-.kn-status.completed  { background: #E7F4EE; color: var(--kn-success); }
+.kn-status.completed  { background: var(--kn-success-bg); color: var(--kn-success); }
 .kn-status.in_progress { background: var(--kn-blush); color: var(--kn-accent-ink); }
-.kn-status.en_route   { background: #E7ECFB; color: var(--kn-accent-ink); }
+.kn-status.en_route   { background: var(--kn-royal-soft); color: var(--kn-accent-ink); }
 
 /* Page de connexion centrée */
 .kn-login-wrap {
@@ -656,8 +657,8 @@ table.kn-table {
     background: var(--kn-blush);
 }
 .kn-cal-pill:hover { filter: brightness(0.96); }
-.kn-pill-onsite   { background: var(--kn-blush);  color: var(--kn-accent-ink); }
-.kn-pill-workshop { background: #E7ECFB;          color: var(--kn-accent-ink); }
+.kn-pill-onsite   { background: var(--kn-blush);      color: var(--kn-accent-ink); }
+.kn-pill-workshop { background: var(--kn-royal-soft);  color: var(--kn-accent-ink); }
 .kn-cal-time { font-variant-numeric: tabular-nums; font-weight: 700; }
 .kn-cal-pill-body {
     min-width: 0;

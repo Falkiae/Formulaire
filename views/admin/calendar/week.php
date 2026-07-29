@@ -9,7 +9,7 @@ $data['base_path'] = '/admin/calendrier/semaine';
 $initials = static fn (string $first, string $last): string =>
     mb_strtoupper(mb_substr($first, 0, 1) . mb_substr($last, 0, 1));
 $avatarColor = static fn (int $techId): string =>
-    ['#F7D7E2', '#E7ECFB', '#D8F0DF', '#FCE8C8', '#E4D9F7', '#D6EFF3'][$techId % 6];
+    ['#EFC6CB', '#E5E9FB', '#E4EFE7', '#F6EDD8', '#DDE3EF', '#E4AEB7'][$techId % 6];
 $techById = [];
 foreach ($data['technicians'] as $t) {
     $techById[(int) $t['id']] = $t;

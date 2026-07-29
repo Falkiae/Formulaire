@@ -64,7 +64,7 @@ $channelLabels = ['email' => 'Email', 'sms' => 'SMS'];
                             <?php endif; ?>
                             <div class="kn-field">
                                 <label>Corps du message</label>
-                                <textarea name="<?= $prefix ?>body" rows="4" style="width:100%;padding:8px;border:1px solid var(--kn-line);border-radius:8px;font:inherit;"><?= $e($tpl['body']) ?></textarea>
+                                <textarea name="<?= $prefix ?>body" rows="4" style="width:100%;padding:8px;border:1px solid var(--kn-line);border-radius:4px;font:inherit;"><?= $e($tpl['body']) ?></textarea>
                             </div>
                             <div class="kn-field" style="max-width:220px;">
                                 <label>Délai (minutes, négatif = avant le RDV)</label>

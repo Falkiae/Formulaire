@@ -15,7 +15,7 @@ $isStart = $data['last_punch'] !== 'start';
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <meta name="theme-color" content="#586FF3">
+    <meta name="theme-color" content="#4A63E7">
     <title><?= $e($j['reference']) ?> — Keepnew</title>
     <link rel="manifest" href="/tech.webmanifest">
     <link rel="stylesheet" href="/assets/design-tokens.css">
@@ -24,7 +24,7 @@ $isStart = $data['last_punch'] !== 'start';
         body { max-width: 520px; margin: 0 auto; padding-bottom: 40px; }
         .kn-wrap2 { padding: 16px; }
         .kn-big { width:100%; min-height:64px; font-size:1.1rem; }
-        canvas { border:1px solid var(--kn-line); border-radius:8px; width:100%; height:160px; touch-action:none; background:#fff; }
+        canvas { border:1px solid var(--kn-line); border-radius:var(--kn-radius-control); width:100%; height:160px; touch-action:none; background:var(--kn-surface); }
         .kn-row2 { display:flex; gap:8px; }
         .kn-row2 > * { flex:1; }
     </style>
@@ -92,7 +92,7 @@ $isStart = $data['last_punch'] !== 'start';
             </div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
                 <?php foreach ($data['photos'] as $ph): ?>
-                    <img src="/tech/photo/<?= (int) $ph['id'] ?>" alt="<?= $e($ph['kind']) ?>" width="72" height="72" style="object-fit:cover;border-radius:8px;">
+                    <img src="/tech/photo/<?= (int) $ph['id'] ?>" alt="<?= $e($ph['kind']) ?>" width="72" height="72" style="object-fit:cover;border-radius:4px;">
                 <?php endforeach; ?>
             </div>
         </section>
@@ -145,7 +145,7 @@ $isStart = $data['last_punch'] !== 'start';
         (function () {
             var c = document.getElementById("sig"); if (!c) return;
             var ctx = c.getContext("2d"); var drawing = false;
-            function resize() { c.width = c.offsetWidth; c.height = 160; ctx.lineWidth = 2; ctx.lineCap = "round"; ctx.strokeStyle = "#141A2E"; }
+            function resize() { c.width = c.offsetWidth; c.height = 160; ctx.lineWidth = 2; ctx.lineCap = "round"; ctx.strokeStyle = "#1B2A4A"; }
             resize();
             function pos(e) { var r = c.getBoundingClientRect(); var t = e.touches ? e.touches[0] : e; return { x: t.clientX - r.left, y: t.clientY - r.top }; }
             function start(e) { drawing = true; var p = pos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); e.preventDefault(); }

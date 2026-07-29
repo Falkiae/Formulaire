@@ -185,7 +185,7 @@ $title = $data['items'] !== []
             <?= $data['csrf'] ?>
             <input type="hidden" name="customer_id" value="<?= (int) $j['customer_id'] ?>">
             <div class="kn-field">
-                <textarea name="body" rows="3" style="width:100%;padding:8px;border:1px solid var(--kn-line);border-radius:8px;resize:vertical;"></textarea>
+                <textarea name="body" rows="3" style="width:100%;padding:8px;border:1px solid var(--kn-line);border-radius:4px;resize:vertical;"></textarea>
             </div>
             <button type="submit" class="kn-btn kn-btn-ghost">Ajouter la note</button>
         </form>

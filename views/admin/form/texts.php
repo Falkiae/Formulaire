@@ -165,7 +165,7 @@ $fieldMeta = [
                                     <label for="<?= $step ?>__<?= $key ?>"><?= $e($label) ?></label>
                                     <?php if ($type === 'textarea'): ?>
                                         <textarea id="<?= $step ?>__<?= $key ?>" name="<?= $step ?>__<?= $key ?>" rows="2"
-                                                  style="width:100%;padding:8px;border:1px solid var(--kn-line);border-radius:8px;font:inherit;"><?= $e($texts[$step][$key] ?? '') ?></textarea>
+                                                  style="width:100%;padding:8px;border:1px solid var(--kn-line);border-radius:4px;font:inherit;"><?= $e($texts[$step][$key] ?? '') ?></textarea>
                                     <?php else: ?>
                                         <input type="text" id="<?= $step ?>__<?= $key ?>" name="<?= $step ?>__<?= $key ?>"
                                                value="<?= $e($texts[$step][$key] ?? '') ?>" style="width:100%;">

@@ -1500,12 +1500,13 @@
       // La barre de progression et le bouton panier sont donc en
       // position:fixed, ancrés au vrai viewport, indépendants de tout calcul
       // de hauteur — .kn lui-même n'est plus qu'un conteneur en flux normal.
-      ".kn{--a:#586FF3;--ai:#3A4BC0;--blush:#F7D7E2;--ink:#141A2E;--muted:#5C6479;--paper:#FBFBFD;--surface:#fff;--line:#E4E6EF;--ok:#1D7A54;--alert:#B4322D;" +
-      "font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-size:16px;line-height:1.6;color:var(--ink);background:var(--paper);" +
+      "@import url('https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..700;1,6..96,400..700&family=Jost:ital,wght@0,300..700;1,400&display=swap');" +
+      ".kn{--a:#4A63E7;--ai:#3B50C9;--blush:#EFC6CB;--royal-soft:#E5E9FB;--ink:#1B2A4A;--muted:#6E7891;--paper:#F7F4EC;--surface:#fff;--line:#E4DECF;--ok:#3E7C4F;--alert:#B3453E;" +
+      "font-family:'Jost','Century Gothic',Futura,system-ui,sans-serif;font-size:16px;line-height:1.55;color:var(--ink);background:var(--paper);" +
       "display:block;width:100%;min-height:100vh;margin:0;position:relative}" +
       "@supports (height:100dvh){.kn{min-height:100dvh}}" +
       ".kn *{box-sizing:border-box}" +
-      ".kn-h{font-size:1.5rem;margin:8px 0 16px}.kn-h3{font-size:1.05rem;margin:16px 0 8px}" +
+      ".kn-h{font-family:'Bodoni Moda',Didot,serif;font-weight:600;font-size:1.6rem;margin:8px 0 16px}.kn-h3{font-family:'Bodoni Moda',Didot,serif;font-weight:600;font-size:1.15rem;margin:16px 0 8px}" +
       ".kn-muted{color:var(--muted);font-size:.875rem}" +
       // Barre de progression : fixe en haut du vrai viewport (jamais dans le
       // flux du défilement de page), fond opaque pour ne rien laisser passer
@@ -1531,39 +1532,39 @@
       ".kn-postal-wrap{display:flex;flex-direction:column;gap:8px;margin-top:4px}" +
       ".kn-postal-wrap[hidden]{display:none}" +
       ".kn-cards{display:grid;gap:12px;margin:12px 0}.kn-cards-sm{grid-template-columns:repeat(auto-fill,minmax(120px,1fr))}" +
-      ".kn-card{display:flex;flex-direction:row;align-items:center;gap:14px;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;min-height:48px;cursor:pointer;font:inherit;color:inherit}" +
+      ".kn-card{display:flex;flex-direction:row;align-items:center;gap:14px;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:14px;min-height:48px;cursor:pointer;font:inherit;color:inherit}" +
       ".kn-card.on{border-color:var(--a);box-shadow:0 0 0 2px var(--a) inset}" +
       ".kn-card-media{flex:0 0 auto;display:flex;align-items:center;justify-content:center}" +
-      ".kn-card-img{width:64px;height:64px;object-fit:cover;border-radius:10px;display:block}" +
+      ".kn-card-img{width:64px;height:64px;object-fit:cover;border-radius:4px;display:block}" +
       ".kn-card-body{display:flex;flex-direction:column;gap:2px;min-width:0}" +
       ".kn-card-icon{font-size:1.6rem;width:44px;text-align:center}.kn-card-title{font-weight:700}.kn-card-desc{color:var(--muted);font-size:.85rem}" +
-      ".kn-extra-img{width:48px;height:48px;object-fit:cover;border-radius:8px;flex:0 0 auto}.kn-extra-txt{flex:1;min-width:0}" +
+      ".kn-extra-img{width:48px;height:48px;object-fit:cover;border-radius:4px;flex:0 0 auto}.kn-extra-txt{flex:1;min-width:0}" +
       ".kn-field{margin:12px 0}.kn-field label{display:block;font-size:.85rem;color:var(--muted);margin-bottom:4px}" +
-      ".kn input[type=text],.kn input[type=email],.kn input[type=tel],.kn input:not([type]){width:100%;min-height:48px;padding:0 12px;font-size:16px;font-family:inherit;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink)}" +
+      ".kn input[type=text],.kn input[type=email],.kn input[type=tel],.kn input:not([type]){width:100%;min-height:48px;padding:0 12px;font-size:16px;font-family:inherit;border:1px solid var(--line);border-radius:4px;background:var(--surface);color:var(--ink)}" +
       ".kn input:focus{outline:2px solid var(--a);outline-offset:2px}" +
       ".kn-extras{display:flex;flex-direction:column;gap:8px}" +
-      ".kn-extra{display:flex;justify-content:space-between;align-items:center;gap:12px;border:1px solid var(--line);border-radius:8px;padding:12px;min-height:48px;cursor:pointer}" +
+      ".kn-extra{display:flex;justify-content:space-between;align-items:center;gap:12px;border:1px solid var(--line);border-radius:4px;padding:12px;min-height:48px;cursor:pointer}" +
       ".kn-extra input{width:22px;height:22px}" +
       ".kn-choice-row{display:flex;gap:8px;flex-wrap:wrap}" +
-      ".kn-chip{min-height:48px;padding:0 20px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:inherit;font:inherit;cursor:pointer}" +
+      ".kn-chip{min-height:48px;padding:0 20px;border:1px solid var(--line);border-radius:4px;background:var(--surface);color:inherit;font:inherit;cursor:pointer}" +
       ".kn-chip.on{border-color:var(--a);background:var(--a);color:#fff}" +
       ".kn-live{margin:16px 0;text-align:center}.kn-live-price{font-size:2rem;font-weight:700;font-variant-numeric:tabular-nums}" +
       ".kn-actions{display:flex;flex-direction:column;gap:8px;margin:16px 0}" +
-      ".kn-btn{min-height:48px;padding:0 24px;border-radius:8px;font:inherit;font-weight:700;border:1px solid transparent;cursor:pointer}" +
+      ".kn-btn{min-height:48px;padding:0 24px;border-radius:4px;font:inherit;font-weight:600;border:1px solid transparent;cursor:pointer;text-transform:uppercase;letter-spacing:.04em}" +
       ".kn-btn-primary{background:var(--a);color:#fff}.kn-btn-primary:hover{background:var(--ai)}" +
       ".kn-btn-ghost{background:transparent;color:var(--ai);border-color:var(--line)}" +
       ".kn-link{background:none;border:0;color:var(--ai);text-decoration:underline;cursor:pointer;font:inherit;padding:4px 0}" +
       ".kn-back{background:none;border:0;color:var(--muted);cursor:pointer;font:inherit;margin-top:8px}" +
       ".kn-badge{display:inline-block;font-size:.72rem;background:var(--blush);color:var(--ai);border-radius:20px;padding:1px 8px}" +
-      ".kn-reassure{background:#F1F4FF;border-left:3px solid var(--a);padding:8px 12px;border-radius:0 8px 8px 0;font-size:.875rem;color:var(--ai)}" +
-      ".kn-alert{background:#FBEAE9;color:var(--alert);padding:12px;border-radius:8px}" +
-      ".kn-ticket{font-variant-numeric:tabular-nums;border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--surface)}" +
+      ".kn-reassure{background:var(--royal-soft);border-left:3px solid var(--a);padding:8px 12px;border-radius:0 4px 4px 0;font-size:.875rem;color:var(--ai)}" +
+      ".kn-alert{background:#F7E4E2;color:var(--alert);padding:12px;border-radius:4px}" +
+      ".kn-ticket{font-variant-numeric:tabular-nums;border:1px solid var(--line);border-radius:6px;padding:12px;background:var(--surface)}" +
       ".kn-line{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px dashed var(--line)}" +
       ".kn-line-r{display:flex;flex-direction:column;align-items:flex-end;gap:4px}" +
       ".kn-total{border-bottom:0;border-top:2px solid var(--ink);font-weight:700;font-size:1.15rem;margin-top:4px}" +
       ".kn-ok{color:var(--ok)}" +
       ".kn-dates{display:flex;gap:8px;overflow-x:auto;padding-bottom:8px}" +
-      ".kn-date{white-space:nowrap;min-height:44px;padding:0 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface);font:inherit;cursor:pointer}" +
+      ".kn-date{white-space:nowrap;min-height:44px;padding:0 12px;border:1px solid var(--line);border-radius:4px;background:var(--surface);font:inherit;cursor:pointer}" +
       ".kn-date.on{border-color:var(--a);color:var(--a);font-weight:700}" +
       // Hauteur plafonnée + défilement interne : une journée avec beaucoup de
       // créneaux libres reste scannable sans faire défiler toute la page (le
@@ -1571,7 +1572,7 @@
       ".kn-slot-list{display:grid;gap:8px;margin-top:8px;max-height:min(50vh,420px);overflow-y:auto;padding-right:2px}" +
       ".kn-slot-heading{font-size:.78rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;margin:8px 0 2px}" +
       ".kn-slot-heading:first-child{margin-top:0}" +
-      ".kn-slot{min-height:48px;border:1px solid var(--line);border-radius:8px;background:var(--surface);font:inherit;cursor:pointer}" +
+      ".kn-slot{min-height:48px;border:1px solid var(--line);border-radius:4px;background:var(--surface);font:inherit;cursor:pointer}" +
       ".kn-slot.on{border-color:var(--a);background:var(--a);color:#fff}" +
       // Barre panier : fixe en bas du vrai viewport, ancrée indépendamment de
       // tout calcul de hauteur (voir note .kn-scroller ci-dessus). pointer-
@@ -1581,9 +1582,9 @@
       // dynamique de Safari iOS, qu'env(safe-area-inset-bottom) ne couvre pas.
       ".kn-quotebar-slot{position:fixed;left:0;right:0;bottom:var(--kn-vv-bottom,0px);z-index:20;padding:8px 16px max(8px,env(safe-area-inset-bottom));pointer-events:none}" +
       ".kn-quotebar-slot:empty{display:none}" +
-      ".kn-quotebar{pointer-events:auto;width:100%;max-width:560px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;min-height:56px;padding:0 16px;background:var(--ink);color:#fff;border:0;border-radius:12px;font:inherit;cursor:pointer;box-shadow:0 4px 16px rgba(20,26,46,.25)}" +
+      ".kn-quotebar{pointer-events:auto;width:100%;max-width:560px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;min-height:56px;padding:0 16px;background:var(--ink);color:#fff;border:0;border-radius:6px;font:inherit;cursor:pointer;box-shadow:0 4px 16px rgba(27,42,74,.25)}" +
       ".kn-quotebar-total{font-weight:700;font-size:1.15rem;font-variant-numeric:tabular-nums}" +
-      ".kn-flash{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:12px 20px;border-radius:8px;z-index:9999}" +
+      ".kn-flash{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:12px 20px;border-radius:4px;z-index:9999}" +
       ".kn-done{text-align:center;padding:24px 0}.kn-done-mark{width:64px;height:64px;line-height:64px;border-radius:50%;background:var(--ok);color:#fff;font-size:2rem;margin:0 auto 16px}" +
       "@media(prefers-reduced-motion:reduce){.kn *{scroll-behavior:auto!important}}"
     );
