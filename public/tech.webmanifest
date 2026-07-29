@@ -5,8 +5,8 @@
   "start_url": "/tech",
   "scope": "/tech",
   "display": "standalone",
-  "background_color": "#FBFBFD",
-  "theme_color": "#586FF3",
+  "background_color": "#F7F4EC",
+  "theme_color": "#4A63E7",
   "lang": "fr",
   "icons": [
     {

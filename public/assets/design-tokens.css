@@ -1,25 +1,39 @@
 /* =============================================================================
    Keepnew — design tokens
-   Mode clair d'abord, mode sombre optionnel. Un seul accent, jamais deux.
-   Référence : direction UX/UI du cahier des charges (§11).
+   Direction artistique 2026 : « majordome » — vintage, classique, luxe.
+   Navy / crème / rose poudré / bleu royal. Un seul accent d'action (royal).
+   Référence : skill de design Keepnew (vision board, DA 2026).
    ============================================================================= */
 
+@import url('https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..700;1,6..96,400..700&family=Jost:ital,wght@0,300..700;1,400&family=Great+Vibes&display=swap');
+
 :root {
-    /* Couleur — un accent unique */
-    --kn-accent: #586FF3;       /* action primaire, sélection, focus */
-    --kn-accent-ink: #3A4BC0;   /* texte accentué sur fond clair, hover */
-    --kn-blush: #F7D7E2;        /* surface et badges UNIQUEMENT, jamais sous du texte */
-    --kn-ink: #141A2E;          /* texte principal (encre bleutée, pas de noir pur) */
-    --kn-muted: #5C6479;        /* texte secondaire, contraste >= 4.5:1 vérifié */
-    --kn-paper: #FBFBFD;        /* fond de page, blanc légèrement froid */
+    /* Couleur — accent d'action unique (bleu royal) */
+    --kn-accent: #4A63E7;       /* action primaire, sélection, focus */
+    --kn-accent-ink: #3B50C9;   /* texte accentué sur fond clair, hover */
+    --kn-blush: #EFC6CB;        /* rose poudré vintage — surface et badges UNIQUEMENT, jamais sous du texte */
+    --kn-ink: #1B2A4A;          /* texte principal (navy profond, pas de noir pur) */
+    --kn-muted: #6E7891;        /* texte secondaire, contraste >= 4.5:1 vérifié */
+    --kn-paper: #F7F4EC;        /* fond de page — crème, jamais blanc pur */
     --kn-surface: #FFFFFF;      /* cartes */
-    --kn-line: #E4E6EF;         /* filets 1 px */
-    --kn-success: #1D7A54;      /* confirmation, remise obtenue */
-    --kn-alert: #B4322D;        /* erreur */
+    --kn-surface-raised: #FDFCF8;
+    --kn-line: #E4DECF;         /* filets 1 px, ton crème */
+    --kn-line-strong: #C9C2AF;
+    --kn-success: #3E7C4F;      /* confirmation, remise obtenue */
+    --kn-alert: #B3453E;        /* erreur */
+    --kn-gold: #B0821F;         /* statut intermédiaire (en attente) */
+
+    /* Surfaces inverses (navy) */
+    --kn-inverse: #24355C;
+    --kn-inverse-deep: #1B2A4A;
+    --kn-on-inverse: #F7F4EC;
+    --kn-on-inverse-muted: #9AA7C4;
 
     /* Typographie */
-    --kn-font-body: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
-    --kn-font-display: "Familjen Grotesk", var(--kn-font-body);
+    --kn-font-body: "Jost", "Century Gothic", Futura, system-ui, sans-serif;
+    --kn-font-display: "Bodoni Moda", Didot, "Bodoni MT", serif;
+    --kn-font-script: "Great Vibes", cursive;
+    --kn-tracking-caps: .16em;
 
     /* Échelle : 32 / 24 / 18 / 16 / 14 — corps >= 16, jamais < 14 */
     --kn-fs-1: 2rem;      /* 32 */
@@ -37,25 +51,32 @@
     --kn-space-5: 24px;
     --kn-space-6: 32px;
 
-    /* Rayons */
-    --kn-radius-control: 8px;
-    --kn-radius-card: 12px;
-    --kn-radius-pill: 20px;
+    /* Rayons — quasi carrés, esprit classique. Pilule réservée aux badges/tags. */
+    --kn-radius-control: 3px;
+    --kn-radius-card: 6px;
+    --kn-radius-pill: 999px;
+
+    /* Ombres — douces, teintées navy. Jamais d'ombre dure. */
+    --kn-shadow-card: 0 1px 2px rgba(27,42,74,.06), 0 8px 24px rgba(27,42,74,.08);
+    --kn-shadow-raised: 0 2px 6px rgba(27,42,74,.10), 0 16px 40px rgba(27,42,74,.14);
 
     /* Cibles tactiles */
     --kn-touch: 48px;
 }
 
-/* Mode sombre optionnel — surfaces plates, mêmes principes */
+/* Mode sombre optionnel — surfaces navy plates, mêmes principes */
 @media (prefers-color-scheme: dark) {
     :root {
-        --kn-ink: #EEF0F7;
-        --kn-muted: #A2A9BD;
-        --kn-paper: #12141C;
-        --kn-surface: #1A1D28;
-        --kn-line: #2A2E3D;
-        --kn-accent: #7E90F6;
-        --kn-accent-ink: #A9B6F9;
+        --kn-ink: #EEF0F2;
+        --kn-muted: #A8B0C4;
+        --kn-paper: #141F38;
+        --kn-surface: #1B2A4A;
+        --kn-surface-raised: #24355C;
+        --kn-line: #33456C;
+        --kn-line-strong: #46598A;
+        --kn-accent: #96A5F0;
+        --kn-accent-ink: #C2CBF7;
+        --kn-blush: #E4AEB7;
     }
 }
 

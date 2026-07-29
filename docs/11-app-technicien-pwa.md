@@ -39,7 +39,7 @@ secrétariat social : `GET /admin/mobilite?month=YYYY-MM`.
   couleurs de marque, icône SVG maskable.
 - `public/tech-sw.js` — service worker : coquille statique en cache-first,
   données en réseau-first (pas de planning périmé sur le terrain).
-- Installable sur l'écran d'accueil, plein écran, thème `#586FF3`.
+- Installable sur l'écran d'accueil, plein écran, thème `#4A63E7`.
 
 ## Validation réelle (MariaDB 10.11 + PHP 8.4 + navigateur)
 
@@ -50,7 +50,7 @@ secrétariat social : `GET /admin/mobilite?month=YYYY-MM`.
 - Encaissement espèces → `payments` `paid` 95,59 €, `collected_by`, commande
   `payment_status=paid`.
 - PWA : manifest servi (`application/manifest+json`), service worker et icône OK,
-  `<link rel=manifest>` présent, `theme-color` `#586FF3`.
+  `<link rel=manifest>` présent, `theme-color` `#4A63E7`.
 
 ## Ce que la Phase 10 laisse aux phases suivantes
 

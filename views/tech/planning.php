@@ -10,7 +10,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <meta name="theme-color" content="#586FF3">
+    <meta name="theme-color" content="#4A63E7">
     <title>Ma journée — Keepnew</title>
     <link rel="manifest" href="/tech.webmanifest">
     <link rel="stylesheet" href="/assets/design-tokens.css">
@@ -18,11 +18,11 @@
     <style>
         body { max-width: 520px; margin: 0 auto; }
         .kn-tech-head { display:flex; justify-content:space-between; align-items:center; padding: var(--kn-space-4); }
-        .kn-jobcard { display:block; text-decoration:none; color:inherit; background:var(--kn-surface); border:1px solid var(--kn-line); border-radius:12px; padding:16px; margin:0 var(--kn-space-4) var(--kn-space-3); }
-        .kn-jobcard .t { font-variant-numeric:tabular-nums; font-weight:700; color:var(--kn-accent-ink); }
-        .kn-status { font-size:.75rem; padding:2px 8px; border-radius:20px; background:var(--kn-line); }
-        .kn-status.completed { background:#E7F4EE; color:var(--kn-success); }
-        .kn-status.in_progress { background:var(--kn-blush); color:var(--kn-accent-ink); }
+        .kn-jobcard { display:block; text-decoration:none; color:inherit; background:var(--kn-surface); border:1px solid var(--kn-line); border-radius:var(--kn-radius-card); box-shadow:var(--kn-shadow-card); padding:16px; margin:0 var(--kn-space-4) var(--kn-space-3); }
+        .kn-jobcard .t { font-variant-numeric:tabular-nums; font-weight:600; color:var(--kn-accent-ink); }
+        .kn-status { font-size:.75rem; font-weight:500; letter-spacing:.02em; padding:2px 10px; border-radius:var(--kn-radius-pill); background:var(--kn-line); }
+        .kn-status.completed { background:#E4EFE7; color:var(--kn-success); }
+        .kn-status.in_progress { background:var(--kn-blush); color:var(--kn-inverse-deep); }
     </style>
 </head>
 <body>

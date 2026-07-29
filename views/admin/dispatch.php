@@ -19,7 +19,7 @@ $jobCard = static function (array $j, callable $e): string {
     $badge = $j['mode'] === 'onsite' ? 'kn-badge-onsite' : 'kn-badge-workshop';
     $travel = '';
     if ($j['travel_in_min']) {
-        $travel = '<span class="kn-muted">🚗 ' . (int) $j['travel_in_min'] . ' min</span>';
+        $travel = '<span class="kn-muted">' . (int) $j['travel_in_min'] . ' min de trajet</span>';
     }
     return '<div class="kn-job" draggable="true" data-id="' . (int) $j['id'] . '">'
         . '<div class="kn-job-time">' . $e($j['start_local'] ?? '—') . '–' . $e($j['end_local'] ?? '') . ' ' . $travel . '</div>'
@@ -40,10 +40,10 @@ $jobCard = static function (array $j, callable $e): string {
     <link rel="stylesheet" href="/assets/admin.css">
     <style>
         .kn-dispatch { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 16px; }
-        .kn-col { min-width: 240px; flex: 0 0 240px; background: var(--kn-surface); border: 1px solid var(--kn-line); border-radius: 12px; padding: 8px; }
+        .kn-col { min-width: 240px; flex: 0 0 240px; background: var(--kn-surface); border: 1px solid var(--kn-line); border-radius: var(--kn-radius-card); box-shadow: var(--kn-shadow-card); padding: 8px; }
         .kn-col h3 { margin: 4px 8px 8px; font-size: 1rem; }
         .kn-col.drag-over { outline: 2px dashed var(--kn-accent); }
-        .kn-job { background: var(--kn-paper); border: 1px solid var(--kn-line); border-radius: 8px; padding: 8px; margin-bottom: 8px; cursor: grab; }
+        .kn-job { background: var(--kn-paper); border: 1px solid var(--kn-line); border-radius: var(--kn-radius-control); padding: 8px; margin-bottom: 8px; cursor: grab; }
         .kn-job-time { font-variant-numeric: tabular-nums; font-size: .85rem; color: var(--kn-accent-ink); }
         .kn-daynav { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
     </style>

@@ -17,8 +17,8 @@ $t = $data['totals'];
     <link rel="stylesheet" href="/assets/admin.css">
     <style>
         .kn-kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; }
-        .kn-kpi { background:var(--kn-surface); border:1px solid var(--kn-line); border-radius:12px; padding:16px; }
-        .kn-kpi .v { font-size:1.6rem; font-weight:700; font-variant-numeric:tabular-nums; }
+        .kn-kpi { background:var(--kn-surface); border:1px solid var(--kn-line); border-radius:var(--kn-radius-card); box-shadow:var(--kn-shadow-card); padding:16px; }
+        .kn-kpi .v { font-family:var(--kn-font-display); font-size:1.6rem; font-weight:600; font-variant-numeric:tabular-nums; }
         .kn-kpi .l { color:var(--kn-muted); font-size:.85rem; }
     </style>
 </head>
