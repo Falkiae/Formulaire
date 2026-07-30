@@ -644,9 +644,27 @@
                 state.serviceId = svc.id;
                 state.variantId = null;
                 state.extraIds = [];
-                setTimeout(function () {
-                  goto("details");
-                }, 300);
+                state._serviceConfig = null;
+                api("/services/" + svc.id)
+                  .then(function (cfg) {
+                    state._serviceConfig = cfg;
+                    setTimeout(function () {
+                      if (cfg.variants.length === 0 && cfg.extras.length === 0) {
+                        // Rien à configurer : on ajoute directement au panier,
+                        // l'étape Détails n'apparaît jamais pour ce produit.
+                        addToCart();
+                      } else {
+                        goto("details");
+                      }
+                    }, 300);
+                  })
+                  .catch(function () {
+                    // Filet de sécurité réseau : comportement normal,
+                    // renderDetails() gère elle-même son propre chargement/erreur.
+                    setTimeout(function () {
+                      goto("details");
+                    }, 300);
+                  });
               }, false, imgUrl(svc.image_path), svc.badge_label)
             );
           });
