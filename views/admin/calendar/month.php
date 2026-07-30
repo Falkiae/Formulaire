@@ -26,18 +26,19 @@ foreach ($data['technicians'] as $t) {
     <link rel="stylesheet" href="/assets/vendor/leaflet/leaflet.css">
 </head>
 <body>
-    <?php include dirname(__DIR__) . '/_nav.php'; ?>
+    <?php
+    $_knTabLinks = [
+        '/admin/dispatch'           => $data['day_link'],
+        '/admin/calendrier/semaine' => '/admin/calendrier/semaine?date=' . $data['week_of'] . $qs,
+    ];
+    include dirname(__DIR__) . '/_nav.php';
+    ?>
 
     <main class="kn-wrap" style="max-width:100%;">
         <div class="kn-daynav">
             <a class="kn-btn kn-btn-ghost kn-btn-sm" href="/admin/calendrier?date=<?= $e($data['prev']) . $qs ?>">← Mois précédent</a>
             <h1 style="margin:0;font-size:var(--kn-fs-2);text-transform:capitalize;"><?= $e($data['label']) ?></h1>
             <a class="kn-btn kn-btn-ghost kn-btn-sm" href="/admin/calendrier?date=<?= $e($data['next']) . $qs ?>">Mois suivant →</a>
-            <div class="kn-cal-toggle">
-                <a class="kn-btn kn-btn-ghost kn-btn-sm" href="<?= $e($data['day_link']) ?>">Jour</a>
-                <a class="kn-btn kn-btn-ghost kn-btn-sm" href="/admin/calendrier/semaine?date=<?= $e($data['week_of']) . $qs ?>">Semaine</a>
-                <span class="kn-badge kn-badge-onsite">Mois</span>
-            </div>
         </div>
 
         <div class="kn-cal-layout">

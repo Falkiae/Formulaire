@@ -63,18 +63,20 @@ $summary = $data['summary'];
     <link rel="stylesheet" href="/assets/vendor/leaflet/leaflet.css">
 </head>
 <body>
-    <?php include __DIR__ . '/_nav.php'; ?>
+    <?php
+    // Sous-onglets Planning conscients de la période et des filtres affichés.
+    $_knTabLinks = [
+        '/admin/calendrier/semaine' => '/admin/calendrier/semaine?date=' . $data['week_of'] . $qs,
+        '/admin/calendrier'         => '/admin/calendrier?date=' . $data['month_of'] . $qs,
+    ];
+    include __DIR__ . '/_nav.php';
+    ?>
 
     <main class="kn-wrap" style="max-width:100%;">
         <div class="kn-daynav">
             <a class="kn-btn kn-btn-ghost kn-btn-sm" href="/admin/dispatch?date=<?= $e($data['prev']) . $qs ?>">← Jour précédent</a>
             <h1 style="margin:0;font-size:var(--kn-fs-2);"><?= $e($data['date']) ?></h1>
             <a class="kn-btn kn-btn-ghost kn-btn-sm" href="/admin/dispatch?date=<?= $e($data['next']) . $qs ?>">Jour suivant →</a>
-            <div class="kn-cal-toggle">
-                <span class="kn-badge kn-badge-onsite">Jour</span>
-                <a class="kn-btn kn-btn-ghost kn-btn-sm" href="/admin/calendrier/semaine?date=<?= $e($data['week_of']) . $qs ?>">Semaine</a>
-                <a class="kn-btn kn-btn-ghost kn-btn-sm" href="/admin/calendrier?date=<?= $e($data['month_of']) . $qs ?>">Mois</a>
-            </div>
         </div>
 
         <div class="kn-cal-layout">

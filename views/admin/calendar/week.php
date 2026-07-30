@@ -32,18 +32,19 @@ $serviceLabel = static function (string $services): string {
     <link rel="stylesheet" href="/assets/vendor/leaflet/leaflet.css">
 </head>
 <body>
-    <?php include dirname(__DIR__) . '/_nav.php'; ?>
+    <?php
+    $_knTabLinks = [
+        '/admin/dispatch'   => $data['day_link'],
+        '/admin/calendrier' => '/admin/calendrier?date=' . $data['month_of'] . $qs,
+    ];
+    include dirname(__DIR__) . '/_nav.php';
+    ?>
 
     <main class="kn-wrap" style="max-width:100%;">
         <div class="kn-daynav">
             <a class="kn-btn kn-btn-ghost kn-btn-sm" href="/admin/calendrier/semaine?date=<?= $e($data['prev']) . $qs ?>">← Semaine préc.</a>
             <h1 style="margin:0;font-size:var(--kn-fs-2);"><?= $e($data['label']) ?></h1>
             <a class="kn-btn kn-btn-ghost kn-btn-sm" href="/admin/calendrier/semaine?date=<?= $e($data['next']) . $qs ?>">Semaine suiv. →</a>
-            <div class="kn-cal-toggle">
-                <a class="kn-btn kn-btn-ghost kn-btn-sm" href="<?= $e($data['day_link']) ?>">Jour</a>
-                <span class="kn-badge kn-badge-onsite">Semaine</span>
-                <a class="kn-btn kn-btn-ghost kn-btn-sm" href="/admin/calendrier?date=<?= $e($data['month_of']) . $qs ?>">Mois</a>
-            </div>
         </div>
 
         <div class="kn-cal-layout">

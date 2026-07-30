@@ -1,6 +1,25 @@
 # Keepnew Booking — Guide d'utilisation du back-office
 
-Accès : `/admin/connexion`. Le menu du haut donne accès à toutes les sections.
+Accès : `/admin/connexion`.
+
+## Navigation
+
+Le menu compte **six entrées**, chacune ouvrant ses propres onglets juste sous
+l'en-tête. Un groupe n'apparaît que si votre rôle donne accès à au moins un de
+ses onglets — un admin voit les six, un dispatcher trois, un comptable trois.
+
+| Entrée | Onglets |
+|---|---|
+| **Planning** | Jour · Semaine · Mois |
+| **Clients** | Liste · Simulateur |
+| **Services** | Catalogue · Extras |
+| **Équipe** | Techniciens · Compétences · Zones · Ateliers |
+| **Finances** | Factures · Rapports |
+| **Réglages** | Général · Formulaire · Textes du tunnel · Notifications · Utilisateurs · Diagnostic |
+
+Sous Planning, changer d'onglet **conserve la période et les filtres affichés** :
+depuis la semaine du 3 août filtrée sur un technicien, « Mois » ouvre août avec
+le même filtre, pas le mois courant.
 
 ## Catalogue (`/admin/catalogue`)
 

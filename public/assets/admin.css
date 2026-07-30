@@ -144,6 +144,63 @@ img { max-width: 100%; }
     }
 }
 
+/* --- Sous-navigation (niveau 2) -------------------------------------------- */
+/* Barre d'onglets du groupe courant, sous l'en-tête. C'est elle qui remplace
+   un menu déroulant : la structure reste lisible et on voit où l'on est.
+   Délibérément NON collante — la caler sous un en-tête lui-même collant
+   imposerait un `top` en pixels, faux dès que la hauteur de l'en-tête change
+   (police, zoom, retour à la ligne). Seul l'en-tête reste collant. */
+.kn-subnav {
+    background: var(--kn-paper);
+    border-bottom: 1px solid var(--kn-line);
+}
+
+/* Défilement horizontal en mobile plutôt qu'un retour à la ligne : la barre
+   garde une hauteur constante quel que soit le nombre d'onglets (six sous
+   Réglages). */
+.kn-subnav-inner {
+    display: flex;
+    gap: var(--kn-space-1);
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: var(--kn-space-2) var(--kn-space-4);
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+.kn-subnav-inner::-webkit-scrollbar { display: none; }
+
+.kn-subnav a {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    min-height: 36px;
+    padding: 0 var(--kn-space-3);
+    text-decoration: none;
+    white-space: nowrap;
+    color: var(--kn-muted);
+    font-size: var(--kn-fs-small);
+    font-weight: 500;
+    border-radius: var(--kn-radius-pill);
+    transition: background 0.12s, color 0.12s;
+}
+.kn-subnav a:hover {
+    background: var(--kn-surface);
+    color: var(--kn-ink);
+}
+.kn-subnav a[aria-current="page"] {
+    background: var(--kn-surface);
+    color: var(--kn-accent-ink);
+    font-weight: 600;
+    box-shadow: inset 0 0 0 1px var(--kn-line);
+}
+
+/* Groupe courant dans l'en-tête : marqué sans la pastille pleine réservée à
+   l'onglet actif de niveau 2, pour ne pas signaler deux « pages courantes ». */
+.kn-nav a[aria-current="true"] {
+    color: var(--kn-accent-ink);
+    font-weight: 600;
+}
+
 /* --- Layout ---------------------------------------------------------------- */
 .kn-wrap {
     max-width: 1100px;
@@ -554,12 +611,6 @@ table.kn-table {
 .kn-login-box h1 { margin-bottom: 4px; }
 
 /* --- Calendrier (mensuel / hebdomadaire) ----------------------------------- */
-.kn-cal-toggle {
-    display: flex;
-    align-items: center;
-    gap: var(--kn-space-2);
-    margin-left: auto;
-}
 
 /* Mise en page à deux colonnes : sidebar de filtres + grille. Empilée sous 768px. */
 .kn-cal-layout {
@@ -680,7 +731,6 @@ table.kn-table {
 @media (max-width: 560px) {
     .kn-cal-cell { min-height: 60px; }
     .kn-cal-pill { font-size: 0.65rem; padding: 1px 3px; }
-    .kn-cal-toggle { margin-left: 0; }
 }
 
 /* Grille hebdomadaire : colonnes responsives (1 → 7). */
