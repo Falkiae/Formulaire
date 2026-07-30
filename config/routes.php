@@ -14,6 +14,7 @@ use Keepnew\Admin\CalendarController;
 use Keepnew\Admin\CatalogController;
 use Keepnew\Admin\CategoryController;
 use Keepnew\Admin\CustomerController;
+use Keepnew\Admin\DiagnosticController;
 use Keepnew\Admin\DispatchController;
 use Keepnew\Admin\DispatchService;
 use Keepnew\Admin\ExtraController;
@@ -385,6 +386,12 @@ return static function (Router $router, Container $container): void {
         $c->get(Csrf::class),
         $c->get(Database::class),
     ));
+    $container->singleton(DiagnosticController::class, static fn (Container $c): DiagnosticController => new DiagnosticController(
+        $c->get(View::class),
+        $c->get(Session::class),
+        $c->get(Database::class),
+        $c->get(Router::class),
+    ));
     $container->singleton(SettingsController::class, static fn (Container $c): SettingsController => new SettingsController(
         $c->get(View::class),
         $c->get(Session::class),
@@ -508,6 +515,9 @@ return static function (Router $router, Container $container): void {
             // Notifications email/SMS (textes, délais, canaux)
             $r->get('/notifications', [NotificationController::class, 'index']);
             $r->post('/notifications/{id}', [NotificationController::class, 'update'], [CsrfMiddleware::class]);
+
+            // Diagnostic (support) : état du code déployé, routes, comptes tech.
+            $r->get('/diagnostic', [DiagnosticController::class, 'index']);
 
             // Réglages généraux (contact, CGV, délai libre-service client)
             $r->get('/reglages', [SettingsController::class, 'index']);

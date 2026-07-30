@@ -65,6 +65,9 @@ $container->singleton(View::class, static fn (): View => new View($root . '/view
 
 // --- Routeur ----------------------------------------------------------------
 $router = new Router($container);
+// Exposé dans le conteneur pour que la page de diagnostic puisse interroger la
+// table de routage réellement chargée (sans la reconstruire).
+$container->instance(Router::class, $router);
 (require $root . '/config/routes.php')($router, $container);
 
 // --- Kernel -----------------------------------------------------------------
