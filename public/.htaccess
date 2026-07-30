@@ -1,9 +1,13 @@
-# Réécriture : toutes les requêtes (hors fichiers existants) → index.php
+# Réécriture : toutes les requêtes (hors fichiers réels) → index.php.
+# Volontairement PAS de "RewriteCond %{REQUEST_FILENAME} !-d" : un dossier
+# parasite qui apparaîtrait un jour dans public/ (dépôt manuel, ancien
+# déploiement, etc.) ne doit jamais pouvoir intercepter une route de
+# l'application avant le routeur PHP — seuls de vrais fichiers (CSS/JS/
+# uploads) sont servis directement.
 <IfModule mod_rewrite.c>
     RewriteEngine On
     RewriteBase /
     RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteCond %{REQUEST_FILENAME} !-d
     RewriteRule ^ index.php [QSA,L]
 </IfModule>
 
