@@ -172,6 +172,7 @@ final class DiagnosticController
             $htaccess = match (true) {
                 !str_contains($active, 'RewriteRule') => 'présent mais SANS règle de réécriture — les routes ne peuvent pas fonctionner.',
                 str_contains($active, '!-d') => 'ANCIENNE version (règle « !-d » active) : un dossier présent dans public/ peut détourner une route.',
+                !str_contains($active, '-MultiViews') => 'version intermédiaire : il manque « Options -MultiViews », sans quoi Apache peut détourner /tech vers tech.webmanifest.',
                 default => 'à jour',
             };
         }
@@ -183,10 +184,18 @@ final class DiagnosticController
             if (!is_string($entry) || $entry === '.' || $entry === '..') {
                 continue;
             }
+            // Nom exact d'une route → interception directe.
+            // Nom « route.quelquechose » → interception possible par MultiViews
+            // (négociation de contenu), qui est la cause la plus fréquente d'un
+            // 404 Apache sur une seule route.
+            $base = strstr($entry, '.', true);
+            $shadow = in_array($entry, self::ROUTE_PREFIXES, true)
+                || ($base !== false && in_array($base, self::ROUTE_PREFIXES, true));
+
             $entries[] = [
                 'name' => $entry,
                 'type' => is_dir($root . '/public/' . $entry) ? 'dossier' : 'fichier',
-                'shadow' => in_array($entry, self::ROUTE_PREFIXES, true),
+                'shadow' => $shadow,
             ];
         }
 

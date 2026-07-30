@@ -1,3 +1,13 @@
+# Négociation de contenu désactivée. Avec MultiViews (actif par défaut sur
+# certains mutualisés, dont OVH), une requête « /tech » est interceptée par
+# Apache parce que des fichiers « tech.* » existent ici (tech.webmanifest,
+# tech-sw.js) : il tente de servir l'un d'eux au lieu de passer la main au
+# routeur, ce qui produit un « Not Found » du serveur — sur cette route
+# uniquement, ce qui rend le symptôme très déroutant.
+<IfModule mod_negotiation.c>
+    Options -MultiViews
+</IfModule>
+
 # Réécriture : toutes les requêtes (hors fichiers réels) → index.php.
 # Volontairement PAS de "RewriteCond %{REQUEST_FILENAME} !-d" : un dossier
 # parasite qui apparaîtrait un jour dans public/ (dépôt manuel, ancien

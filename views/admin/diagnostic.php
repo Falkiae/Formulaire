@@ -81,10 +81,13 @@ $badge = static function (string $state): string {
             <?php $shadows = array_filter($data['rewrite']['entries'], static fn (array $x): bool => $x['shadow']); ?>
             <?php if ($shadows !== []): ?>
                 <p class="kn-alert kn-alert-error">
-                    <strong>Cause trouvée.</strong> <code>public/</code> contient
+                    <strong>Entrées susceptibles d'intercepter une route :</strong>
                     <?= $e(implode(', ', array_map(static fn (array $x): string => $x['type'] . ' « ' . $x['name'] . ' »', $shadows))) ?>.
-                    Apache sert cette entrée au lieu de passer la main au routeur : l'URL correspondante
-                    renvoie « Not Found ». Supprimez-la par FTP.
+                    Apache peut les servir au lieu de passer la main au routeur, et l'URL correspondante
+                    renvoie alors « Not Found ». Un <strong>dossier</strong> portant exactement le nom d'une
+                    route est à supprimer par FTP ; un <strong>fichier</strong> du type <code>tech.webmanifest</code>
+                    est légitime et doit rester — c'est <code>Options -MultiViews</code> dans le
+                    <code>.htaccess</code> ci-dessus qui neutralise son effet.
                 </p>
             <?php else: ?>
                 <p class="kn-muted">Aucune entrée de <code>public/</code> ne porte le nom d'une route.</p>
