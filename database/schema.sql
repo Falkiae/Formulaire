@@ -25,7 +25,7 @@ SET FOREIGN_KEY_CHECKS = 0;
 -- =============================================================================
 
 -- Réglages clé/valeur de l'application (barèmes, seuils, intégrations…).
--- Jamais de valeurs « en dur » dans le code : indemnité de mobilité, TVA,
+-- Jamais de valeurs « en dur » dans le code : TVA,
 -- seuils instant/request, etc. vivent ici et sont éditables en back-office.
 CREATE TABLE settings (
     `key`        VARCHAR(120)    NOT NULL,
@@ -1029,22 +1029,9 @@ CREATE TABLE time_entries (
     CONSTRAINT fk_timeentries_job  FOREIGN KEY (job_id)        REFERENCES jobs(id)        ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Indemnités de mobilité CP 121 (barème paramétrable via settings).
-CREATE TABLE mobility_allowances (
-    id             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-    technician_id  BIGINT UNSIGNED NOT NULL,
-    job_id         BIGINT UNSIGNED NULL,
-    work_date      DATE            NOT NULL,
-    distance_km    DECIMAL(7,2)    NOT NULL DEFAULT 0,
-    rate_cents_per_km INT          NOT NULL DEFAULT 0,   -- barème figé au calcul
-    amount_cents   INT             NOT NULL DEFAULT 0,
-    exported_at    DATETIME        NULL,                 -- export mensuel secrétariat social
-    created_at     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (id),
-    KEY idx_mobility_tech_date (technician_id, work_date),
-    CONSTRAINT fk_mobility_tech FOREIGN KEY (technician_id) REFERENCES technicians(id) ON DELETE RESTRICT,
-    CONSTRAINT fk_mobility_job  FOREIGN KEY (job_id)        REFERENCES jobs(id)        ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+-- Note : les indemnités de mobilité CP 121 ne sont plus calculées par cette
+-- application (table `mobility_allowances` retirée). Les heures pointées
+-- (`time_entries`) restent la source de vérité côté application.
 
 -- =============================================================================
 --  11. NOTIFICATIONS (moteur d'événements configurable)

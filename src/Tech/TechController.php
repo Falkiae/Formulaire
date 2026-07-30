@@ -167,12 +167,11 @@ final class TechController
             ]);
         });
 
-        // Notifications & mobilité selon la transition.
+        // Notifications selon la transition.
         if ($status === 'en_route') {
             $this->notifications->trigger('technician_en_route', (int) $job['booking_id']);
         } elseif ($status === 'completed') {
             $this->notifications->trigger('job_completed', (int) $job['booking_id']);
-            $this->time->createMobilityForJob((int) $job['id']);
         }
 
         return Response::redirect('/tech/job/' . (int) $job['id']);

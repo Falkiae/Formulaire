@@ -43,7 +43,7 @@ doublon rendrait le planning affiché imprévisible.
   d'UPDATE ; une correction crée une nouvelle ligne + audit), horodatés en UTC et
   **géolocalisés**.
 - **Statut** — en route / en cours / terminé : déclenche `technician_en_route` et
-  `job_completed`, et calcule l'**indemnité de mobilité** à la complétion.
+  `job_completed`.
 - **Photos avant/après** — capture directe par l'appareil photo ; upload
   **sécurisé** (`ImageUpload` : MIME réel via finfo, taille, **ré-encodage GD**,
   stockage **hors webroot**, nom aléatoire) ; servies par un endpoint contrôlé.
@@ -51,12 +51,13 @@ doublon rendrait le planning affiché imprévisible.
 - **Encaissement sur place** — espèces / Bancontact : crée un paiement `paid`
   (via `NullGateway`, `collected_by`) et passe la commande à `payment_status=paid`.
 
-## Indemnité de mobilité (CP 121)
+## Indemnités de mobilité — retirées
 
-À la complétion d'un job à domicile, une `mobility_allowance` est créée :
-distance estimée depuis le trajet enregistré (`travel_in_min`), **barème
-cents/km lu dans `settings`** (jamais en dur). Export mensuel CSV pour le
-secrétariat social : `GET /admin/mobilite?month=YYYY-MM`.
+Le calcul des indemnités CP 121 ne relève plus de cette application : table
+`mobility_allowances`, estimation de distance, barème `settings` et export CSV
+`/admin/mobilite` ont été supprimés. Les **heures pointées** (`time_entries`,
+immuables et géolocalisées) restent disponibles et constituent la source de
+vérité applicative pour tout traitement de paie effectué ailleurs.
 
 ## PWA
 
@@ -71,7 +72,6 @@ secrétariat social : `GET /admin/mobilite?month=YYYY-MM`.
 - Connexion technicien → redirection `/tech` ; planning affiche le RDV du jour.
 - Fiche job rendue (pointage, statut, photos, signature, encaissement).
 - Pointage `start` → `time_entries` horodaté + **géolocalisé** (lat 50.66).
-- Statut `completed` → `mobility_allowances` (20 min → 15 km × 0,42 € = **6,30 €**).
 - Encaissement espèces → `payments` `paid` 95,59 €, `collected_by`, commande
   `payment_status=paid`.
 - PWA : manifest servi (`application/manifest+json`), service worker et icône OK,

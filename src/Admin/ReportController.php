@@ -12,7 +12,7 @@ use Keepnew\Core\View;
 
 /**
  * Rapports : chiffre d'affaires par service / technicien, taux de conversion du
- * tunnel, taux d'annulation, panier moyen, km parcourus.
+ * tunnel, taux d'annulation, panier moyen.
  *
  * Le CA est compté sur les commandes non annulées.
  */
@@ -37,7 +37,6 @@ final class ReportController
             'converted' => (int) $this->db->scalar("SELECT COUNT(*) FROM carts WHERE status = 'converted'"),
             'cancelled' => (int) $this->db->scalar("SELECT COUNT(*) FROM bookings WHERE status = 'cancelled'"),
             'total_bookings' => (int) $this->db->scalar("SELECT COUNT(*) FROM bookings"),
-            'km' => (float) $this->db->scalar("SELECT COALESCE(SUM(distance_km),0) FROM mobility_allowances"),
         ];
 
         // Taux dérivés (en pourcentage).

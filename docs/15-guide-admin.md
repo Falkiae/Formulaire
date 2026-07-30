@@ -40,11 +40,10 @@ la version publiée devient le formulaire du tunnel, sans redéploiement.
 
 Générer la facture d'une commande (numérotation séquentielle, simplifiée <250 €).
 Télécharger l'**UBL** (B2B/Peppol). Exporter le **journal des recettes** (CSV).
-Exporter les **indemnités de mobilité** CP 121 (`/admin/mobilite`).
 
 ## Rapports (`/admin/rapports`)
 
-Chiffre d'affaires, panier moyen, taux de conversion et d'annulation, km ; CA par
+Chiffre d'affaires, panier moyen, taux de conversion et d'annulation ; CA par
 prestation, technicien et mois.
 
 ## App technicien (`/tech`)
@@ -67,5 +66,5 @@ aucun rendez-vous et son planning reste vide.
 
 ## Réglages
 
-Les barèmes et seuils (TVA, remise cumul, indemnité de mobilité, délais de
+Les barèmes et seuils (TVA, remise cumul, délais de
 réservation, fournisseurs) vivent dans la table `settings` — jamais en dur.

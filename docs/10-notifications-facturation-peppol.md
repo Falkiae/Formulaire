@@ -51,8 +51,7 @@ message s'appuie sur `{{review.url}}`, alimentée par le réglage
 
 > **Asymétrie connue** : `job_completed` n'est déclenché que depuis l'app
 > technicien. Un rendez-vous passé à « Terminé » depuis le back-office
-> (`JobController::updateStatus`) ne notifie pas le client et ne crée pas
-> l'indemnité de mobilité — contrairement à `TechController::status`.
+> (`JobController::updateStatus`) ne notifie pas le client.
 
 ## Facturation (`src/Invoice/`)
 

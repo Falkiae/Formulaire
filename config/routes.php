@@ -225,7 +225,6 @@ return static function (Router $router, Container $container): void {
         $c->get(InvoiceService::class),
         $c->get(UblGenerator::class),
         $c->get(JournalExporter::class),
-        $c->get(TimeEntryService::class),
     ));
     $container->singleton(TechController::class, static fn (Container $c): TechController => new TechController(
         $c->get(View::class),
@@ -595,7 +594,6 @@ return static function (Router $router, Container $container): void {
             // Factures & Peppol
             $r->get('/factures', [InvoiceController::class, 'index']);
             $r->get('/factures/journal', [InvoiceController::class, 'journal']);
-            $r->get('/mobilite', [InvoiceController::class, 'mobility']);
             $r->post('/factures/commande/{bookingId}', [InvoiceController::class, 'generate'], [CsrfMiddleware::class]);
             $r->get('/factures/{id}/ubl', [InvoiceController::class, 'ubl']);
         });

@@ -29,7 +29,6 @@ $t = $data['totals'];
             <div class="kn-kpi"><div class="v"><?= $e($eur((int) $t['avg_basket_cents'])) ?> €</div><div class="l">Panier moyen</div></div>
             <div class="kn-kpi"><div class="v"><?= $e((string) $data['conversion_rate']) ?> %</div><div class="l">Conversion du tunnel</div></div>
             <div class="kn-kpi"><div class="v"><?= $e((string) $data['cancel_rate']) ?> %</div><div class="l">Taux d'annulation</div></div>
-            <div class="kn-kpi"><div class="v"><?= $e(number_format((float) $t['km'], 0, ',', ' ')) ?> km</div><div class="l">Km parcourus</div></div>
         </div>
 
         <div class="kn-grid kn-grid-2" style="margin-top:24px;">

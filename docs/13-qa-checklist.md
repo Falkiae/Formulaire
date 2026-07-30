@@ -37,7 +37,7 @@
 
 - [ ] Login technicien → `/tech`, planning du jour.
 - [ ] Pointage start/stop (géolocalisé) ; immuabilité (correction = nouvelle ligne).
-- [ ] Statuts → notifications ; complétion → indemnité de mobilité.
+- [ ] Statuts → notifications.
 - [ ] Photos avant/après (appareil photo) ; signature client.
 - [ ] Encaissement espèces/Bancontact → commande payée.
 - [ ] Installable (PWA), utilisable en mode dégradé.
@@ -71,5 +71,5 @@
 - [ ] TVA 21 %, facture simplifiée < 250 € TVAC, numérotation sans trou.
 - [ ] Journal des recettes exportable.
 - [ ] UBL BIS 3.0 pour le B2B (Peppol).
-- [ ] Pointage CP 121 immuable ; indemnité de mobilité paramétrable + export.
+- [ ] Pointage CP 121 immuable.
 - [ ] RGPD : consentement horodaté/versionné, droit à l'effacement, rétention.

@@ -46,7 +46,6 @@ INSERT INTO settings (`key`, `value`, value_type, `group`, label, is_secret) VAL
 ('availability.setup_buffer_min','15',                    'int',     'availability', 'Buffer setup/rangement par job (min)', 0),
 ('discount.multi_item_percent_bp','1000',                 'int',     'pricing',      'Remise multi-prestations (points de base, 1000 = 10%)', 0),
 ('discount.multi_item_min_items','2',                     'int',     'pricing',      'Nb de prestations déclenchant la remise cumul', 0),
-('mobility.rate_cents_per_km',   '42',                    'int',     'compliance',   'Indemnité mobilité CP 121 (centimes/km) — barème paramétrable', 0),
 ('badge.most_requested_min_volume','20',                  'int',     'ux',           'Volume minimal 90j pour afficher « Le plus demandé »', 0);
 
 -- -----------------------------------------------------------------------------

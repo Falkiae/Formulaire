@@ -120,8 +120,9 @@ chargement réel sur MariaDB 10.11 (61 tables, 81 clés étrangères, 223 index)
   `jobs(technician_id, scheduled_start)`, `jobs(status, scheduled_start)`,
   `jobs(bay_id, scheduled_start)`, plus les codes postaux de zone.
 - **Conformité belge intégrée dès le schéma** : `time_entries` (CP 121,
-  immuables — correction = nouvelle ligne + `audit_log`), `mobility_allowances`
-  (barème via `settings`, jamais en dur), `invoices` (numérotation séquentielle,
+  immuables — correction = nouvelle ligne + `audit_log` ; le calcul des
+  indemnités de mobilité, lui, a été retiré de l'application), `invoices`
+  (numérotation séquentielle,
   facture simplifiée < 250 € TVAC, champs Peppol/UBL), `consents` (RGPD
   horodaté/versionné), `terms_versions` (CGV archivées avec la commande).
 - **Paiement prêt mais inactif** : `payments` présente, `bookings.payment_status`
