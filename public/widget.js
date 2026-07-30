@@ -1519,7 +1519,7 @@
       // position:fixed, ancrés au vrai viewport, indépendants de tout calcul
       // de hauteur — .kn lui-même n'est plus qu'un conteneur en flux normal.
       "@import url('https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..700;1,6..96,400..700&family=Jost:ital,wght@0,300..700;1,400&display=swap');" +
-      ".kn{--a:#4A63E7;--ai:#3B50C9;--blush:#EFC6CB;--royal-soft:#E5E9FB;--ink:#1B2A4A;--muted:#6E7891;--paper:#F7F4EC;--surface:#fff;--line:#E4DECF;--ok:#3E7C4F;--alert:#B3453E;" +
+      ".kn{--a:#4A63E7;--ai:#2F40A3;--blush:#EFC6CB;--royal-soft:#E5E9FB;--ink:#1B2A4A;--muted:#5C6479;--paper:#F7F4EC;--surface:#fff;--line:#E4DECF;--ok:#2F6640;--alert:#A23830;" +
       "font-family:'Jost','Century Gothic',Futura,system-ui,sans-serif;font-size:16px;line-height:1.55;color:var(--ink);background:var(--paper);" +
       "display:block;width:100%;min-height:100vh;margin:0;position:relative}" +
       "@supports (height:100dvh){.kn{min-height:100dvh}}" +

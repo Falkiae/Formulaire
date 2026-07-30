@@ -9,13 +9,13 @@
 :root {
     /* Couleur */
     --kn-accent: #4A63E7;       /* bleu royal — action primaire, sélection, focus */
-    --kn-accent-ink: #3B50C9;   /* texte accentué sur fond clair, hover */
+    --kn-accent-ink: #2F40A3;   /* texte accentué sur fond clair, hover — contraste >= 4.5:1 vérifié sur blush */
     --kn-royal-soft: #E5E9FB;   /* fond doux royal (badges "atelier") */
     --kn-blush: #EFC6CB;        /* rose poudré — surface et badges UNIQUEMENT, jamais sous du texte */
     --kn-navy: #24355C;         /* navy signature — fonds inversés, surfaces cérémonielles */
     --kn-navy-deep: #1B2A4A;    /* navy profond — hover sur fond inversé */
     --kn-ink: #1B2A4A;          /* texte principal (navy, jamais de noir pur) */
-    --kn-muted: #6E7891;        /* texte secondaire, contraste >= 4.5:1 vérifié */
+    --kn-muted: #5C6479;        /* texte secondaire, contraste >= 4.5:1 vérifié */
     --kn-paper: #F7F4EC;        /* fond de page — crème, jamais blanc pur */
     --kn-paper-raised: #FDFCF8; /* fond légèrement relevé sur crème */
     --kn-surface: #FFFFFF;      /* cartes */
@@ -23,13 +23,13 @@
     --kn-line-strong: #C9C2AF;  /* filets renforcés */
 
     /* Statuts — feutrés, classiques */
-    --kn-success: #3E7C4F;
+    --kn-success: #2F6640;
     --kn-success-bg: #E4EFE7;
     --kn-success-border: #BFDAC7;
     --kn-warning: #8A631A;
     --kn-warning-bg: #F6EDD8;
     --kn-warning-border: #E6D2A0;
-    --kn-alert: #B3453E;
+    --kn-alert: #A23830;
     --kn-alert-bg: #F7E4E2;
     --kn-alert-border: #E8BEB9;
 
