@@ -140,11 +140,20 @@ final class DiagnosticController
         ];
     }
 
+    /** Premiers segments d'URL servis par le routeur PHP. */
+    private const ROUTE_PREFIXES = ['admin', 'tech', 'api', 'rdv', 'health'];
+
     /**
      * Réécriture d'URL : version du .htaccess et entrées de public/ capables
      * d'intercepter une route avant le routeur PHP.
      *
-     * @return array{htaccess:string, shadows:list<string>}
+     * Un 404 émis par Apache (« The requested URL was not found on this
+     * server ») sur une seule route signifie presque toujours qu'une entrée
+     * réelle de public/ porte ce nom : la condition « !-f » (ou « !-d » sur
+     * l'ancienne version) échoue, la réécriture est sautée, et Apache cherche
+     * un fichier qui n'existe pas.
+     *
+     * @return array{htaccess:string, htaccess_date:string, entries:list<array{name:string, type:string, shadow:bool}>}
      */
     private function rewrite(string $root): array
     {
@@ -167,18 +176,25 @@ final class DiagnosticController
             };
         }
 
-        // Tout dossier de public/ portant le nom d'une route est suspect.
-        $shadows = [];
+        // Contenu réel de public/ : toute entrée (fichier OU dossier) portant le
+        // nom d'un préfixe de route intercepte cette route avant PHP.
+        $entries = [];
         foreach ((array) @scandir($root . '/public') as $entry) {
             if (!is_string($entry) || $entry === '.' || $entry === '..') {
                 continue;
             }
-            if (is_dir($root . '/public/' . $entry) && !in_array($entry, ['assets', 'uploads'], true)) {
-                $shadows[] = $entry;
-            }
+            $entries[] = [
+                'name' => $entry,
+                'type' => is_dir($root . '/public/' . $entry) ? 'dossier' : 'fichier',
+                'shadow' => in_array($entry, self::ROUTE_PREFIXES, true),
+            ];
         }
 
-        return ['htaccess' => $htaccess, 'shadows' => $shadows];
+        return [
+            'htaccess' => $htaccess,
+            'htaccess_date' => is_file($file) ? date('d/m/Y H:i', (int) filemtime($file)) : '—',
+            'entries' => $entries,
+        ];
     }
 
     /**

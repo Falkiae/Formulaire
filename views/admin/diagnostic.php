@@ -73,17 +73,37 @@ $badge = static function (string $state): string {
 
         <section class="kn-card">
             <h2>Réécriture d'URL (serveur web)</h2>
-            <p><strong>public/.htaccess :</strong> <?= $e($data['rewrite']['htaccess']) ?></p>
-            <?php if ($data['rewrite']['shadows'] !== []): ?>
+            <p>
+                <strong>public/.htaccess :</strong> <?= $e($data['rewrite']['htaccess']) ?>
+                <span class="kn-muted">(fichier du <?= $e($data['rewrite']['htaccess_date']) ?>)</span>
+            </p>
+
+            <?php $shadows = array_filter($data['rewrite']['entries'], static fn (array $x): bool => $x['shadow']); ?>
+            <?php if ($shadows !== []): ?>
                 <p class="kn-alert kn-alert-error">
-                    Dossiers inattendus dans <code>public/</code> :
-                    <?= $e(implode(', ', $data['rewrite']['shadows'])) ?>.
-                    Un dossier portant le nom d'une route (ex. <code>tech</code>) peut la détourner
-                    si le <code>.htaccess</code> n'est pas à jour.
+                    <strong>Cause trouvée.</strong> <code>public/</code> contient
+                    <?= $e(implode(', ', array_map(static fn (array $x): string => $x['type'] . ' « ' . $x['name'] . ' »', $shadows))) ?>.
+                    Apache sert cette entrée au lieu de passer la main au routeur : l'URL correspondante
+                    renvoie « Not Found ». Supprimez-la par FTP.
                 </p>
             <?php else: ?>
-                <p class="kn-muted">Aucun dossier parasite dans <code>public/</code>.</p>
+                <p class="kn-muted">Aucune entrée de <code>public/</code> ne porte le nom d'une route.</p>
             <?php endif; ?>
+
+            <p class="kn-muted" style="margin-bottom:4px;">Contenu réel de <code>public/</code> sur le serveur :</p>
+            <div class="kn-table-wrap">
+                <table class="kn-table">
+                    <thead><tr><th>Nom</th><th>Type</th></tr></thead>
+                    <tbody>
+                        <?php foreach ($data['rewrite']['entries'] as $x): ?>
+                            <tr<?= $x['shadow'] ? ' style="font-weight:600;"' : '' ?>>
+                                <td><code><?= $e($x['name']) ?></code></td>
+                                <td class="kn-muted"><?= $e($x['type']) ?><?= $x['shadow'] ? ' — intercepte une route' : '' ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
         </section>
 
         <section class="kn-card">
