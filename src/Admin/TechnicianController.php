@@ -324,7 +324,7 @@ final class TechnicianController
             'availability' => $techId > 0 ? $this->techs->availabilityFor($techId) : [],
             'time_off' => $techId > 0 ? $this->techs->timeOffFor($techId) : [],
             'locations' => $this->techs->activeLocations(),
-            'linkable_users' => $this->techs->linkableUsers(),
+            'linkable_users' => $this->techs->linkableUsers($techId > 0 ? $techId : null),
             'error' => $this->session->pullFlash('tech_error'),
             'flash' => $this->session->pullFlash('tech_ok'),
             'user_name' => $this->session->get('user_name'),

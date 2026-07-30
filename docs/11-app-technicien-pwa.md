@@ -8,6 +8,31 @@ Les comptes `technician` se connectent via le même login ; ils sont
 automatiquement redirigés vers `/tech` (les autres rôles vers le back-office).
 Chaque technicien ne voit que ses propres rendez-vous (`technicians.user_id`).
 
+**Deux objets distincts, un lien obligatoire.** Le rôle `technician` ouvre le
+droit d'accès, mais c'est la **fiche technicien** (table `technicians`) qui
+porte compétences, zones, disponibilités et planning. L'app terrain résout la
+fiche du connecté via `technicians.user_id` : sans ce lien, il n'y a rien à
+afficher.
+
+Ce rattachement se pilote depuis les deux côtés :
+
+- **Utilisateurs → le compte** : le bloc « Fiche technicien » propose de créer
+  une fiche (option par défaut) ou d'en rattacher une existante encore libre.
+  La liste des comptes signale d'un badge « ⚠ sans fiche technicien » ceux qui
+  resteraient orphelins.
+- **Techniciens → la fiche** : champ « Compte de connexion (app terrain) », qui
+  ne liste que les comptes `technician` encore libres.
+
+Un compte non rattaché est refusé **à la connexion**, avec un message explicite
+plutôt qu'une redirection vers une page d'erreur. Si le lien est retiré pendant
+une session ouverte, `/tech` affiche `views/tech/no-profile.php` (403) au lieu
+de l'erreur brute du Kernel.
+
+Le lien est **unique** : un compte ne pilote qu'une fiche (contrainte
+`uq_technicians_user`, migration 004). Rattacher un compte déjà pris délie
+automatiquement l'ancienne fiche — l'app terrain ne lisant qu'une ligne, un
+doublon rendrait le planning affiché imprévisible.
+
 ## Fonctionnalités (`src/Tech/`, `views/tech/`)
 
 - **Planning du jour** — les rendez-vous du technicien, triés par heure, avec

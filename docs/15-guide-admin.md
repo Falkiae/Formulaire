@@ -52,6 +52,19 @@ prestation, technicien et mois.
 Les comptes « technicien » sont redirigés vers leur app terrain : planning,
 pointage, statuts, photos, signature, encaissement.
 
+**Pour qu'un technicien puisse se connecter, il lui faut deux choses :** un
+compte de rôle « technicien » *et* une fiche technicien rattachée à ce compte.
+Le plus simple est de partir de *Utilisateurs → + Nouveau compte* : choisissez
+le rôle « Technicien », le bloc « Fiche technicien » apparaît et crée la fiche
+automatiquement. Si la fiche existe déjà, sélectionnez-la dans la même liste.
+
+Un compte sans fiche est signalé par « ⚠ sans fiche technicien » dans la liste
+des utilisateurs, et sa connexion est refusée avec un message explicite.
+
+Pensez ensuite à compléter, sur la fiche (*Techniciens*), ses **compétences**,
+ses **zones** et ses **disponibilités** : sans elles, le moteur ne lui attribue
+aucun rendez-vous et son planning reste vide.
+
 ## Réglages
 
 Les barèmes et seuils (TVA, remise cumul, indemnité de mobilité, délais de

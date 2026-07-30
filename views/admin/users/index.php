@@ -43,7 +43,15 @@ $roleLabels = [
                             <tr>
                                 <td><a href="/admin/utilisateurs/<?= (int) $u['id'] ?>"><?= $e(trim($u['first_name'] . ' ' . $u['last_name'])) ?></a></td>
                                 <td class="kn-muted"><?= $e($u['email']) ?></td>
-                                <td><span class="kn-badge"><?= $e($roleLabels[$u['role']] ?? $u['role']) ?></span></td>
+                                <td>
+                                    <span class="kn-badge"><?= $e($roleLabels[$u['role']] ?? $u['role']) ?></span>
+                                    <?php if ($u['role'] === 'technician' && empty($u['technician_id'])): ?>
+                                        <br><a class="kn-badge kn-badge-off" href="/admin/utilisateurs/<?= (int) $u['id'] ?>"
+                                               title="Sans fiche technicien rattachée, ce compte ne peut pas ouvrir l'app terrain.">
+                                            ⚠ sans fiche technicien
+                                        </a>
+                                    <?php endif; ?>
+                                </td>
                                 <td>
                                     <?php if ((int) $u['is_active'] === 1): ?>
                                         <span class="kn-badge kn-badge-onsite">actif</span>

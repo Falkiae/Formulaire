@@ -274,12 +274,14 @@ return static function (Router $router, Container $container): void {
 
     // --- Contrôleurs -------------------------------------------------------
     $container->singleton(HealthController::class, static fn (): HealthController => new HealthController());
+    $container->singleton(TechnicianRepository::class, static fn (Container $c): TechnicianRepository => new TechnicianRepository($c->get(Database::class)));
     $container->singleton(AuthController::class, static fn (Container $c): AuthController => new AuthController(
         $c->get(View::class),
         $c->get(Session::class),
         $c->get(Csrf::class),
         $c->get(UserRepository::class),
         $c->get(Database::class),
+        $c->get(TechnicianRepository::class),
     ));
     // Uploader d'images du catalogue : cible le webroot (public/uploads) car
     // ces images sont publiques (affichées dans le widget), contrairement aux
@@ -369,8 +371,8 @@ return static function (Router $router, Container $container): void {
         $c->get(Session::class),
         $c->get(Csrf::class),
         $c->get(UserRepository::class),
+        $c->get(TechnicianRepository::class),
     ));
-    $container->singleton(TechnicianRepository::class, static fn (Container $c): TechnicianRepository => new TechnicianRepository($c->get(Database::class)));
     $container->singleton(TechnicianController::class, static fn (Container $c): TechnicianController => new TechnicianController(
         $c->get(View::class),
         $c->get(Session::class),

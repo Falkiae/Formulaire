@@ -72,6 +72,33 @@ $currentRole = $isNew ? 'dispatcher' : (string) $user['role'];
                 <?php endif; ?>
             </div>
 
+            <?php $linked = $data['linked_technician'] ?? null; ?>
+            <div class="kn-field" id="kn-tech-profile" <?= $currentRole === 'technician' ? '' : 'hidden' ?>>
+                <label for="technician_profile">Fiche technicien (app terrain)</label>
+                <?php if ($linked !== null): ?>
+                    <p class="kn-alert kn-alert-ok" style="margin:0;">
+                        Rattaché à la fiche
+                        <a href="/admin/techniciens/<?= (int) $linked['id'] ?>"><?= $e(trim($linked['first_name'] . ' ' . $linked['last_name'])) ?></a>.
+                        L'app terrain (<code>/tech</code>) est accessible avec ce compte.
+                    </p>
+                <?php else: ?>
+                    <select id="technician_profile" name="technician_profile">
+                        <option value="new" selected>Créer une fiche technicien et la rattacher</option>
+                        <?php foreach ($data['unlinked_technicians'] as $t): ?>
+                            <option value="<?= (int) $t['id'] ?>">
+                                Rattacher la fiche existante : <?= $e(trim($t['first_name'] . ' ' . $t['last_name'])) ?><?= (int) $t['is_active'] === 1 ? '' : ' (inactive)' ?>
+                            </option>
+                        <?php endforeach; ?>
+                        <option value="0">Aucune fiche pour l'instant</option>
+                    </select>
+                    <p class="kn-muted" style="margin-top:6px;">
+                        Un compte de rôle « technicien » <strong>sans fiche rattachée ne peut pas ouvrir l'app
+                        terrain</strong> : il se connecte et reçoit « Compte technicien introuvable ». La fiche porte
+                        les compétences, zones et disponibilités qui alimentent le planning.
+                    </p>
+                <?php endif; ?>
+            </div>
+
             <div class="kn-field">
                 <label for="password"><?= $isNew ? 'Mot de passe' : 'Nouveau mot de passe (laisser vide pour conserver)' ?></label>
                 <input type="password" id="password" name="password" autocomplete="new-password"
@@ -98,5 +125,17 @@ $currentRole = $isNew ? 'dispatcher' : (string) $user['role'];
             </form>
         <?php endif; ?>
     </main>
+
+    <script>
+        // Le bloc « Fiche technicien » n'a de sens que pour le rôle technicien.
+        (function () {
+            var role = document.getElementById('role');
+            var block = document.getElementById('kn-tech-profile');
+            if (!role || !block) return;
+            role.addEventListener('change', function () {
+                block.hidden = role.value !== 'technician';
+            });
+        })();
+    </script>
 </body>
 </html>

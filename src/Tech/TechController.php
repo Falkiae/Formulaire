@@ -34,16 +34,30 @@ final class TechController
     }
 
     /**
+     * Fiche technicien rattachée au compte connecté, ou null si le lien
+     * `technicians.user_id` n'a jamais été posé (compte créé sans fiche).
+     *
+     * @return array<string, mixed>|null
+     */
+    private function technicianOrNull(): ?array
+    {
+        $userId = $this->session->userId();
+
+        return $userId !== null
+            ? $this->db->selectOne('SELECT * FROM technicians WHERE user_id = :u', ['u' => $userId])
+            : null;
+    }
+
+    /**
      * Résout le technicien lié à l'utilisateur connecté.
      *
      * @return array<string, mixed>
      */
     private function technician(): array
     {
-        $userId = $this->session->userId();
-        $tech = $userId !== null ? $this->db->selectOne('SELECT * FROM technicians WHERE user_id = :u', ['u' => $userId]) : null;
+        $tech = $this->technicianOrNull();
         if ($tech === null) {
-            throw new HttpException(403, 'Compte technicien introuvable.');
+            throw new HttpException(403, "Votre compte n'est rattaché à aucune fiche technicien.");
         }
 
         return $tech;
@@ -54,7 +68,16 @@ final class TechController
      */
     public function planning(Request $request): Response
     {
-        $tech = $this->technician();
+        $tech = $this->technicianOrNull();
+        // Compte technicien orphelin : page explicite plutôt que l'erreur brute
+        // du Kernel. Cas résiduel — le login refuse déjà ces comptes — qui
+        // survient si le rattachement est retiré pendant une session ouverte.
+        if ($tech === null) {
+            return $this->view->render('tech/no-profile', [
+                'user_name' => $this->session->get('user_name'),
+            ], 403);
+        }
+
         $date = $request->string('date') ?: Clock::format(Clock::nowUtc(), 'Y-m-d');
         $window = \Keepnew\Availability\ScheduleBuilder::windowForDate($date, '00:00', '23:59');
 

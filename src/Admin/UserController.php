@@ -11,12 +11,19 @@ use Keepnew\Core\Request;
 use Keepnew\Core\Response;
 use Keepnew\Core\Session;
 use Keepnew\Core\View;
+use Keepnew\Technician\TechnicianRepository;
 
 /**
  * Gestion des comptes du back-office et de l'app technicien (réservé admin).
  *
  * Crée / édite les utilisateurs et leur rôle. Le rôle détermine ensuite l'accès
  * aux sections via RoleMiddleware.
+ *
+ * Cas particulier du rôle « technician » : le rôle seul ne suffit pas à ouvrir
+ * l'app terrain, il faut aussi une FICHE technicien rattachée au compte
+ * (`technicians.user_id`) — c'est elle qui porte compétences, zones et
+ * planning. Ce contrôleur pilote donc aussi ce rattachement, pour éviter le
+ * compte technicien orphelin qui se connecte dans le vide.
  */
 final class UserController
 {
@@ -28,6 +35,7 @@ final class UserController
         private readonly Session $session,
         private readonly Csrf $csrf,
         private readonly UserRepository $users,
+        private readonly TechnicianRepository $technicians,
     ) {
     }
 
@@ -65,7 +73,7 @@ final class UserController
             return Response::redirect('/admin/utilisateurs/nouveau');
         }
 
-        $this->users->create([
+        $id = $this->users->create([
             'email' => $request->string('email'),
             'password' => $request->string('password'),
             'first_name' => $request->string('first_name'),
@@ -75,7 +83,10 @@ final class UserController
             'is_active' => $request->bool('is_active'),
         ]);
 
-        $this->session->flash('users_ok', 'Compte créé.');
+        $this->session->flash(
+            'users_ok',
+            'Compte créé.' . $this->syncTechnicianProfile($id, $request->string('role'), $request),
+        );
 
         return Response::redirect('/admin/utilisateurs');
     }
@@ -136,7 +147,7 @@ final class UserController
             $this->users->updatePassword($id, $newPassword);
         }
 
-        $this->session->flash('users_ok', $message);
+        $this->session->flash('users_ok', $message . $this->syncTechnicianProfile($id, $role, $request));
 
         return Response::redirect('/admin/utilisateurs');
     }
@@ -233,15 +244,68 @@ final class UserController
     }
 
     /**
+     * Applique le choix « Fiche technicien » du formulaire au compte donné.
+     *
+     * Valeurs attendues du champ `technician_profile` :
+     *   'new'  → crée une fiche à partir de l'identité du compte et la rattache
+     *   <id>   → rattache une fiche existante encore libre
+     *   ''/'0' → ne rien faire (le compte restera sans app terrain)
+     *
+     * Renvoie le complément de message flash à afficher (chaîne vide si rien
+     * n'a été fait).
+     */
+    private function syncTechnicianProfile(int $userId, string $role, Request $request): string
+    {
+        if ($role !== 'technician') {
+            return '';
+        }
+
+        // Déjà rattaché : le lien se modifie depuis la fiche technicien.
+        $existing = $this->technicians->findByUserId($userId);
+        if ($existing !== null) {
+            return '';
+        }
+
+        $choice = $request->string('technician_profile');
+        if ($choice === 'new') {
+            $user = $this->users->find($userId);
+            if ($user === null) {
+                return '';
+            }
+            $techId = $this->technicians->createForUser($user);
+
+            return sprintf(
+                ' Fiche technicien créée et rattachée — complétez ses compétences,'
+                . ' zones et disponibilités (/admin/techniciens/%d), sans quoi son planning restera vide.',
+                $techId,
+            );
+        }
+
+        $techId = (int) $choice;
+        if ($techId > 0 && $this->technicians->find($techId) !== null) {
+            $this->technicians->linkUser($techId, $userId);
+
+            return ' Fiche technicien rattachée : l\'app terrain est accessible.';
+        }
+
+        return ' Attention : ce compte technicien n\'est rattaché à aucune fiche,'
+            . ' il ne pourra pas ouvrir l\'app terrain.';
+    }
+
+    /**
      * @param array<string, mixed>|null $user
      */
     private function renderForm(?array $user): Response
     {
+        $userId = $user !== null ? (int) $user['id'] : 0;
+
         return $this->view->render('admin/users/edit', [
             'csrf' => $this->csrf->field(),
             'user' => $user,
             'roles' => self::ROLES,
-            'is_self' => $user !== null && $this->session->userId() === (int) $user['id'],
+            'is_self' => $user !== null && $this->session->userId() === $userId,
+            'linked_technician' => $userId > 0 ? $this->technicians->findByUserId($userId) : null,
+            'unlinked_technicians' => $this->technicians->unlinked(),
             'error' => $this->session->pullFlash('users_error'),
             'user_name' => $this->session->get('user_name'),
         ]);

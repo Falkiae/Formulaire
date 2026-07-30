@@ -37,14 +37,19 @@ final class UserRepository
     /**
      * Liste tous les comptes (back-office + techniciens) pour l'administration.
      *
+     * `technician_id` permet de repérer les comptes de rôle « technician » qui
+     * ne pilotent aucune fiche : ceux-là ne peuvent pas ouvrir l'app terrain.
+     *
      * @return list<array<string, mixed>>
      */
     public function all(): array
     {
         return $this->db->select(
-            'SELECT id, email, first_name, last_name, phone, role, is_active, last_login_at
-               FROM users
-              ORDER BY is_active DESC, last_name, first_name',
+            'SELECT u.id, u.email, u.first_name, u.last_name, u.phone, u.role, u.is_active,
+                    u.last_login_at, t.id AS technician_id
+               FROM users u
+               LEFT JOIN technicians t ON t.user_id = u.id
+              ORDER BY u.is_active DESC, u.last_name, u.first_name',
         );
     }
 

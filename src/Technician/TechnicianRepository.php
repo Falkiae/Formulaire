@@ -47,11 +47,83 @@ final class TechnicianRepository
     }
 
     /**
+     * Fiche rattachée à un compte de connexion — c'est ce lien qui conditionne
+     * l'accès à l'app terrain (`/tech`). Sans lui, le technicien se connecte
+     * mais n'a aucun planning à afficher.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function findByUserId(int $userId): ?array
+    {
+        return $this->db->selectOne('SELECT * FROM technicians WHERE user_id = :u', ['u' => $userId]);
+    }
+
+    public function existsForUser(int $userId): bool
+    {
+        return (int) $this->db->scalar('SELECT COUNT(*) FROM technicians WHERE user_id = :u', ['u' => $userId]) > 0;
+    }
+
+    /**
+     * Fiches sans compte de connexion — candidates au rattachement depuis la
+     * fiche utilisateur.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function unlinked(): array
+    {
+        return $this->db->select(
+            'SELECT id, first_name, last_name, is_active
+               FROM technicians
+              WHERE user_id IS NULL
+              ORDER BY is_active DESC, last_name, first_name',
+        );
+    }
+
+    /**
+     * Rattache une fiche à un compte, en garantissant l'unicité du lien : un
+     * compte ne peut piloter qu'une seule fiche (TechController::technician()
+     * ne lit qu'une ligne, un doublon rendrait le planning imprévisible).
+     */
+    public function linkUser(int $technicianId, int $userId): void
+    {
+        $this->db->transaction(function (Database $db) use ($technicianId, $userId): void {
+            $this->releaseAccountFromOtherProfiles($technicianId, $userId);
+            $db->run(
+                'UPDATE technicians SET user_id = :u WHERE id = :id',
+                ['u' => $userId, 'id' => $technicianId],
+            );
+        });
+    }
+
+    /**
+     * Crée une fiche minimale à partir d'un compte de connexion et la rattache.
+     * Compétences, zones et disponibilités restent à compléter — sans elles le
+     * technicien voit un planning vide, mais l'app terrain s'ouvre.
+     *
+     * @param array<string, mixed> $user
+     */
+    public function createForUser(array $user): int
+    {
+        return $this->create([
+            'user_id' => (int) $user['id'],
+            'first_name' => (string) $user['first_name'],
+            'last_name' => (string) $user['last_name'],
+            'phone' => (string) ($user['phone'] ?? ''),
+            'email' => (string) $user['email'],
+            'is_active' => true,
+        ]);
+    }
+
+    /**
      * @param array<string, mixed> $data
      */
     public function create(array $data): int
     {
-        return $this->db->insert('technicians', $this->columns($data));
+        $cols = $this->columns($data);
+        $id = $this->db->insert('technicians', $cols);
+        $this->releaseAccountFromOtherProfiles($id, $cols['user_id']);
+
+        return $id;
     }
 
     /**
@@ -61,8 +133,27 @@ final class TechnicianRepository
     {
         $cols = $this->columns($data);
         $set = implode(', ', array_map(static fn (string $c): string => "$c = :$c", array_keys($cols)));
+        $userId = $cols['user_id'];
         $cols['id'] = $id;
         $this->db->run("UPDATE technicians SET $set WHERE id = :id", $cols);
+        $this->releaseAccountFromOtherProfiles($id, $userId);
+    }
+
+    /**
+     * Un compte ne pilote qu'une fiche : délie les éventuelles autres fiches
+     * pointant sur le même compte (TechController::technician() ne lit qu'une
+     * ligne — un doublon rendrait le planning affiché imprévisible).
+     */
+    private function releaseAccountFromOtherProfiles(int $technicianId, ?int $userId): void
+    {
+        if ($userId === null) {
+            return;
+        }
+
+        $this->db->run(
+            'UPDATE technicians SET user_id = NULL WHERE user_id = :u AND id <> :id',
+            ['u' => $userId, 'id' => $technicianId],
+        );
     }
 
     /**
@@ -333,14 +424,23 @@ final class TechnicianRepository
     }
 
     /**
-     * Comptes de connexion « technician » rattachables (pour l'app terrain).
+     * Comptes de connexion « technician » rattachables (pour l'app terrain) :
+     * ceux qui ne pilotent encore aucune fiche, plus celui déjà rattaché à la
+     * fiche en cours d'édition. Proposer un compte déjà pris volerait
+     * silencieusement l'accès terrain de l'autre technicien.
      *
      * @return list<array<string, mixed>>
      */
-    public function linkableUsers(): array
+    public function linkableUsers(?int $currentTechnicianId = null): array
     {
         return $this->db->select(
-            "SELECT id, first_name, last_name, email FROM users WHERE role = 'technician' ORDER BY last_name, first_name",
+            "SELECT u.id, u.first_name, u.last_name, u.email
+               FROM users u
+               LEFT JOIN technicians t ON t.user_id = u.id
+              WHERE u.role = 'technician'
+                AND (t.id IS NULL OR t.id = :current)
+              ORDER BY u.last_name, u.first_name",
+            ['current' => $currentTechnicianId ?? 0],
         );
     }
 }

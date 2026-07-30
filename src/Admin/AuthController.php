@@ -12,6 +12,7 @@ use Keepnew\Core\Response;
 use Keepnew\Core\Session;
 use Keepnew\Core\View;
 use Keepnew\Support\Clock;
+use Keepnew\Technician\TechnicianRepository;
 
 /**
  * Connexion / déconnexion du back-office.
@@ -28,6 +29,7 @@ final class AuthController
         private readonly Csrf $csrf,
         private readonly UserRepository $users,
         private readonly Database $db,
+        private readonly TechnicianRepository $technicians,
     ) {
     }
 
@@ -52,6 +54,19 @@ final class AuthController
         $user = $this->users->verifyCredentials($email, $password);
         if ($user === null) {
             $this->session->flash('login_error', 'Identifiants incorrects.');
+
+            return Response::redirect('/admin/connexion');
+        }
+
+        // Un compte technicien sans fiche rattachée n'a rien à afficher dans
+        // l'app terrain : on le dit ici plutôt que de le laisser atterrir sur
+        // une page d'erreur après redirection vers /tech.
+        if ($user['role'] === 'technician' && !$this->technicians->existsForUser((int) $user['id'])) {
+            $this->session->flash(
+                'login_error',
+                "Votre compte n'est rattaché à aucune fiche technicien : l'app terrain ne peut pas s'ouvrir. "
+                . 'Demandez à un administrateur de faire le rattachement.',
+            );
 
             return Response::redirect('/admin/connexion');
         }

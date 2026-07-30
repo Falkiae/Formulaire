@@ -493,6 +493,10 @@ CREATE TABLE technicians (
     created_at    DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at    DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
+    -- Un compte ne pilote qu'une fiche (l'app terrain n'en résout qu'une).
+    -- Plusieurs NULL restent permis : une fiche sans compte de connexion est
+    -- valide, elle n'a simplement pas accès à /tech.
+    UNIQUE KEY uq_technicians_user (user_id),
     KEY idx_technicians_active (is_active),
     CONSTRAINT fk_technicians_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
