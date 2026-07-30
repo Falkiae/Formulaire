@@ -50,6 +50,10 @@ final class BookingService
         if ($lines === []) {
             throw new HttpException(422, 'Le panier est vide.');
         }
+        // Filet à la soumission : un panier constitué avant l'entrée en vigueur
+        // de la règle du mode unique (durée de vie 7 jours) ne doit pas créer
+        // deux rendez-vous à planifier séparément.
+        self::assertSingleMode($lines);
 
         $couponCode = $cart['coupon_id'] !== null
             ? $this->db->scalar('SELECT code FROM coupons WHERE id = :id', ['id' => (int) $cart['coupon_id']])
@@ -154,6 +158,7 @@ final class BookingService
         if ($lines === []) {
             throw new HttpException(422, 'Aucune prestation fournie.');
         }
+        self::assertSingleMode($lines);
         // Normalise l'address_key par mode.
         foreach ($lines as &$line) {
             $line['address_key'] = $line['mode'] ?? 'onsite';
@@ -372,6 +377,29 @@ final class BookingService
     }
 
     // --- Helpers internes ------------------------------------------------------
+
+    /**
+     * Une commande porte un mode unique : domicile OU atelier, jamais les deux.
+     *
+     * Les jobs sont découpés par mode (insertItemsAndJobs) alors que le tunnel
+     * ne fait choisir qu'un seul créneau : un panier mixte produirait un second
+     * rendez-vous jamais planifié. La règle est donc structurelle, pas
+     * cosmétique — c'est elle qui garantit « une commande = un rendez-vous ».
+     *
+     * @param list<array<string, mixed>> $lines
+     */
+    private static function assertSingleMode(array $lines): void
+    {
+        $modes = array_unique(array_map(static fn (array $l): string => (string) ($l['mode'] ?? 'onsite'), $lines));
+
+        if (count($modes) > 1) {
+            throw new HttpException(
+                422,
+                'Une même commande ne peut pas mélanger une prestation à domicile et une prestation en atelier. '
+                . 'Terminez cette commande, puis passez-en une seconde pour l\'autre formule.',
+            );
+        }
+    }
 
     /**
      * Durées active/occupation par mode, agrégées depuis les lignes.

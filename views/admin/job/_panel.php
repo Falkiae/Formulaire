@@ -55,17 +55,28 @@ $title = $data['items'] !== []
     </div>
 
     <?php if (!$isException && $j['status'] !== 'completed'): ?>
+        <?php
+        // Une commande = un mode = un rendez-vous. Le bouton par rendez-vous
+        // n'a de sens que sur les commandes antérieures à cette règle, qui en
+        // comptent deux (domicile + atelier) ; ailleurs il ferait doublon avec
+        // l'annulation de commande tout en laissant la commande ouverte sans
+        // aucune intervention.
+        $multiJob = (int) ($data['booking_job_count'] ?? 1) > 1;
+        $modeLabel = $j['mode'] === 'onsite' ? 'à domicile' : 'en atelier';
+        ?>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0;">
-            <form method="post" action="/admin/job/<?= (int) $j['id'] ?>/statut"
-                  onsubmit="return confirm('Annuler cette prestation ? Les autres prestations de la même commande, s\'il y en a, ne seront pas affectées.');">
-                <?= $data['csrf'] ?>
-                <input type="hidden" name="status" value="cancelled">
-                <button type="submit" class="kn-btn kn-btn-danger kn-btn-sm">Annuler cette prestation</button>
-            </form>
+            <?php if ($multiJob): ?>
+                <form method="post" action="/admin/job/<?= (int) $j['id'] ?>/statut"
+                      onsubmit="return confirm('Annuler le rendez-vous <?= $e($modeLabel) ?> ? L\'autre rendez-vous de cette commande n\'est pas affecté, et la commande reste ouverte.');">
+                    <?= $data['csrf'] ?>
+                    <input type="hidden" name="status" value="cancelled">
+                    <button type="submit" class="kn-btn kn-btn-danger kn-btn-sm">Annuler ce rendez-vous (<?= $e($modeLabel) ?>)</button>
+                </form>
+            <?php endif; ?>
             <form method="post" action="/admin/job/<?= (int) $j['id'] ?>/annuler-commande"
-                  onsubmit="return confirm('Annuler TOUTE la commande ? Toutes ses prestations non terminées seront annulées.');">
+                  onsubmit="return confirm('Annuler la commande ? <?= $multiJob ? 'Tous ses rendez-vous non terminés seront annulés.' : 'Le rendez-vous et la commande seront annulés.' ?>');">
                 <?= $data['csrf'] ?>
-                <button type="submit" class="kn-btn kn-btn-danger kn-btn-sm">Annuler toute la commande</button>
+                <button type="submit" class="kn-btn kn-btn-danger kn-btn-sm">Annuler la commande</button>
             </form>
         </div>
     <?php endif; ?>

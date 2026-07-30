@@ -116,6 +116,14 @@ final class JobController
                 ['c' => (int) $job['customer_id']],
             ),
             'scheduled_local' => $scheduledLocal,
+            // Une commande = un mode = un rendez-vous (BookingService::assertSingleMode).
+            // Seules les commandes antérieures à cette règle en comptent
+            // plusieurs ; c'est le seul cas où annuler un rendez-vous isolé a
+            // un sens distinct d'annuler la commande.
+            'booking_job_count' => (int) $this->db->scalar(
+                'SELECT COUNT(*) FROM jobs WHERE booking_id = :b',
+                ['b' => $bookingId],
+            ),
             'items' => $this->db->select('SELECT label_snapshot, quantity, line_total_cents FROM booking_items WHERE job_id = :j', ['j' => $id]),
             'answers' => $this->db->select('SELECT field_key, value_text FROM booking_answers WHERE booking_id = :b', ['b' => $bookingId]),
             'photos' => $this->db->select('SELECT kind, file_path FROM booking_photos WHERE job_id = :j', ['j' => $id]),

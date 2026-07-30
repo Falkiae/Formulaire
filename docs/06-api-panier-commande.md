@@ -15,8 +15,13 @@ gestion tokenisée sans compte.
   planifiés et les holds actifs. Purge par cron.
 - **`BookingService`** — transforme un panier en commande :
   - recalcul autoritatif à la soumission ;
-  - **découpage en jobs par mode** (domicile / atelier) — une commande mixte
-    génère deux jobs liés à une seule commande ;
+  - **mode unique par commande** (domicile **ou** atelier, jamais les deux) :
+    le tunnel ne fait choisir qu'un seul créneau, un panier mixte produirait un
+    second rendez-vous jamais planifié. La règle est tenue par
+    `CartService::addItem()` (refus dès l'ajout, 422) et re-vérifiée à la
+    soumission par `BookingService::assertSingleMode()` pour les paniers
+    constitués avant son entrée en vigueur. Une commande donne donc **un job**,
+    quel que soit le nombre de prestations ;
   - vérification des créneaux sous verrou, création client/adresse/commande/
     lignes/jobs, réponses au formulaire, historique de statut ;
   - conversion du panier et libération des holds ;

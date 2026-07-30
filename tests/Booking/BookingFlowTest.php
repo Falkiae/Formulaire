@@ -56,11 +56,15 @@ final class BookingFlowTest extends TestCase
         $this->bookings = new BookingService($this->db, $this->cart, $catalog, $pricing, new HoldService($this->db), new FormRepository($this->db), new \Keepnew\Geo\NominatimGeocoder());
     }
 
-    public function testCartToBookingSplitsIntoJobs(): void
+    /**
+     * Une commande porte un mode unique : plusieurs prestations du même mode
+     * sont regroupées en UN seul rendez-vous — donc un seul créneau à choisir.
+     */
+    public function testCartToBookingCreatesOneJobPerOrder(): void
     {
         $token = $this->cart->create();
         $this->cart->addItem($token, 4, 'onsite', 21, [], 1); // canapé 3 places
-        $this->cart->addItem($token, 5, 'workshop', 27, [], 1); // matelas 160 atelier
+        $this->cart->addItem($token, 4, 'onsite', 21, [], 1); // second canapé
 
         $snapshot = $this->cart->snapshot($token);
         self::assertSame(2, $snapshot['item_count']);
@@ -70,21 +74,29 @@ final class BookingFlowTest extends TestCase
             $token,
             ['email' => 'test-' . uniqid() . '@keepnew.be', 'first_name' => 'Test'],
             ['street' => 'Rue Test', 'postal_code' => '4000', 'city' => 'Liège', 'lat' => 50.64, 'lng' => 5.57],
-            [
-                'onsite' => ['start_utc' => $start, 'technician_id' => 4],
-                'workshop' => ['start_utc' => $start, 'technician_id' => 3, 'bay_id' => 1],
-            ],
+            ['onsite' => ['start_utc' => $start, 'technician_id' => 4]],
             ['water_access' => 'yes'],
         );
 
         self::assertStringStartsWith('KN-', $result['reference']);
 
-        // Une commande mixte domicile+atelier doit générer DEUX jobs liés.
         $jobs = $this->db->select('SELECT mode, status FROM jobs WHERE booking_id = :b', ['b' => $result['booking_id']]);
-        self::assertCount(2, $jobs);
-        $modes = array_column($jobs, 'mode');
-        self::assertContains('onsite', $modes);
-        self::assertContains('workshop', $modes);
+        self::assertCount(1, $jobs);
+        self::assertSame('onsite', $jobs[0]['mode']);
+    }
+
+    /**
+     * Le mélange domicile + atelier est refusé dès l'ajout au panier : le
+     * tunnel ne fait choisir qu'un créneau, deux modes donneraient un second
+     * rendez-vous jamais planifié.
+     */
+    public function testMixingOnsiteAndWorkshopIsRejected(): void
+    {
+        $token = $this->cart->create();
+        $this->cart->addItem($token, 4, 'onsite', 21, [], 1); // canapé à domicile
+
+        $this->expectException(HttpException::class);
+        $this->cart->addItem($token, 5, 'workshop', 27, [], 1); // matelas à l'atelier
     }
 
     public function testDoubleBookingIsRejected(): void

@@ -8,6 +8,7 @@ use Keepnew\Catalog\CartPricingService;
 use Keepnew\Catalog\CatalogRepository;
 use Keepnew\Catalog\LineResolver;
 use Keepnew\Core\Database;
+use Keepnew\Core\Exception\HttpException;
 use Keepnew\Core\Exception\NotFoundException;
 use Keepnew\Pricing\PriceCalculator;
 use Keepnew\Support\Clock;
@@ -77,6 +78,7 @@ final class CartService
         if ($service === null) {
             throw new NotFoundException('Prestation inconnue.');
         }
+        $this->assertSameMode((int) $cart['id'], $mode);
 
         // Résolution + calcul → snapshot de prix/durée et libellé.
         $input = $this->resolver->resolve($serviceId, $mode, $variantId, $extraIds, $quantity);
@@ -129,6 +131,32 @@ final class CartService
 
             return $itemId;
         });
+    }
+
+    /**
+     * Un panier ne mélange jamais domicile et atelier.
+     *
+     * Une commande donne lieu à UN rendez-vous, donc à un seul créneau : mêler
+     * les deux modes produirait deux interventions à planifier séparément, ce
+     * qui ne correspond à aucune réalité d'exploitation. Le tunnel public fait
+     * déjà choisir le mode à la première étape et n'expose ensuite que les
+     * prestations compatibles ; cette vérification ferme la porte côté serveur
+     * (appel direct à POST /api/cart/{token}/items).
+     */
+    private function assertSameMode(int $cartId, string $mode): void
+    {
+        $existing = $this->db->scalar(
+            'SELECT mode FROM cart_items WHERE cart_id = :c LIMIT 1',
+            ['c' => $cartId],
+        );
+
+        if ($existing !== null && (string) $existing !== $mode) {
+            throw new HttpException(
+                422,
+                'Une même commande ne peut pas mélanger une prestation à domicile et une prestation en atelier. '
+                . 'Terminez cette commande, puis passez-en une seconde pour l\'autre formule.',
+            );
+        }
     }
 
     public function updateItemQuantity(string $token, int $itemId, int $quantity): void
