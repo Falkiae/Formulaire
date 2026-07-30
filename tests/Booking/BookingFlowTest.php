@@ -10,9 +10,14 @@ use Keepnew\Booking\HoldService;
 use Keepnew\Catalog\CartPricingService;
 use Keepnew\Catalog\CatalogRepository;
 use Keepnew\Catalog\LineResolver;
+use Keepnew\Core\Config;
 use Keepnew\Core\Database;
 use Keepnew\Core\Exception\HttpException;
 use Keepnew\Form\FormRepository;
+use Keepnew\Notification\LogMailer;
+use Keepnew\Notification\NotificationService;
+use Keepnew\Notification\NullSmsProvider;
+use Keepnew\Notification\TemplateRenderer;
 use Keepnew\Pricing\CartPricer;
 use Keepnew\Pricing\PriceCalculator;
 use PHPUnit\Framework\TestCase;
@@ -53,7 +58,16 @@ final class BookingFlowTest extends TestCase
         $calc = new PriceCalculator();
         $pricing = new CartPricingService($this->db, $resolver, new CartPricer($calc));
         $this->cart = new CartService($this->db, $catalog, $resolver, $calc, $pricing);
-        $this->bookings = new BookingService($this->db, $this->cart, $catalog, $pricing, new HoldService($this->db), new FormRepository($this->db), new \Keepnew\Geo\NominatimGeocoder());
+        // Notifications dirigées vers un mailer de journalisation : le test ne
+        // doit expédier aucun e-mail réel à l'annulation.
+        $notifications = new NotificationService(
+            $this->db,
+            new TemplateRenderer(),
+            new LogMailer(sys_get_temp_dir() . '/keepnew-tests'),
+            new NullSmsProvider(),
+            new Config([]),
+        );
+        $this->bookings = new BookingService($this->db, $this->cart, $catalog, $pricing, new HoldService($this->db), new FormRepository($this->db), new \Keepnew\Geo\NominatimGeocoder(), $notifications);
     }
 
     /**

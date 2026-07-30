@@ -112,9 +112,10 @@ final class BookingApiController
     public function cancel(Request $request): Response
     {
         $token = (string) $request->attribute('token');
+        // La notification est déclenchée par BookingService lui-même, pour
+        // couvrir aussi l'annulation depuis le back-office et depuis la page
+        // client /rdv/{token}.
         $this->bookings->cancel($token);
-        $booking = $this->bookings->findByManageToken($token);
-        $this->notifications->trigger('booking_cancelled', (int) $booking['id']);
 
         return Response::json($this->bookings->view($token));
     }

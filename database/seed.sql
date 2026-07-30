@@ -375,7 +375,8 @@ INSERT INTO notification_templates (event_id, channel, offset_minutes, subject, 
 (3, 'email', -2880, 'Rappel — rendez-vous Keepnew dans 48 h', 'Bonjour {{customer.first_name}}, petit rappel de votre rendez-vous le {{job.date}}.', 1),
 (4, 'sms',   -120, NULL, 'Keepnew : votre technicien passera vers {{job.arrival_from}}. À tout à l''heure !', 1),
 (5, 'sms',   0, NULL, 'Keepnew : {{technician.first_name}} vient de partir vers chez vous.', 1),
-(8, 'email', 60, 'Votre devis Keepnew vous attend', 'Bonjour, on a gardé votre devis. Reprenez là où vous vous étiez arrêté : {{cart.resume_url}}', 1);
+(8, 'email', 60, 'Votre devis Keepnew vous attend', 'Bonjour, on a gardé votre devis. Reprenez là où vous vous étiez arrêté : {{cart.resume_url}}', 1),
+(9, 'email', 0, 'Votre rendez-vous Keepnew {{booking.reference}} est annulé', 'Bonjour {{customer.first_name}}, votre rendez-vous du {{job.date}} ({{booking.reference}}) est bien annulé. Rien ne vous sera facturé. Au plaisir de vous revoir : réservez quand vous le souhaitez sur keepnew.be.', 1);
 
 SET FOREIGN_KEY_CHECKS = 1;
 

@@ -22,8 +22,22 @@ Moteur d'événements configurable : `booking_created`, `booking_confirmed`,
   `storage/logs`), `SmtpMailer` (PHPMailer) activé par configuration.
 
 Déclenché depuis l'API : à la confirmation d'une réservation →
-`booking_confirmed` (immédiat) + `reminder_48h` + `reminder_2h` (programmés) ;
-à l'annulation → `booking_cancelled`.
+`booking_confirmed` (immédiat) + `reminder_48h` + `reminder_2h` (programmés).
+
+`booking_cancelled` fait exception : il est déclenché par **`BookingService`
+lui-même**, dans `cancelBookingRow()`, et non par les contrôleurs. Les trois
+chemins d'annulation (back-office, page client `/rdv/{token}`, API JSON)
+convergent vers cette méthode ; le déclencher au niveau des contrôleurs
+revenait à l'oublier dans deux d'entre eux — ce qui était le cas.
+
+> **Un événement sans modèle est muet.** `trigger()` sort immédiatement si
+> l'événement n'a aucun `notification_template` actif, et `/admin/notifications`
+> ne sait qu'**éditer** des modèles existants, jamais en créer. Un événement
+> dépourvu de ligne en base est donc à la fois silencieux et invisible dans
+> l'interface. C'était le cas de `booking_cancelled` (corrigé : seed +
+> migration 005). **`job_completed` et `review_request` sont encore dans cet
+> état** — `job_completed` est pourtant déclenché à chaque intervention
+> terminée depuis l'app technicien.
 
 ## Facturation (`src/Invoice/`)
 

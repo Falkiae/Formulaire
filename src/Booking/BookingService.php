@@ -11,6 +11,7 @@ use Keepnew\Core\Exception\HttpException;
 use Keepnew\Core\Exception\NotFoundException;
 use Keepnew\Form\FormRepository;
 use Keepnew\Geo\NominatimGeocoder;
+use Keepnew\Notification\NotificationService;
 use Keepnew\Pricing\CartQuote;
 use Keepnew\Support\Clock;
 
@@ -31,6 +32,7 @@ final class BookingService
         private readonly HoldService $holds,
         private readonly FormRepository $forms,
         private readonly NominatimGeocoder $geocoder,
+        private readonly NotificationService $notifications,
     ) {
     }
 
@@ -333,6 +335,15 @@ final class BookingService
                 'new_status' => 'cancelled', 'changed_by' => $userId, 'note' => $note,
             ]);
         });
+
+        // Notification ici et nulle part ailleurs : les trois chemins
+        // d'annulation (back-office, page client /rdv/{token}, API JSON)
+        // convergent tous vers cette méthode. La déclencher dans les
+        // contrôleurs revenait à l'oublier dans deux d'entre eux — c'était le
+        // cas. Après la transaction : un envoi ne doit jamais retenir un
+        // verrou. NotificationService::trigger() n'échoue pas bruyamment (un
+        // envoi raté est journalisé en 'failed'), l'annulation reste acquise.
+        $this->notifications->trigger('booking_cancelled', (int) $booking['id']);
     }
 
     /**

@@ -152,6 +152,7 @@ return static function (Router $router, Container $container): void {
         $c->get(HoldService::class),
         $c->get(FormRepository::class),
         $c->get(NominatimGeocoder::class),
+        $c->get(NotificationService::class),
     ));
 
     // --- Contrôleurs API ---------------------------------------------------
