@@ -26,6 +26,7 @@ INSERT INTO settings (`key`, `value`, value_type, `group`, label, is_secret) VAL
 ('company.vat',                  'BE1009875116',          'string',  'company',      'Numéro de TVA', 0),
 ('company.phone',                '+32 4 000 00 00',       'string',  'company',      'Téléphone public', 0),
 ('company.email',                'hello@keepnew.be',      'string',  'company',      'Email public', 0),
+('company.review_url',           '',                      'string',  'general',      'Lien public de dépôt d''avis ({{review.url}})', 0),
 ('display.timezone',             'Europe/Brussels',       'string',  'general',      'Fuseau d''affichage', 0),
 ('finance.vat_rate_bp',          '2100',                  'int',     'finance',      'Taux TVA (points de base, 2100 = 21%)', 0),
 ('finance.simplified_invoice_max_cents', '25000',         'int',     'finance',      'Seuil facture simplifiée TVAC (centimes)', 0),
@@ -376,7 +377,9 @@ INSERT INTO notification_templates (event_id, channel, offset_minutes, subject, 
 (4, 'sms',   -120, NULL, 'Keepnew : votre technicien passera vers {{job.arrival_from}}. À tout à l''heure !', 1),
 (5, 'sms',   0, NULL, 'Keepnew : {{technician.first_name}} vient de partir vers chez vous.', 1),
 (8, 'email', 60, 'Votre devis Keepnew vous attend', 'Bonjour, on a gardé votre devis. Reprenez là où vous vous étiez arrêté : {{cart.resume_url}}', 1),
-(9, 'email', 0, 'Votre rendez-vous Keepnew {{booking.reference}} est annulé', 'Bonjour {{customer.first_name}}, votre rendez-vous du {{job.date}} ({{booking.reference}}) est bien annulé. Rien ne vous sera facturé. Au plaisir de vous revoir : réservez quand vous le souhaitez sur keepnew.be.', 1);
+(9, 'email', 0, 'Votre rendez-vous Keepnew {{booking.reference}} est annulé', 'Bonjour {{customer.first_name}}, votre rendez-vous du {{job.date}} ({{booking.reference}}) est bien annulé. Rien ne vous sera facturé. Au plaisir de vous revoir : réservez quand vous le souhaitez sur keepnew.be.', 1),
+(6, 'email', 0, 'C''est terminé — merci {{customer.first_name}} !', 'Bonjour {{customer.first_name}}, votre intervention est terminée. Nous espérons que le résultat vous plaît ! Votre facture ({{booking.reference}}, {{booking.total}}) vous parvient séparément. La moindre question, écrivez-nous : on répond vite.', 1),
+(7, 'email', 0, 'Votre avis compte pour nous, {{customer.first_name}}', 'Bonjour {{customer.first_name}}, merci de nous avoir fait confiance. Si le résultat vous a plu, un mot de votre part aide énormément une petite équipe comme la nôtre : {{review.url}} — deux minutes suffisent. Et si quelque chose n''allait pas, répondez à cet e-mail : on préfère le savoir et le rattraper.', 1);
 
 SET FOREIGN_KEY_CHECKS = 1;
 

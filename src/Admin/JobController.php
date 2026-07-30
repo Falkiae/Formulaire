@@ -14,6 +14,7 @@ use Keepnew\Core\Response;
 use Keepnew\Core\Session;
 use Keepnew\Core\View;
 use Keepnew\Geo\NominatimGeocoder;
+use Keepnew\Notification\NotificationService;
 use Keepnew\Support\Clock;
 
 /**
@@ -34,6 +35,7 @@ final class JobController
         private readonly RescheduleAvailabilityService $availability,
         private readonly NominatimGeocoder $geocoder,
         private readonly BookingService $bookings,
+        private readonly NotificationService $notifications,
     ) {
     }
 
@@ -124,6 +126,7 @@ final class JobController
                 'SELECT COUNT(*) FROM jobs WHERE booking_id = :b',
                 ['b' => $bookingId],
             ),
+            'review_sent_at' => $this->reviewRequestSentAt($bookingId),
             'items' => $this->db->select('SELECT label_snapshot, quantity, line_total_cents FROM booking_items WHERE job_id = :j', ['j' => $id]),
             'answers' => $this->db->select('SELECT field_key, value_text FROM booking_answers WHERE booking_id = :b', ['b' => $bookingId]),
             'photos' => $this->db->select('SELECT kind, file_path FROM booking_photos WHERE job_id = :j', ['j' => $id]),
@@ -213,6 +216,62 @@ final class JobController
         $this->session->flash('job_ok', 'Statut mis à jour.');
 
         return $this->finish($request, $id);
+    }
+
+    /**
+     * POST /admin/job/{id}/demande-avis — envoie la demande d'avis au client.
+     *
+     * Manuelle et non automatique : c'est un geste commercial qu'on ne veut
+     * poser qu'après une intervention réellement satisfaisante, jamais en
+     * masse. Réservée aux rendez-vous terminés, et une seule fois par commande.
+     */
+    public function requestReview(Request $request): Response
+    {
+        $id = (int) $request->attribute('id');
+        $job = $this->db->selectOne('SELECT status, booking_id FROM jobs WHERE id = :id', ['id' => $id]);
+        if ($job === null) {
+            throw new NotFoundException('Job introuvable.');
+        }
+
+        if ($job['status'] !== 'completed') {
+            $this->session->flash('job_ok', 'La demande d\'avis n\'est possible qu\'une fois la prestation terminée.');
+
+            return $this->finish($request, $id);
+        }
+
+        if ($this->reviewRequestSentAt((int) $job['booking_id']) !== null) {
+            $this->session->flash('job_ok', 'Une demande d\'avis a déjà été envoyée pour cette commande.');
+
+            return $this->finish($request, $id);
+        }
+
+        $this->notifications->trigger('review_request', (int) $job['booking_id']);
+
+        // trigger() reste silencieux si l'événement est désactivé ou dépourvu
+        // de modèle : on le dit plutôt que d'annoncer un envoi imaginaire.
+        $this->session->flash(
+            'job_ok',
+            $this->reviewRequestSentAt((int) $job['booking_id']) !== null
+                ? 'Demande d\'avis envoyée au client.'
+                : 'Aucune demande envoyée : vérifiez que l\'événement « Demande d\'avis » est actif et que le client a un e-mail (/admin/notifications).',
+        );
+
+        return $this->finish($request, $id);
+    }
+
+    /**
+     * Date d'envoi de la demande d'avis pour cette commande, ou null.
+     */
+    private function reviewRequestSentAt(int $bookingId): ?string
+    {
+        $value = $this->db->scalar(
+            "SELECT COALESCE(sent_at, scheduled_at) FROM notifications_log
+              WHERE booking_id = :b AND event_key = 'review_request' AND status <> 'failed'
+              ORDER BY id DESC LIMIT 1",
+            ['b' => $bookingId],
+        );
+
+        return $value !== null ? (string) $value : null;
     }
 
     /**

@@ -81,6 +81,23 @@ $title = $data['items'] !== []
         </div>
     <?php endif; ?>
 
+    <?php if ($j['status'] === 'completed'): ?>
+        <?php $reviewSentAt = $data['review_sent_at'] ?? null; ?>
+        <div style="margin:8px 0;">
+            <?php if ($reviewSentAt !== null): ?>
+                <p class="kn-muted" style="margin:0;">
+                    Demande d'avis envoyée le <?= $e(substr($reviewSentAt, 0, 16)) ?>.
+                </p>
+            <?php else: ?>
+                <form method="post" action="/admin/job/<?= (int) $j['id'] ?>/demande-avis"
+                      onsubmit="return confirm('Envoyer la demande d\'avis à <?= $e(trim($j['first_name'] . ' ' . $j['last_name'])) ?> ?');">
+                    <?= $data['csrf'] ?>
+                    <button type="submit" class="kn-btn kn-btn-ghost kn-btn-sm">Envoyer une demande d'avis</button>
+                </form>
+            <?php endif; ?>
+        </div>
+    <?php endif; ?>
+
     <span class="kn-badge kn-badge-<?= $e($j['mode']) ?>"><?= $j['mode'] === 'onsite' ? 'À domicile' : 'Atelier' ?></span>
     <?php if ($j['tech_first']): ?><span class="kn-muted">· Technicien : <?= $e($j['tech_first'] . ' ' . $j['tech_last']) ?></span><?php endif; ?>
 

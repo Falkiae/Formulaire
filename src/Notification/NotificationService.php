@@ -194,6 +194,15 @@ final class NotificationService
             'technician' => [
                 'first_name' => $job['tech_first'] ?? '',
             ],
+            // Lien public où déposer un avis (Google, Trustpilot…), réglé une
+            // fois dans /admin/reglages. Une demande d'avis sans lien cliquable
+            // n'a aucun intérêt : c'est la seule variable dont le modèle
+            // `review_request` a réellement besoin.
+            'review' => [
+                'url' => (string) ($this->db->scalar(
+                    "SELECT `value` FROM settings WHERE `key` = 'company.review_url'",
+                ) ?? ''),
+            ],
         ];
     }
 

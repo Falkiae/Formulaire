@@ -30,14 +30,29 @@ chemins d'annulation (back-office, page client `/rdv/{token}`, API JSON)
 convergent vers cette méthode ; le déclencher au niveau des contrôleurs
 revenait à l'oublier dans deux d'entre eux — ce qui était le cas.
 
+`job_completed` est déclenché par l'app technicien (`TechController::status`)
+quand le technicien marque l'intervention terminée.
+
+`review_request` est le seul événement **déclenché à la main** : bouton
+« Envoyer une demande d'avis » sur la fiche du rendez-vous, visible uniquement
+si le job est `completed`, et une seule fois par commande
+(`JobController::requestReview` vérifie les deux). C'est un geste commercial
+qu'on ne veut poser qu'après une intervention réussie, jamais en masse. Le
+message s'appuie sur `{{review.url}}`, alimentée par le réglage
+`company.review_url` (`/admin/reglages`).
+
 > **Un événement sans modèle est muet.** `trigger()` sort immédiatement si
 > l'événement n'a aucun `notification_template` actif, et `/admin/notifications`
 > ne sait qu'**éditer** des modèles existants, jamais en créer. Un événement
 > dépourvu de ligne en base est donc à la fois silencieux et invisible dans
-> l'interface. C'était le cas de `booking_cancelled` (corrigé : seed +
-> migration 005). **`job_completed` et `review_request` sont encore dans cet
-> état** — `job_completed` est pourtant déclenché à chaque intervention
-> terminée depuis l'app technicien.
+> l'interface. C'était le cas de `booking_cancelled` (migration 005) puis de
+> `job_completed` et `review_request` (migration 006) : les trois ont désormais
+> un modèle e-mail, éditable dans le back-office.
+
+> **Asymétrie connue** : `job_completed` n'est déclenché que depuis l'app
+> technicien. Un rendez-vous passé à « Terminé » depuis le back-office
+> (`JobController::updateStatus`) ne notifie pas le client et ne crée pas
+> l'indemnité de mobilité — contrairement à `TechController::status`.
 
 ## Facturation (`src/Invoice/`)
 

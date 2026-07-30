@@ -41,6 +41,16 @@ $v = $data['values'];
                 <input type="url" id="company_terms_url" name="company_terms_url" value="<?= $e($v['company.terms_url'] ?? '') ?>" placeholder="https://…">
             </div>
 
+            <h2>Avis clients</h2>
+            <div class="kn-field">
+                <label for="company_review_url">Lien où déposer un avis (Google, Trustpilot…)</label>
+                <input type="url" id="company_review_url" name="company_review_url" value="<?= $e($v['company.review_url'] ?? '') ?>" placeholder="https://g.page/r/…/review">
+                <p class="kn-muted" style="margin-top:6px;">
+                    Utilisé par la variable <code>{{review.url}}</code> du modèle « Demande d'avis », envoyé
+                    depuis la fiche d'un rendez-vous terminé. Sans lien, le message part sans URL cliquable.
+                </p>
+            </div>
+
             <h2>Signature email</h2>
             <div class="kn-field">
                 <label for="company_email_signature_html">Signature HTML (ajoutée automatiquement en fin de chaque email envoyé)</label>

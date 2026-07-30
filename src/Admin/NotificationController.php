@@ -26,6 +26,7 @@ final class NotificationController
         'customer.first_name', 'customer.last_name', 'customer.email', 'customer.phone',
         'job.date', 'job.arrival_from',
         'technician.first_name',
+        'review.url',
     ];
 
     public function __construct(
