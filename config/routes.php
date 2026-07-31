@@ -557,6 +557,8 @@ return static function (Router $router, Container $container): void {
             $r->post('/job/{id}/ligne', [JobController::class, 'addLine'], [CsrfMiddleware::class]);
             $r->post('/job/{id}/ligne/{itemId}', [JobController::class, 'updateLine'], [CsrfMiddleware::class]);
             $r->post('/job/{id}/ligne/{itemId}/supprimer', [JobController::class, 'removeLine'], [CsrfMiddleware::class]);
+            $r->post('/job/{id}/ligne/{itemId}/extra', [JobController::class, 'addExtra'], [CsrfMiddleware::class]);
+            $r->post('/job/{id}/ligne/{itemId}/extra/{extraRowId}/supprimer', [JobController::class, 'removeExtra'], [CsrfMiddleware::class]);
             $r->post('/job/{id}/remise', [JobController::class, 'setDiscount'], [CsrfMiddleware::class]);
             $r->get('/job/{id}/creneaux/mois', [JobController::class, 'slotDates']);
             $r->get('/job/{id}/creneaux', [JobController::class, 'slotsForDate']);

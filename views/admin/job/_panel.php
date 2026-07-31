@@ -240,6 +240,42 @@ $title = $data['items'] !== []
                             <?php endif; ?>
                         </td>
                     </tr>
+
+                    <?php if ($it['extras'] !== [] || ($block === null && $it['attachable_extras'] !== [])): ?>
+                        <tr>
+                            <td colspan="5" style="padding-top:0;">
+                                <?php foreach ($it['extras'] as $ex): ?>
+                                    <span class="kn-badge" style="margin-right:6px;">
+                                        + <?= $e($ex['label_snapshot']) ?> · <?= $e($eur((int) $ex['unit_price_cents'])) ?> €
+                                        <?php if ((int) $ex['unit_duration_min'] > 0): ?>· <?= (int) $ex['unit_duration_min'] ?> min<?php endif; ?>
+                                        <?php if ($block === null): ?>
+                                            <form method="post" style="display:inline;"
+                                                  action="/admin/job/<?= $jobId ?>/ligne/<?= (int) $it['id'] ?>/extra/<?= (int) $ex['id'] ?>/supprimer">
+                                                <?= $data['csrf'] ?>
+                                                <button type="submit" class="kn-btn-inline-x" aria-label="Retirer l'extra <?= $e($ex['label_snapshot']) ?>">✕</button>
+                                            </form>
+                                        <?php endif; ?>
+                                    </span>
+                                <?php endforeach; ?>
+                                <?php if ($it['extras'] === []): ?><span class="kn-muted" style="font-size:.8rem;">Aucun extra.</span><?php endif; ?>
+
+                                <?php if ($block === null && $it['attachable_extras'] !== []): ?>
+                                    <form method="post" action="/admin/job/<?= $jobId ?>/ligne/<?= (int) $it['id'] ?>/extra"
+                                          style="display:inline-flex;gap:6px;align-items:center;margin-top:6px;">
+                                        <?= $data['csrf'] ?>
+                                        <select name="extra_id" aria-label="Extra à ajouter">
+                                            <?php foreach ($it['attachable_extras'] as $ax): ?>
+                                                <option value="<?= (int) $ax['extra_id'] ?>">
+                                                    <?= $e($ax['label']) ?> — <?= $e($eur((int) $ax['eff_price_cents'])) ?> €
+                                                </option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                        <button type="submit" class="kn-btn kn-btn-ghost kn-btn-sm">+ Extra</button>
+                                    </form>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                    <?php endif; ?>
                 <?php endforeach; ?>
                 <?php if ($data['items'] === []): ?>
                     <tr><td colspan="5" class="kn-muted">Aucune prestation.</td></tr>

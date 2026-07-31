@@ -41,7 +41,15 @@ donné ne change pas de taux parce qu'un réglage a bougé depuis.
 Opérations : corriger prix et quantité d'une ligne, ajouter une prestation du
 catalogue (au tarif du mode du rendez-vous), ajouter une **ligne sur mesure**
 hors catalogue (`booking_items.service_id` NULL, migration 007), retirer une
-ligne, fixer une **remise** en € ou en %.
+ligne, **rattacher ou retirer un extra** sur une ligne, fixer une **remise** en
+€ ou en %.
+
+Les extras font partie du prix de la ligne — `line_total_cents = (prix unitaire
++ extras) × quantité`, comme à la création. Leur tarif est **figé au
+rattachement** : celui du catalogue peut bouger, celui d'une commande passée ne
+doit pas. Une ligne du catalogue propose les extras de sa prestation (surcharge
+de prix par service prise en compte) ; une ligne sur mesure propose tous les
+extras actifs.
 
 Trois garde-fous, tous côté serveur :
 
@@ -55,9 +63,15 @@ Trois garde-fous, tous côté serveur :
 La remise saisie **remplace** la précédente (remise cumul et coupon d'origine
 comprises) : c'est le montant décidé par l'admin, pas un cumul implicite.
 
-Ajouter ou retirer une prestation **change la durée** du rendez-vous :
-`jobs.active_duration_min` et `scheduled_end` suivent, sans quoi le moteur de
-disponibilité continuerait de croire le technicien libre. Si la nouvelle durée
+Ajouter ou retirer une prestation (ou un extra) **change la durée** du
+rendez-vous : `jobs.active_duration_min` et `scheduled_end` suivent, sans quoi
+le moteur de disponibilité continuerait de croire le technicien libre.
+
+Les durées sont ajustées **par écart**, pas recalculées depuis les lignes : le
+tunnel public enregistre les lignes avec `unit_duration_min = 0` (BookingService
+agrège les durées par mode au moment de créer les jobs, sans les reporter sur
+les lignes). Un recalcul « somme des lignes » ramènerait donc à zéro la durée de
+toutes les commandes existantes. Si la nouvelle durée
 fait chevaucher un autre rendez-vous du même technicien, c'est **signalé sans
 être bloqué** — allonger une prestation est légitime, c'est au planning de
 suivre.

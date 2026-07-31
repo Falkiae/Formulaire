@@ -12,21 +12,29 @@ use Keepnew\Support\Money;
 
 /**
  * Retouche d'une commande déjà passée, depuis le back-office : corriger un
- * prix, ajouter une prestation du catalogue ou sur mesure, en retirer une,
+ * prix, ajouter une prestation du catalogue ou sur mesure, gérer ses extras,
  * accorder une remise.
  *
  * Le devis initial est produit par CartPricer à partir du panier ; il n'est
  * plus rejouable ici (le panier est converti, les règles ont pu changer). Les
- * totaux sont donc RECALCULÉS à partir des lignes réellement présentes, avec
+ * MONTANTS sont donc recalculés à partir des lignes réellement présentes, avec
  * exactement la même arithmétique que CartPricer :
  *
- *     net TVA comprise exclue = sous-total − remise + supplément déplacement
- *     TVA                     = Money::vat(net, taux figé sur la commande)
- *     total TVAC              = net + TVA
+ *     total de ligne = (prix unitaire + extras de la ligne) × quantité
+ *     net            = sous-total − remise + supplément déplacement
+ *     TVA            = Money::vat(net, taux figé sur la commande)
+ *     total TVAC     = net + TVA
  *
  * Le taux de TVA reste celui figé sur la commande (`vat_rate_bp`) : une
  * commande passée sous un taux donné ne doit pas changer de taux parce qu'un
  * réglage a bougé depuis.
+ *
+ * Les DURÉES, elles, sont ajustées par DELTA et non recalculées : les lignes
+ * issues du tunnel public sont enregistrées avec `unit_duration_min = 0`
+ * (BookingService agrège les durées par mode au moment de créer les jobs, sans
+ * les reporter sur les lignes). Un recalcul « somme des lignes » ramènerait
+ * donc à zéro la durée des commandes existantes. On applique l'écart de chaque
+ * opération, ce qui reste juste quelles que soient les données héritées.
  *
  * Deux verrous, volontairement stricts :
  *  - une commande FACTURÉE n'est plus modifiable (la numérotation est
@@ -70,7 +78,8 @@ final class BookingEditService
     }
 
     /**
-     * Corrige le prix unitaire et/ou la quantité d'une ligne.
+     * Corrige le prix unitaire et/ou la quantité d'une ligne. Les extras de la
+     * ligne sont conservés et restent comptés dans son total.
      */
     public function updateLine(int $bookingId, int $itemId, int $unitPriceCents, int $quantity): void
     {
@@ -79,13 +88,18 @@ final class BookingEditService
 
         $quantity = max(1, $quantity);
         $unitPriceCents = max(0, $unitPriceCents);
+        $before = (int) $item['quantity'];
 
         $this->db->run(
-            'UPDATE booking_items SET unit_price_cents = :p, quantity = :q, line_total_cents = :t WHERE id = :id',
-            ['p' => $unitPriceCents, 'q' => $quantity, 't' => $unitPriceCents * $quantity, 'id' => (int) $item['id']],
+            'UPDATE booking_items SET unit_price_cents = :p, quantity = :q WHERE id = :id',
+            ['p' => $unitPriceCents, 'q' => $quantity, 'id' => $itemId],
         );
 
-        $this->recompute($bookingId);
+        $this->refreshLineTotal($itemId);
+        // La durée d'une ligne est multipliée par sa quantité : un changement de
+        // quantité déplace donc la durée de l'intervention.
+        $this->shiftDuration($bookingId, (int) $item['job_id'], $this->unitDurationOf($itemId) * ($quantity - $before));
+        $this->recomputeTotals($bookingId);
     }
 
     /**
@@ -128,8 +142,9 @@ final class BookingEditService
             }
         }
 
-        $this->insertLine($bookingId, $jobId, $mode, $serviceId, $variantId, $label, $unitPrice, $unitDuration, $quantity);
-        $this->recompute($bookingId);
+        $this->insertLine($bookingId, $jobId, $mode, $serviceId, $variantId, $label, $unitPrice, $unitDuration, max(1, $quantity));
+        $this->shiftDuration($bookingId, $jobId, $unitDuration * max(1, $quantity));
+        $this->recomputeTotals($bookingId);
     }
 
     /**
@@ -151,23 +166,18 @@ final class BookingEditService
             throw new HttpException(422, 'Donnez un libellé à la prestation sur mesure.');
         }
 
-        $this->insertLine(
-            $bookingId,
-            $jobId,
-            (string) $job['mode'],
-            null,
-            null,
-            $label,
-            max(0, $unitPriceCents),
-            max(0, $durationMin),
-            max(1, $quantity),
-        );
-        $this->recompute($bookingId);
+        $quantity = max(1, $quantity);
+        $durationMin = max(0, $durationMin);
+
+        $this->insertLine($bookingId, $jobId, (string) $job['mode'], null, null, $label, max(0, $unitPriceCents), $durationMin, $quantity);
+        $this->shiftDuration($bookingId, $jobId, $durationMin * $quantity);
+        $this->recomputeTotals($bookingId);
     }
 
     /**
-     * Retire une ligne. La dernière n'est pas supprimable : une commande sans
-     * prestation n'aurait plus de sens (utiliser l'annulation).
+     * Retire une ligne (et ses extras, en cascade). La dernière n'est pas
+     * supprimable : une commande sans prestation n'aurait plus de sens
+     * (utiliser l'annulation).
      */
     public function removeLine(int $bookingId, int $itemId): void
     {
@@ -179,12 +189,117 @@ final class BookingEditService
             throw new HttpException(422, 'Une commande garde au moins une prestation : annulez-la plutôt que de la vider.');
         }
 
-        $this->db->run('DELETE FROM booking_items WHERE id = :id', ['id' => (int) $item['id']]);
-        $this->recompute($bookingId);
+        $lost = $this->unitDurationOf($itemId) * (int) $item['quantity'];
+
+        $this->db->run('DELETE FROM booking_items WHERE id = :id', ['id' => $itemId]);
+        $this->shiftDuration($bookingId, (int) $item['job_id'], -$lost);
+        $this->recomputeTotals($bookingId);
     }
 
     /**
-     * Fixe la remise de la commande, en centimes, sur le sous-total HTVA.
+     * Rattache un extra à une ligne, au tarif du catalogue.
+     *
+     * Prix et durée sont FIGÉS à l'ajout (comme partout ailleurs) : le tarif
+     * du catalogue peut bouger, celui de la commande passée ne doit pas.
+     */
+    public function addExtra(int $bookingId, int $itemId, int $extraId): void
+    {
+        $this->assertEditable($bookingId);
+        $item = $this->line($bookingId, $itemId);
+
+        $already = (int) $this->db->scalar(
+            'SELECT COUNT(*) FROM booking_item_extras WHERE booking_item_id = :i AND extra_id = :e',
+            ['i' => $itemId, 'e' => $extraId],
+        );
+        if ($already > 0) {
+            throw new HttpException(422, 'Cet extra est déjà rattaché à la prestation.');
+        }
+
+        [$price, $duration, $label] = $this->extraPricing($item, $extraId);
+
+        $this->db->insert('booking_item_extras', [
+            'booking_item_id' => $itemId,
+            'extra_id' => $extraId,
+            'unit_price_cents' => $price,
+            'unit_duration_min' => $duration,
+            'label_snapshot' => $label,
+        ]);
+
+        $this->refreshLineTotal($itemId);
+        $this->shiftDuration($bookingId, (int) $item['job_id'], $duration * (int) $item['quantity']);
+        $this->recomputeTotals($bookingId);
+    }
+
+    /**
+     * Retire un extra d'une ligne.
+     */
+    public function removeExtra(int $bookingId, int $itemId, int $extraRowId): void
+    {
+        $this->assertEditable($bookingId);
+        $item = $this->line($bookingId, $itemId);
+
+        $row = $this->db->selectOne(
+            'SELECT * FROM booking_item_extras WHERE id = :id AND booking_item_id = :i',
+            ['id' => $extraRowId, 'i' => $itemId],
+        );
+        if ($row === null) {
+            throw new NotFoundException('Extra introuvable sur cette prestation.');
+        }
+
+        $this->db->run('DELETE FROM booking_item_extras WHERE id = :id', ['id' => $extraRowId]);
+
+        $this->refreshLineTotal($itemId);
+        $this->shiftDuration($bookingId, (int) $item['job_id'], -((int) $row['unit_duration_min'] * (int) $item['quantity']));
+        $this->recomputeTotals($bookingId);
+    }
+
+    /**
+     * Extras rattachables à une ligne : ceux du catalogue de la prestation
+     * (tarif éventuellement surchargé pour ce service), ou tous les extras
+     * actifs si la ligne est sur mesure. Les extras déjà posés sont exclus.
+     *
+     * @param array<string, mixed> $item
+     * @return list<array<string, mixed>>
+     */
+    public function attachableExtras(array $item): array
+    {
+        $serviceId = $item['service_id'] !== null ? (int) $item['service_id'] : null;
+
+        $available = $serviceId !== null
+            ? $this->catalog->serviceExtras($serviceId)
+            : $this->db->select(
+                'SELECT id AS extra_id, label, default_price_cents AS eff_price_cents,
+                        default_duration_min AS eff_duration_min
+                   FROM extras WHERE is_active = 1 ORDER BY label',
+            );
+
+        $taken = array_map(
+            static fn (array $r): int => (int) $r['extra_id'],
+            $this->db->select('SELECT extra_id FROM booking_item_extras WHERE booking_item_id = :i', ['i' => (int) $item['id']]),
+        );
+
+        return array_values(array_filter(
+            $available,
+            static fn (array $x): bool => !in_array((int) $x['extra_id'], $taken, true),
+        ));
+    }
+
+    /**
+     * Extras posés sur une ligne.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function extrasOf(int $itemId): array
+    {
+        return $this->db->select(
+            'SELECT id, extra_id, label_snapshot, unit_price_cents, unit_duration_min
+               FROM booking_item_extras WHERE booking_item_id = :i ORDER BY id',
+            ['i' => $itemId],
+        );
+    }
+
+    /**
+     * Fixe la remise de la commande, en centimes, sur le sous-total.
      * Écrase la remise existante (cumul/coupon d'origine comprise) : c'est le
      * montant que l'admin décide, pas un cumul implicite.
      */
@@ -196,10 +311,12 @@ final class BookingEditService
             'SELECT COALESCE(SUM(line_total_cents), 0) FROM booking_items WHERE booking_id = :b',
             ['b' => $bookingId],
         );
-        $discount = max(0, min($discountCents, $subtotal));
 
-        $this->db->run('UPDATE bookings SET discount_cents = :d WHERE id = :id', ['d' => $discount, 'id' => $bookingId]);
-        $this->recompute($bookingId);
+        $this->db->run(
+            'UPDATE bookings SET discount_cents = :d WHERE id = :id',
+            ['d' => max(0, min($discountCents, $subtotal)), 'id' => $bookingId],
+        );
+        $this->recomputeTotals($bookingId);
     }
 
     /**
@@ -218,7 +335,7 @@ final class BookingEditService
     }
 
     /**
-     * Vrai si le rendez-vous, après recalcul de sa durée, chevauche un autre
+     * Vrai si le rendez-vous, après changement de durée, chevauche un autre
      * rendez-vous du même technicien. Signalé à l'admin sans rien bloquer :
      * allonger une prestation est légitime, c'est le planning qui doit suivre.
      */
@@ -281,6 +398,34 @@ final class BookingEditService
         return $job;
     }
 
+    /**
+     * Tarif d'un extra pour une ligne : surcharge du service si l'extra y est
+     * rattaché, tarif par défaut de l'extra sinon (ligne sur mesure).
+     *
+     * @param array<string, mixed> $item
+     * @return array{0:int, 1:int, 2:string}
+     */
+    private function extraPricing(array $item, int $extraId): array
+    {
+        if ($item['service_id'] !== null) {
+            foreach ($this->catalog->serviceExtras((int) $item['service_id']) as $se) {
+                if ((int) $se['extra_id'] === $extraId) {
+                    return [(int) $se['eff_price_cents'], (int) $se['eff_duration_min'], (string) $se['label']];
+                }
+            }
+        }
+
+        $extra = $this->db->selectOne(
+            'SELECT label, default_price_cents, default_duration_min FROM extras WHERE id = :id AND is_active = 1',
+            ['id' => $extraId],
+        );
+        if ($extra === null) {
+            throw new NotFoundException('Extra inconnu.');
+        }
+
+        return [(int) $extra['default_price_cents'], (int) $extra['default_duration_min'], (string) $extra['label']];
+    }
+
     private function insertLine(
         int $bookingId,
         int $jobId,
@@ -311,77 +456,108 @@ final class BookingEditService
     }
 
     /**
-     * Réaligne totaux et durées sur les lignes réellement présentes.
-     *
-     * La durée d'un rendez-vous est la somme des durées de SES lignes : ajouter
-     * une prestation allonge l'intervention, et `scheduled_end` suit — sans quoi
-     * le moteur de disponibilité continuerait de croire le technicien libre.
+     * Durée d'UNE unité de la ligne : sa propre durée plus celle de ses extras.
      */
-    private function recompute(int $bookingId): void
+    private function unitDurationOf(int $itemId): int
     {
-        $this->db->transaction(function (Database $db) use ($bookingId): void {
-            $booking = $db->selectOne('SELECT * FROM bookings WHERE id = :id', ['id' => $bookingId]);
-            if ($booking === null) {
-                return;
-            }
+        $own = (int) $this->db->scalar('SELECT unit_duration_min FROM booking_items WHERE id = :id', ['id' => $itemId]);
+        $extras = (int) $this->db->scalar(
+            'SELECT COALESCE(SUM(unit_duration_min), 0) FROM booking_item_extras WHERE booking_item_id = :i',
+            ['i' => $itemId],
+        );
 
-            $subtotal = (int) $db->scalar(
-                'SELECT COALESCE(SUM(line_total_cents), 0) FROM booking_items WHERE booking_id = :b',
-                ['b' => $bookingId],
-            );
-            $duration = (int) $db->scalar(
-                'SELECT COALESCE(SUM(unit_duration_min * quantity), 0) FROM booking_items WHERE booking_id = :b',
-                ['b' => $bookingId],
-            );
+        return $own + $extras;
+    }
 
-            // Une remise supérieure au sous-total après retrait d'une ligne
-            // serait absurde : on la ramène au plafond.
-            $discount = min((int) $booking['discount_cents'], $subtotal);
-            $travel = (int) $booking['travel_surcharge_cents'];
-            $rate = (int) $booking['vat_rate_bp'];
+    /**
+     * Réaligne le total d'une ligne : (prix unitaire + extras) × quantité.
+     * Même formule que BookingService à la création — les extras font partie
+     * du prix de la ligne, les oublier les rendrait gratuits.
+     */
+    private function refreshLineTotal(int $itemId): void
+    {
+        $item = $this->db->selectOne('SELECT unit_price_cents, quantity FROM booking_items WHERE id = :id', ['id' => $itemId]);
+        if ($item === null) {
+            return;
+        }
+        $extras = (int) $this->db->scalar(
+            'SELECT COALESCE(SUM(unit_price_cents), 0) FROM booking_item_extras WHERE booking_item_id = :i',
+            ['i' => $itemId],
+        );
 
-            $net = max(0, $subtotal - $discount + $travel);
-            $vat = Money::vat($net, $rate);
+        $this->db->run(
+            'UPDATE booking_items SET line_total_cents = :t WHERE id = :id',
+            ['t' => ((int) $item['unit_price_cents'] + $extras) * (int) $item['quantity'], 'id' => $itemId],
+        );
+    }
 
-            $db->run(
-                'UPDATE bookings SET subtotal_cents = :s, discount_cents = :d, vat_cents = :v,
-                        total_cents = :t, total_duration_min = :dur
-                  WHERE id = :id',
-                ['s' => $subtotal, 'd' => $discount, 'v' => $vat, 't' => $net + $vat, 'dur' => $duration, 'id' => $bookingId],
-            );
+    /**
+     * Applique un écart de durée au rendez-vous et à la commande, et décale la
+     * fin planifiée. Sans cela, le moteur de disponibilité continuerait de
+     * croire le technicien libre sur le temps ajouté.
+     */
+    private function shiftDuration(int $bookingId, int $jobId, int $deltaMin): void
+    {
+        if ($deltaMin === 0) {
+            return;
+        }
 
-            // Durée par rendez-vous + fin planifiée.
-            $jobs = $db->select(
-                'SELECT id, scheduled_start, occupancy_duration_min, mode FROM jobs WHERE booking_id = :b',
-                ['b' => $bookingId],
-            );
-            foreach ($jobs as $job) {
-                $jobDuration = (int) $db->scalar(
-                    'SELECT COALESCE(SUM(unit_duration_min * quantity), 0) FROM booking_items WHERE job_id = :j',
-                    ['j' => (int) $job['id']],
-                );
-                if ($jobDuration <= 0) {
-                    continue;
-                }
+        $job = $this->db->selectOne(
+            'SELECT mode, scheduled_start, active_duration_min, occupancy_duration_min FROM jobs WHERE id = :id',
+            ['id' => $jobId],
+        );
+        if ($job === null) {
+            return;
+        }
 
-                // À l'atelier, l'immobilisation du poste ne descend jamais sous
-                // la durée de travail effective (cf. BookingService).
-                $occupancy = $job['mode'] === 'workshop'
-                    ? max((int) $job['occupancy_duration_min'], $jobDuration)
-                    : $jobDuration;
+        $active = max(0, (int) $job['active_duration_min'] + $deltaMin);
+        // À l'atelier, l'immobilisation du poste ne descend jamais sous la
+        // durée de travail effective (même règle que BookingService).
+        $occupancy = $job['mode'] === 'workshop'
+            ? max((int) $job['occupancy_duration_min'] + $deltaMin, $active)
+            : $active;
 
-                $end = null;
-                if ($job['scheduled_start'] !== null) {
-                    $end = (new \DateTimeImmutable((string) $job['scheduled_start'], new \DateTimeZone('UTC')))
-                        ->modify('+' . ($job['mode'] === 'workshop' ? $occupancy : $jobDuration) . ' minutes')
-                        ->format('Y-m-d H:i:s');
-                }
+        $end = null;
+        if ($job['scheduled_start'] !== null) {
+            $end = (new \DateTimeImmutable((string) $job['scheduled_start'], new \DateTimeZone('UTC')))
+                ->modify('+' . ($job['mode'] === 'workshop' ? $occupancy : $active) . ' minutes')
+                ->format('Y-m-d H:i:s');
+        }
 
-                $db->run(
-                    'UPDATE jobs SET active_duration_min = :a, occupancy_duration_min = :o, scheduled_end = :e WHERE id = :id',
-                    ['a' => $jobDuration, 'o' => $occupancy, 'e' => $end, 'id' => (int) $job['id']],
-                );
-            }
-        });
+        $this->db->run(
+            'UPDATE jobs SET active_duration_min = :a, occupancy_duration_min = :o, scheduled_end = :e WHERE id = :id',
+            ['a' => $active, 'o' => max(0, $occupancy), 'e' => $end, 'id' => $jobId],
+        );
+        $this->db->run(
+            'UPDATE bookings SET total_duration_min = GREATEST(0, total_duration_min + :d) WHERE id = :id',
+            ['d' => $deltaMin, 'id' => $bookingId],
+        );
+    }
+
+    /**
+     * Réaligne les totaux de la commande sur ses lignes.
+     */
+    private function recomputeTotals(int $bookingId): void
+    {
+        $booking = $this->db->selectOne('SELECT * FROM bookings WHERE id = :id', ['id' => $bookingId]);
+        if ($booking === null) {
+            return;
+        }
+
+        $subtotal = (int) $this->db->scalar(
+            'SELECT COALESCE(SUM(line_total_cents), 0) FROM booking_items WHERE booking_id = :b',
+            ['b' => $bookingId],
+        );
+
+        // Une remise supérieure au sous-total après retrait d'une ligne serait
+        // absurde : on la ramène au plafond.
+        $discount = min((int) $booking['discount_cents'], $subtotal);
+        $net = max(0, $subtotal - $discount + (int) $booking['travel_surcharge_cents']);
+        $vat = Money::vat($net, (int) $booking['vat_rate_bp']);
+
+        $this->db->run(
+            'UPDATE bookings SET subtotal_cents = :s, discount_cents = :d, vat_cents = :v, total_cents = :t WHERE id = :id',
+            ['s' => $subtotal, 'd' => $discount, 'v' => $vat, 't' => $net + $vat, 'id' => $bookingId],
+        );
     }
 }

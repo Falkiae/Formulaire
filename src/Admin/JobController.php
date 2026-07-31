@@ -131,10 +131,19 @@ final class JobController
                 ['b' => $bookingId],
             ),
             'review_sent_at' => $this->reviewRequestSentAt($bookingId),
-            'items' => $this->db->select(
-                'SELECT id, service_id, label_snapshot, quantity, unit_price_cents, unit_duration_min, line_total_cents
-                   FROM booking_items WHERE job_id = :j ORDER BY id',
-                ['j' => $id],
+            // Chaque ligne porte ses extras posés et ceux encore rattachables :
+            // les extras font partie du prix de la ligne, ils doivent se lire et
+            // se modifier au même endroit.
+            'items' => array_map(
+                fn (array $it): array => $it + [
+                    'extras' => $this->edits->extrasOf((int) $it['id']),
+                    'attachable_extras' => $this->edits->attachableExtras($it),
+                ],
+                $this->db->select(
+                    'SELECT id, service_id, label_snapshot, quantity, unit_price_cents, unit_duration_min, line_total_cents
+                       FROM booking_items WHERE job_id = :j ORDER BY id',
+                    ['j' => $id],
+                ),
             ),
             // Totaux de la commande : c'est eux que la retouche fait bouger.
             'booking' => $this->db->selectOne(
@@ -315,6 +324,48 @@ final class JobController
         try {
             $this->edits->removeLine($this->bookingIdOf($id), (int) $request->attribute('itemId'));
             $this->session->flash('job_ok', 'Ligne retirée.');
+        } catch (HttpException | NotFoundException $e) {
+            $this->session->flash('job_ok', $e->getMessage());
+        }
+
+        return $this->finish($request, $id);
+    }
+
+    /**
+     * POST /admin/job/{id}/ligne/{itemId}/extra — rattache un extra à la ligne.
+     */
+    public function addExtra(Request $request): Response
+    {
+        $id = (int) $request->attribute('id');
+
+        try {
+            $this->edits->addExtra(
+                $this->bookingIdOf($id),
+                (int) $request->attribute('itemId'),
+                $request->int('extra_id'),
+            );
+            $this->session->flash('job_ok', 'Extra ajouté.' . $this->overlapWarning($id));
+        } catch (HttpException | NotFoundException $e) {
+            $this->session->flash('job_ok', $e->getMessage());
+        }
+
+        return $this->finish($request, $id);
+    }
+
+    /**
+     * POST /admin/job/{id}/ligne/{itemId}/extra/{extraRowId}/supprimer
+     */
+    public function removeExtra(Request $request): Response
+    {
+        $id = (int) $request->attribute('id');
+
+        try {
+            $this->edits->removeExtra(
+                $this->bookingIdOf($id),
+                (int) $request->attribute('itemId'),
+                (int) $request->attribute('extraRowId'),
+            );
+            $this->session->flash('job_ok', 'Extra retiré.');
         } catch (HttpException | NotFoundException $e) {
             $this->session->flash('job_ok', $e->getMessage());
         }
