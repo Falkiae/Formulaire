@@ -18,6 +18,7 @@ use Keepnew\Core\View;
 use Keepnew\Geo\NominatimGeocoder;
 use Keepnew\Notification\NotificationService;
 use Keepnew\Support\Clock;
+use Keepnew\Support\Money;
 
 /**
  * Fiche job : client, prestations, réponses au formulaire, photos avant/après,
@@ -268,7 +269,7 @@ final class JobController
                     $bookingId,
                     $id,
                     $request->string('label'),
-                    $this->cents($request->string('price')),
+                    $this->tvacToHtCents($bookingId, $request->string('price')),
                     $request->int('quantity', 1),
                     $request->int('duration_min'),
                 );
@@ -300,10 +301,11 @@ final class JobController
         $id = (int) $request->attribute('id');
 
         try {
+            $bookingId = $this->bookingIdOf($id);
             $this->edits->updateLine(
-                $this->bookingIdOf($id),
+                $bookingId,
                 (int) $request->attribute('itemId'),
-                $this->cents($request->string('price')),
+                $this->tvacToHtCents($bookingId, $request->string('price')),
                 $request->int('quantity', 1),
             );
             $this->session->flash('job_ok', 'Ligne mise à jour.' . $this->overlapWarning($id));
@@ -386,7 +388,9 @@ final class JobController
                 $percent = (float) str_replace(',', '.', $request->string('value'));
                 $this->edits->setDiscountPercent($bookingId, (int) round($percent * 100));
             } else {
-                $this->edits->setDiscount($bookingId, $this->cents($request->string('value')));
+                // Une remise saisie en euros est une remise sur le prix client :
+                // elle se convertit comme un prix.
+                $this->edits->setDiscount($bookingId, $this->tvacToHtCents($bookingId, $request->string('value')));
             }
             $this->session->flash('job_ok', 'Remise appliquée.');
         } catch (HttpException | NotFoundException $e) {
@@ -406,6 +410,27 @@ final class JobController
         $normalised = str_replace([' ', ','], ['', '.'], trim($input));
 
         return (int) round(((float) $normalised) * 100);
+    }
+
+    /**
+     * Convertit un montant saisi en euros TVAC vers des centimes HT.
+     *
+     * L'admin raisonne en prix client, TVA comprise — comme dans le catalogue
+     * (CatalogController fait la même conversion). Le stockage et le moteur de
+     * facturation restent en HT : c'est le HT qui porte la TVA à l'UBL.
+     *
+     * Le taux utilisé est celui FIGÉ SUR LA COMMANDE, pas le réglage courant :
+     * une commande passée sous un taux donné doit rester cohérente si le taux
+     * change ensuite.
+     */
+    private function tvacToHtCents(int $bookingId, string $euros): int
+    {
+        return Money::removeVat($this->cents($euros), $this->bookingVatRateBp($bookingId));
+    }
+
+    private function bookingVatRateBp(int $bookingId): int
+    {
+        return (int) ($this->db->scalar('SELECT vat_rate_bp FROM bookings WHERE id = :id', ['id' => $bookingId]) ?? 2100);
     }
 
     /**

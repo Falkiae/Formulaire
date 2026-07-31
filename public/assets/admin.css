@@ -766,11 +766,15 @@ table.kn-table {
 .kn-week-col .kn-cal-pill-body { white-space: normal; }
 
 /* --- Panneau job coulissant --------------------------------------------- */
+/* Empilement : Leaflet monte jusqu'à z-index 1000 pour ses contrôles, et
+   l'en-tête collant est à 200. Le panneau était à 90/91 — la carte de la vue
+   Jour et l'en-tête passaient donc AU-DESSUS de l'overlay. Il faut dominer
+   les deux. */
 .kn-job-panel-overlay {
     position: fixed;
     inset: 0;
     background: rgba(20, 26, 46, .35);
-    z-index: 90;
+    z-index: 1200;
     opacity: 0;
     pointer-events: none;
     transition: opacity .2s ease;
@@ -781,11 +785,13 @@ table.kn-table {
     top: 0;
     right: 0;
     bottom: 0;
-    width: 480px;
-    max-width: 100%;
+    /* Assez large pour que le tableau des prestations (libellé, quantité,
+       prix, total, actions) tienne sans défilement horizontal, tout en
+       laissant voir le planning derrière. */
+    width: min(860px, 94vw);
     background: var(--kn-paper);
     box-shadow: -8px 0 24px rgba(20, 26, 46, .18);
-    z-index: 91;
+    z-index: 1201;
     overflow-y: auto;
     transform: translateX(100%);
     transition: transform .25s ease;
@@ -793,8 +799,16 @@ table.kn-table {
 }
 .kn-job-panel-slot.is-open { transform: translateX(0); }
 @media (max-width: 768px) {
-    .kn-job-panel-slot { width: 100%; }
+    .kn-job-panel-slot { width: 100%; padding: var(--kn-space-3); }
 }
+
+/* Dans le panneau, les tableaux ne défilent plus horizontalement : la largeur
+   disponible suffit, et les libellés passent à la ligne plutôt que d'élargir
+   la colonne. */
+.kn-job-panel .kn-table-wrap { overflow-x: visible; }
+.kn-job-panel .kn-table td,
+.kn-job-panel .kn-table th { padding: var(--kn-space-2) var(--kn-space-3); }
+.kn-job-panel .kn-table td:first-child { min-width: 0; overflow-wrap: anywhere; }
 .kn-job-panel-head {
     display: flex;
     justify-content: space-between;

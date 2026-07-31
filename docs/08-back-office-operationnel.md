@@ -44,6 +44,18 @@ hors catalogue (`booking_items.service_id` NULL, migration 007), retirer une
 ligne, **rattacher ou retirer un extra** sur une ligne, fixer une **remise** en
 € ou en %.
 
+**Saisie et affichage en TVAC.** Comme dans le catalogue (`CatalogController`),
+l'admin raisonne en prix client : les champs et les totaux du panneau sont TVA
+comprise, la conversion se fait à l'affichage (`Money::addVat`) et à
+l'enregistrement (`JobController::tvacToHtCents`). Le stockage reste en HT —
+c'est lui qui porte la TVA jusqu'à l'UBL. Le taux appliqué est celui **figé sur
+la commande**, jamais le réglage courant.
+
+> Conséquence assumée de ce stockage HT, déjà présente dans le catalogue : un
+> aller-retour peut décaler d'un centime (10,00 € saisis → 8,26 € HT → 9,99 €
+> réaffichés). Le pied de tableau, lui, s'additionne toujours exactement : la
+> remise affichée est déduite du total plutôt que convertie séparément.
+
 Les extras font partie du prix de la ligne — `line_total_cents = (prix unitaire
 + extras) × quantité`, comme à la création. Leur tarif est **figé au
 rattachement** : celui du catalogue peut bouger, celui d'une commande passée ne

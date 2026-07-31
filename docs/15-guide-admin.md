@@ -71,8 +71,11 @@ Depuis la fiche d'un rendez-vous (Planning → cliquer un rendez-vous), le bloc
 **Prestations** permet de corriger un prix ou une quantité, d'ajouter une
 prestation du catalogue ou **sur mesure** (libellé et prix libres), d'en retirer
 une, d'**ajouter ou retirer un extra** sur chaque prestation, et d'appliquer une
-**remise** en euros ou en pourcentage. Sous-total, TVA
-et total se recalculent à chaque modification.
+**remise** en euros ou en pourcentage. Sous-total et total se recalculent à
+chaque modification.
+
+**Tous les montants sont TVA comprise**, comme dans le catalogue : vous saisissez
+le prix client, la TVA est calculée pour vous.
 
 Deux limites voulues : une commande **déjà facturée** n'est plus modifiable (la
 raison s'affiche en clair — passez par un avoir), et on ne peut pas retirer la

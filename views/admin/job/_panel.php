@@ -188,6 +188,13 @@ $title = $data['items'] !== []
     // Saisie en euros : les montants restent en centimes en base, la conversion
     // se fait côté serveur (JobController::cents).
     $euroInput = static fn (int $cents): string => number_format($cents / 100, 2, '.', '');
+
+    // TOUT s'affiche et se saisit en TVAC : c'est le prix client, celui auquel
+    // l'admin réfléchit. Le stockage reste en HT (facturation UBL), la
+    // conversion se fait des deux côtés — ici pour l'affichage,
+    // JobController::tvacToHtCents() à l'enregistrement.
+    $vatBp = (int) ($bk['vat_rate_bp'] ?? 2100);
+    $tvac = static fn (int $htCents): int => \Keepnew\Support\Money::addVat($htCents, $vatBp);
     ?>
     <section class="kn-card" style="margin-top:12px;">
         <h3 style="margin-top:0;">Prestations</h3>
@@ -199,7 +206,7 @@ $title = $data['items'] !== []
         <div class="kn-table-wrap">
             <table class="kn-table">
                 <thead>
-                    <tr><th>Prestation</th><th style="width:78px;">Qté</th><th style="width:110px;">P.U. (€)</th><th class="kn-num">Total</th><th></th></tr>
+                    <tr><th>Prestation</th><th style="width:78px;">Qté</th><th style="width:120px;">P.U. TVAC (€)</th><th class="kn-num">Total</th><th></th></tr>
                 </thead>
                 <tbody>
                 <?php foreach ($data['items'] as $it): ?>
@@ -207,7 +214,7 @@ $title = $data['items'] !== []
                         <?php if ($block !== null): ?>
                             <td><?= $e($it['label_snapshot']) ?></td>
                             <td><?= (int) $it['quantity'] ?></td>
-                            <td><?= $e($eur((int) $it['unit_price_cents'])) ?></td>
+                            <td><?= $e($eur($tvac((int) $it['unit_price_cents']))) ?></td>
                         <?php else: ?>
                             <td>
                                 <?= $e($it['label_snapshot']) ?>
@@ -221,10 +228,10 @@ $title = $data['items'] !== []
                             </td>
                             <td>
                                 <input form="kn-line-<?= (int) $it['id'] ?>" type="text" name="price" inputmode="decimal"
-                                       value="<?= $e($euroInput((int) $it['unit_price_cents'])) ?>" style="width:96px;">
+                                       value="<?= $e($euroInput($tvac((int) $it['unit_price_cents']))) ?>" style="width:104px;">
                             </td>
                         <?php endif; ?>
-                        <td class="kn-num"><?= $e($eur((int) $it['line_total_cents'])) ?> €</td>
+                        <td class="kn-num"><?= $e($eur($tvac((int) $it['line_total_cents']))) ?> €</td>
                         <td>
                             <?php if ($block === null): ?>
                                 <form method="post" id="kn-line-<?= (int) $it['id'] ?>"
@@ -246,7 +253,7 @@ $title = $data['items'] !== []
                             <td colspan="5" style="padding-top:0;">
                                 <?php foreach ($it['extras'] as $ex): ?>
                                     <span class="kn-badge" style="margin-right:6px;">
-                                        + <?= $e($ex['label_snapshot']) ?> · <?= $e($eur((int) $ex['unit_price_cents'])) ?> €
+                                        + <?= $e($ex['label_snapshot']) ?> · <?= $e($eur($tvac((int) $ex['unit_price_cents']))) ?> €
                                         <?php if ((int) $ex['unit_duration_min'] > 0): ?>· <?= (int) $ex['unit_duration_min'] ?> min<?php endif; ?>
                                         <?php if ($block === null): ?>
                                             <form method="post" style="display:inline;"
@@ -266,7 +273,7 @@ $title = $data['items'] !== []
                                         <select name="extra_id" aria-label="Extra à ajouter">
                                             <?php foreach ($it['attachable_extras'] as $ax): ?>
                                                 <option value="<?= (int) $ax['extra_id'] ?>">
-                                                    <?= $e($ax['label']) ?> — <?= $e($eur((int) $ax['eff_price_cents'])) ?> €
+                                                    <?= $e($ax['label']) ?> — <?= $e($eur($tvac((int) $ax['eff_price_cents']))) ?> €
                                                 </option>
                                             <?php endforeach; ?>
                                         </select>
@@ -282,16 +289,27 @@ $title = $data['items'] !== []
                 <?php endif; ?>
                 </tbody>
                 <?php if ($bk !== null): ?>
+                    <?php
+                    // Pied de tableau entièrement en TVAC. La remise affichée est
+                    // DÉDUITE du total (sous-total + déplacement − total) plutôt
+                    // que convertie séparément : la colonne s'additionne alors
+                    // exactement, sans le centime d'écart qu'introduirait un
+                    // arrondi de TVA sur chaque poste.
+                    $subtotalTvac = $tvac((int) $bk['subtotal_cents']);
+                    $travelTvac = $tvac((int) $bk['travel_surcharge_cents']);
+                    $totalTvac = (int) $bk['total_cents'];
+                    $discountTvac = max(0, $subtotalTvac + $travelTvac - $totalTvac);
+                    ?>
                     <tfoot>
-                        <tr><td colspan="3">Sous-total</td><td class="kn-num"><?= $e($eur((int) $bk['subtotal_cents'])) ?> €</td><td></td></tr>
-                        <?php if ((int) $bk['discount_cents'] > 0): ?>
-                            <tr><td colspan="3">Remise</td><td class="kn-num">− <?= $e($eur((int) $bk['discount_cents'])) ?> €</td><td></td></tr>
+                        <tr><td colspan="3">Sous-total TVAC</td><td class="kn-num"><?= $e($eur($subtotalTvac)) ?> €</td><td></td></tr>
+                        <?php if ($discountTvac > 0): ?>
+                            <tr><td colspan="3">Remise</td><td class="kn-num">− <?= $e($eur($discountTvac)) ?> €</td><td></td></tr>
                         <?php endif; ?>
-                        <?php if ((int) $bk['travel_surcharge_cents'] > 0): ?>
-                            <tr><td colspan="3">Déplacement</td><td class="kn-num"><?= $e($eur((int) $bk['travel_surcharge_cents'])) ?> €</td><td></td></tr>
+                        <?php if ($travelTvac > 0): ?>
+                            <tr><td colspan="3">Déplacement</td><td class="kn-num"><?= $e($eur($travelTvac)) ?> €</td><td></td></tr>
                         <?php endif; ?>
-                        <tr><td colspan="3">TVA <?= $e(number_format(((int) $bk['vat_rate_bp']) / 100, 0)) ?> %</td><td class="kn-num"><?= $e($eur((int) $bk['vat_cents'])) ?> €</td><td></td></tr>
-                        <tr><td colspan="3"><strong>Total TVAC</strong></td><td class="kn-num"><strong><?= $e($eur((int) $bk['total_cents'])) ?> €</strong></td><td></td></tr>
+                        <tr><td colspan="3"><strong>Total à payer</strong></td><td class="kn-num"><strong><?= $e($eur($totalTvac)) ?> €</strong></td><td></td></tr>
+                        <tr><td colspan="3" class="kn-muted">dont TVA <?= $e(number_format(((int) $bk['vat_rate_bp']) / 100, 0)) ?> %</td><td class="kn-num kn-muted"><?= $e($eur((int) $bk['vat_cents'])) ?> €</td><td></td></tr>
                     </tfoot>
                 <?php endif; ?>
             </table>
@@ -308,7 +326,7 @@ $title = $data['items'] !== []
                         <label for="kn-add-service">Depuis le catalogue</label>
                         <select id="kn-add-service" name="service_id" required>
                             <?php foreach ($data['catalog_services'] as $s): ?>
-                                <option value="<?= (int) $s['id'] ?>"><?= $e($s['name']) ?> — <?= $e($eur((int) ($s['price_cents'] ?? 0))) ?> €</option>
+                                <option value="<?= (int) $s['id'] ?>"><?= $e($s['name']) ?> — <?= $e($eur($tvac((int) ($s['price_cents'] ?? 0)))) ?> €</option>
                             <?php endforeach; ?>
                         </select>
                     </div>
@@ -327,7 +345,7 @@ $title = $data['items'] !== []
                         <input id="kn-custom-label" type="text" name="label" placeholder="Ex. Traitement anti-odeur" required>
                     </div>
                     <div class="kn-field" style="flex:0 0 110px;">
-                        <label for="kn-custom-price">Prix (€)</label>
+                        <label for="kn-custom-price">Prix TVAC (€)</label>
                         <input id="kn-custom-price" type="text" name="price" inputmode="decimal" value="0.00">
                     </div>
                     <div class="kn-field" style="flex:0 0 80px;">
@@ -345,9 +363,9 @@ $title = $data['items'] !== []
             <form method="post" action="/admin/job/<?= $jobId ?>/remise" class="kn-row" style="margin-top:12px;">
                 <?= $data['csrf'] ?>
                 <div class="kn-field" style="flex:0 0 120px;">
-                    <label for="kn-discount">Remise</label>
+                    <label for="kn-discount">Remise TVAC</label>
                     <input id="kn-discount" type="text" name="value" inputmode="decimal"
-                           value="<?= $e($euroInput((int) ($bk['discount_cents'] ?? 0))) ?>">
+                           value="<?= $e($euroInput($tvac((int) ($bk['discount_cents'] ?? 0)))) ?>">
                 </div>
                 <div class="kn-field" style="flex:0 0 90px;">
                     <label for="kn-discount-unit">Unité</label>
@@ -359,7 +377,7 @@ $title = $data['items'] !== []
                 <button type="submit" class="kn-btn kn-btn-ghost kn-btn-sm">Appliquer la remise</button>
             </form>
             <p class="kn-muted" style="font-size:.8rem;margin-top:8px;">
-                Montants hors TVA ; la TVA et le total sont recalculés à chaque modification.
+                Tous les montants sont <strong>TVA comprise</strong>, comme dans le catalogue.
                 La remise saisie remplace la précédente (elle ne s'y ajoute pas).
             </p>
         <?php endif; ?>
