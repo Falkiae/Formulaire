@@ -23,6 +23,45 @@ Client + accès, prestations, **réponses au formulaire d'intake**, photos
 avant/après, **changement de statut** (avec historisation), **note interne**, et
 l'**historique de statut** complet.
 
+### Retouche d'une commande passée (`BookingEditService`)
+
+Le devis initial vient de `CartPricer`, à partir du panier — il n'est plus
+rejouable une fois le panier converti. Les totaux sont donc **recalculés** à
+partir des lignes réellement présentes, avec la même arithmétique :
+
+```
+net    = sous-total − remise + supplément déplacement
+TVA    = Money::vat(net, taux figé sur la commande)
+total  = net + TVA
+```
+
+Le taux reste celui **figé sur la commande** : une commande passée sous un taux
+donné ne change pas de taux parce qu'un réglage a bougé depuis.
+
+Opérations : corriger prix et quantité d'une ligne, ajouter une prestation du
+catalogue (au tarif du mode du rendez-vous), ajouter une **ligne sur mesure**
+hors catalogue (`booking_items.service_id` NULL, migration 007), retirer une
+ligne, fixer une **remise** en € ou en %.
+
+Trois garde-fous, tous côté serveur :
+
+- une commande **facturée** n'est plus modifiable — la numérotation est
+  séquentielle et sans trou, désynchroniser facture et commande créerait un
+  écart comptable invisible (passer par un avoir) ;
+- une commande **annulée** non plus ;
+- la **dernière ligne** n'est pas supprimable : une commande sans prestation
+  n'a pas de sens, c'est une annulation.
+
+La remise saisie **remplace** la précédente (remise cumul et coupon d'origine
+comprises) : c'est le montant décidé par l'admin, pas un cumul implicite.
+
+Ajouter ou retirer une prestation **change la durée** du rendez-vous :
+`jobs.active_duration_min` et `scheduled_end` suivent, sans quoi le moteur de
+disponibilité continuerait de croire le technicien libre. Si la nouvelle durée
+fait chevaucher un autre rendez-vous du même technicien, c'est **signalé sans
+être bloqué** — allonger une prestation est légitime, c'est au planning de
+suivre.
+
 ## Clients (`CustomerController`)
 
 - Liste avec **LTV** (somme des commandes non annulées), **fréquence** (nombre de

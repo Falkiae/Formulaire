@@ -142,6 +142,10 @@ return static function (Router $router, Container $container): void {
         $c->get(\Keepnew\Pricing\PriceCalculator::class),
         $c->get(\Keepnew\Catalog\CartPricingService::class),
     ));
+    $container->singleton(\Keepnew\Booking\BookingEditService::class, static fn (Container $c): \Keepnew\Booking\BookingEditService => new \Keepnew\Booking\BookingEditService(
+        $c->get(Database::class),
+        $c->get(CatalogRepository::class),
+    ));
     $container->singleton(HoldService::class, static fn (Container $c): HoldService => new HoldService($c->get(Database::class)));
     $container->singleton(NominatimGeocoder::class, static fn (): NominatimGeocoder => new NominatimGeocoder());
     $container->singleton(BookingService::class, static fn (Container $c): BookingService => new BookingService(
@@ -347,6 +351,8 @@ return static function (Router $router, Container $container): void {
         $c->get(NominatimGeocoder::class),
         $c->get(BookingService::class),
         $c->get(NotificationService::class),
+        $c->get(\Keepnew\Booking\BookingEditService::class),
+        $c->get(CatalogRepository::class),
     ));
     $container->singleton(CalendarController::class, static fn (Container $c): CalendarController => new CalendarController(
         $c->get(View::class),
@@ -547,6 +553,11 @@ return static function (Router $router, Container $container): void {
             $r->post('/job/{id}/planifier', [JobController::class, 'updateSchedule'], [CsrfMiddleware::class]);
             $r->post('/job/{id}/annuler-commande', [JobController::class, 'cancelBooking'], [CsrfMiddleware::class]);
             $r->post('/job/{id}/demande-avis', [JobController::class, 'requestReview'], [CsrfMiddleware::class]);
+            // Retouche d'une commande déjà passée (prix, prestations, remise).
+            $r->post('/job/{id}/ligne', [JobController::class, 'addLine'], [CsrfMiddleware::class]);
+            $r->post('/job/{id}/ligne/{itemId}', [JobController::class, 'updateLine'], [CsrfMiddleware::class]);
+            $r->post('/job/{id}/ligne/{itemId}/supprimer', [JobController::class, 'removeLine'], [CsrfMiddleware::class]);
+            $r->post('/job/{id}/remise', [JobController::class, 'setDiscount'], [CsrfMiddleware::class]);
             $r->get('/job/{id}/creneaux/mois', [JobController::class, 'slotDates']);
             $r->get('/job/{id}/creneaux', [JobController::class, 'slotsForDate']);
 

@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Keepnew\Admin;
 
+use Keepnew\Booking\BookingEditService;
 use Keepnew\Booking\BookingService;
+use Keepnew\Catalog\CatalogRepository;
 use Keepnew\Core\Csrf;
 use Keepnew\Core\Database;
 use Keepnew\Core\Exception\HttpException;
@@ -36,6 +38,8 @@ final class JobController
         private readonly NominatimGeocoder $geocoder,
         private readonly BookingService $bookings,
         private readonly NotificationService $notifications,
+        private readonly BookingEditService $edits,
+        private readonly CatalogRepository $catalog,
     ) {
     }
 
@@ -127,7 +131,29 @@ final class JobController
                 ['b' => $bookingId],
             ),
             'review_sent_at' => $this->reviewRequestSentAt($bookingId),
-            'items' => $this->db->select('SELECT label_snapshot, quantity, line_total_cents FROM booking_items WHERE job_id = :j', ['j' => $id]),
+            'items' => $this->db->select(
+                'SELECT id, service_id, label_snapshot, quantity, unit_price_cents, unit_duration_min, line_total_cents
+                   FROM booking_items WHERE job_id = :j ORDER BY id',
+                ['j' => $id],
+            ),
+            // Totaux de la commande : c'est eux que la retouche fait bouger.
+            'booking' => $this->db->selectOne(
+                'SELECT subtotal_cents, discount_cents, travel_surcharge_cents, vat_cents, total_cents, vat_rate_bp
+                   FROM bookings WHERE id = :b',
+                ['b' => $bookingId],
+            ),
+            // Prestations proposables : seulement celles servies dans le mode du
+            // rendez-vous — ajouter un service atelier à une intervention à
+            // domicile n'aurait pas de tarif applicable.
+            'catalog_services' => $this->db->select(
+                "SELECT s.id, s.name, m.price_cents
+                   FROM services s
+                   JOIN service_delivery_modes m ON m.service_id = s.id AND m.mode = :mode
+                  WHERE s.is_active = 1
+                  ORDER BY s.name",
+                ['mode' => (string) $job['mode']],
+            ),
+            'edit_block' => $this->editBlockReason($bookingId),
             'answers' => $this->db->select('SELECT field_key, value_text FROM booking_answers WHERE booking_id = :b', ['b' => $bookingId]),
             'photos' => $this->db->select('SELECT kind, file_path FROM booking_photos WHERE job_id = :j', ['j' => $id]),
             'history' => $this->db->select('SELECT old_status, new_status, note, created_at FROM booking_status_history WHERE booking_id = :b ORDER BY id DESC', ['b' => $bookingId]),
@@ -216,6 +242,151 @@ final class JobController
         $this->session->flash('job_ok', 'Statut mis à jour.');
 
         return $this->finish($request, $id);
+    }
+
+    /**
+     * POST /admin/job/{id}/ligne — ajoute une prestation, du catalogue ou sur
+     * mesure, au rendez-vous.
+     */
+    public function addLine(Request $request): Response
+    {
+        $id = (int) $request->attribute('id');
+        $bookingId = $this->bookingIdOf($id);
+
+        try {
+            if ($request->string('kind') === 'custom') {
+                $this->edits->addCustomLine(
+                    $bookingId,
+                    $id,
+                    $request->string('label'),
+                    $this->cents($request->string('price')),
+                    $request->int('quantity', 1),
+                    $request->int('duration_min'),
+                );
+                $message = 'Prestation sur mesure ajoutée.';
+            } else {
+                $variantId = $request->int('variant_id');
+                $this->edits->addCatalogLine(
+                    $bookingId,
+                    $id,
+                    $request->int('service_id'),
+                    $variantId > 0 ? $variantId : null,
+                    $request->int('quantity', 1),
+                );
+                $message = 'Prestation ajoutée.';
+            }
+            $this->session->flash('job_ok', $message . $this->overlapWarning($id));
+        } catch (HttpException | NotFoundException $e) {
+            $this->session->flash('job_ok', $e->getMessage());
+        }
+
+        return $this->finish($request, $id);
+    }
+
+    /**
+     * POST /admin/job/{id}/ligne/{itemId} — corrige prix et quantité.
+     */
+    public function updateLine(Request $request): Response
+    {
+        $id = (int) $request->attribute('id');
+
+        try {
+            $this->edits->updateLine(
+                $this->bookingIdOf($id),
+                (int) $request->attribute('itemId'),
+                $this->cents($request->string('price')),
+                $request->int('quantity', 1),
+            );
+            $this->session->flash('job_ok', 'Ligne mise à jour.' . $this->overlapWarning($id));
+        } catch (HttpException | NotFoundException $e) {
+            $this->session->flash('job_ok', $e->getMessage());
+        }
+
+        return $this->finish($request, $id);
+    }
+
+    /**
+     * POST /admin/job/{id}/ligne/{itemId}/supprimer
+     */
+    public function removeLine(Request $request): Response
+    {
+        $id = (int) $request->attribute('id');
+
+        try {
+            $this->edits->removeLine($this->bookingIdOf($id), (int) $request->attribute('itemId'));
+            $this->session->flash('job_ok', 'Ligne retirée.');
+        } catch (HttpException | NotFoundException $e) {
+            $this->session->flash('job_ok', $e->getMessage());
+        }
+
+        return $this->finish($request, $id);
+    }
+
+    /**
+     * POST /admin/job/{id}/remise — remise sur la commande, en € ou en %.
+     */
+    public function setDiscount(Request $request): Response
+    {
+        $id = (int) $request->attribute('id');
+
+        try {
+            $bookingId = $this->bookingIdOf($id);
+            if ($request->string('unit') === 'percent') {
+                $percent = (float) str_replace(',', '.', $request->string('value'));
+                $this->edits->setDiscountPercent($bookingId, (int) round($percent * 100));
+            } else {
+                $this->edits->setDiscount($bookingId, $this->cents($request->string('value')));
+            }
+            $this->session->flash('job_ok', 'Remise appliquée.');
+        } catch (HttpException | NotFoundException $e) {
+            $this->session->flash('job_ok', $e->getMessage());
+        }
+
+        return $this->finish($request, $id);
+    }
+
+    /**
+     * Convertit un montant saisi en euros (« 12,50 », « 12.5 ») en centimes.
+     * Passer par des flottants n'est acceptable QUE pour cette conversion de
+     * saisie ; tout le reste du projet raisonne en entiers.
+     */
+    private function cents(string $input): int
+    {
+        $normalised = str_replace([' ', ','], ['', '.'], trim($input));
+
+        return (int) round(((float) $normalised) * 100);
+    }
+
+    /**
+     * Raison pour laquelle la commande n'est plus retouchable, ou null.
+     * Affiché en clair plutôt que de masquer les champs sans explication.
+     */
+    private function editBlockReason(int $bookingId): ?string
+    {
+        try {
+            $this->edits->assertEditable($bookingId);
+
+            return null;
+        } catch (HttpException | NotFoundException $e) {
+            return $e->getMessage();
+        }
+    }
+
+    private function bookingIdOf(int $jobId): int
+    {
+        $bookingId = $this->db->scalar('SELECT booking_id FROM jobs WHERE id = :id', ['id' => $jobId]);
+        if ($bookingId === null) {
+            throw new NotFoundException('Job introuvable.');
+        }
+
+        return (int) $bookingId;
+    }
+
+    private function overlapWarning(int $jobId): string
+    {
+        return $this->edits->overlapsAnotherJob($jobId)
+            ? ' Attention : la durée a changé et le rendez-vous chevauche désormais une autre intervention du même technicien — replanifiez.'
+            : '';
     }
 
     /**

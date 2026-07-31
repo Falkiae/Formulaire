@@ -668,7 +668,9 @@ CREATE TABLE booking_items (
     id                 BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     booking_id         BIGINT UNSIGNED NOT NULL,
     job_id             BIGINT UNSIGNED NULL,     -- job auquel la ligne est rattachée
-    service_id         BIGINT UNSIGNED NOT NULL,
+    -- NULL = ligne « sur mesure » ajoutée en back-office (hors catalogue) :
+    -- le libellé et le prix vivent alors dans label_snapshot/unit_price_cents.
+    service_id         BIGINT UNSIGNED NULL,
     variant_id         BIGINT UNSIGNED NULL,
     mode               ENUM('onsite','workshop') NOT NULL,
     quantity           SMALLINT UNSIGNED NOT NULL DEFAULT 1,

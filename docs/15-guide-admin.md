@@ -65,6 +65,22 @@ Télécharger l'**UBL** (B2B/Peppol). Exporter le **journal des recettes** (CSV)
 Chiffre d'affaires, panier moyen, taux de conversion et d'annulation ; CA par
 prestation, technicien et mois.
 
+## Modifier une commande déjà planifiée
+
+Depuis la fiche d'un rendez-vous (Planning → cliquer un rendez-vous), le bloc
+**Prestations** permet de corriger un prix ou une quantité, d'ajouter une
+prestation du catalogue ou **sur mesure** (libellé et prix libres), d'en retirer
+une, et d'appliquer une **remise** en euros ou en pourcentage. Sous-total, TVA
+et total se recalculent à chaque modification.
+
+Deux limites voulues : une commande **déjà facturée** n'est plus modifiable (la
+raison s'affiche en clair — passez par un avoir), et on ne peut pas retirer la
+dernière prestation (annulez la commande à la place).
+
+Ajouter une prestation **allonge le rendez-vous**. Si la nouvelle durée
+chevauche l'intervention suivante du technicien, un message vous le signale :
+replanifiez depuis le même écran.
+
 ## App technicien (`/tech`)
 
 Les comptes « technicien » sont redirigés vers leur app terrain : planning,
