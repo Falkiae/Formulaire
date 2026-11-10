@@ -77,8 +77,31 @@ point à brancher).
 
 À lancer par cron CLI (ex. toutes les 5 min), avec repli pseudo-cron HTTP :
 - expédie les notifications dues ;
-- purge les holds de créneaux expirés ;
-- facture les commandes terminées non facturées.
+- purge les holds de créneaux expirés (hygiène : le moteur de disponibilité
+  filtre déjà `expires_at > now`, un hold périmé n'a jamais bloqué un créneau) ;
+- facture les commandes terminées non facturées, **après un délai de grâce**
+  (réglage `invoice.auto_delay_hours`, 24 h par défaut) : une commande reste
+  retouchable tant qu'elle n'est pas facturée, facturer dans la minute qui suit
+  la fin de l'intervention priverait l'équipe de toute correction de prix. Le
+  repère est l'entrée de `booking_status_history` posée au passage en
+  « terminée ».
+
+Le script tire son conteneur de `config/bootstrap.php`, déjà entièrement câblé.
+Il en reconstruisait un « léger » et ré-exécutait `config/routes.php`, qui
+résout `Session` dès son chargement : **le cron mourait sur « Service non
+enregistré : Session » avant d'avoir rien expédié** — donc aucun rappel 48 h /
+2 h n'est jamais parti. Toute erreur sort désormais sur stderr avec un code de
+retour non nul, pour que le cron de l'hébergeur envoie un e-mail au lieu
+d'échouer en silence.
+
+### Statut de commande
+
+`bookings.status` n'était écrit qu'à `confirmed` et `cancelled` : aucune
+commande n'atteignait `completed`, et la facturation automatique ne trouvait
+donc jamais rien. `BookingService::syncStatusFromJobs()` le déduit maintenant
+des rendez-vous (tous terminés → terminée ; un en cours → en cours ; sinon
+confirmée), appelé depuis l'app technicien et depuis le back-office. Une
+commande annulée n'est jamais ressuscitée.
 
 ## Validation réelle (MariaDB 10.11 + PHP 8.4)
 

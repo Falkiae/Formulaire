@@ -79,7 +79,14 @@ mysql -uroot keepnew < database/seed.sql
 
 ## Convention de branche
 
-Développement sur `claude/session-czmr0w`.
+Développement et intégration sur **`main`**.
+
+> Le dépôt a longtemps porté deux historiques git **sans ancêtre commun** :
+> `claude/session-czmr0w` (les commits « Phase 1 → 11 », resté branche par
+> défaut sur GitHub) et `claude/analyse-depot-*`, qui portait en réalité tout
+> le travail ultérieur. `main` part de cette seconde lignée, strictement plus
+> complète — l'autre n'a aucun fichier qu'elle ne possède. Les branches
+> `claude/*` sont conservées en archive et ne doivent plus recevoir de commit.
 
 ## Documentation complète
 
@@ -95,6 +102,7 @@ Développement sur `claude/session-czmr0w`.
 
 Les **11 phases du périmètre de lancement sont livrées**. La phase 12 (activation
 du paiement en ligne via Mollie/Stripe) est prévue **ultérieurement** :
-l'architecture est déjà prête (interface `PaymentGatewayInterface`, table
-`payments`, `payment_status`, `NullGateway` actif) — activable par configuration,
-sans refonte.
+le schéma est prêt (table `payments`, colonne `payment_status`, encaissement
+terrain déjà fonctionnel), **mais le code de passerelle reste à écrire** :
+`src/Payment/` n'existe pas. Le README annonçait à tort une interface
+`PaymentGatewayInterface` et un `NullGateway` en place.

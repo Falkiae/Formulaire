@@ -32,10 +32,11 @@ Le pilier, utilisable sans aide technique.
 - **Variantes** : gabarits / places / dimensions, avec delta de prix/durée.
 - **Extras** (`/admin/extras`) : catalogue central ; on crée l'extra une fois
   puis on le rattache aux prestations (surcharge de prix, exclusif ou cumulable).
-- **Simulateur** (`/admin/simulateur`) : vérifier une configuration et son prix,
-  détail ligne par ligne — idéal pour déboguer une grille.
+- **Simulateur** (`/admin/simulateur`, onglet *Clients → Simulateur*) :
+  vérifier une configuration et son prix, détail ligne par ligne — idéal pour
+  déboguer une grille.
 
-## Dispatch (`/admin/dispatch`)
+## Planning → Jour (`/admin/dispatch`)
 
 Agenda du jour par technicien. **Glisser-déposer** un rendez-vous d'une colonne à
 l'autre pour le réassigner : le trajet est recalculé et un conflit est signalé.
