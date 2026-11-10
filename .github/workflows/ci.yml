@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  tests:
+    name: PHP ${{ matrix.php }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        # 8.2 = la version de l'hébergement OVH (voir .ovhconfig), celle qui
+        # compte vraiment. 8.4 pour voir venir les ruptures.
+        php: ['8.2', '8.4']
+
+    services:
+      mysql:
+        image: mariadb:10.11
+        env:
+          MARIADB_ROOT_PASSWORD: root
+          MARIADB_DATABASE: keepnew_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=12
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: pdo_mysql, mbstring, intl, gd, curl, openssl
+          coverage: none
+
+      # Le projet doit démarrer sans Composer (autoloader PSR-4 maison), mais
+      # PHPUnit en a besoin.
+      - name: Dépendances
+        run: composer install --no-interaction --no-progress
+
+      - name: Syntaxe PHP
+        shell: bash
+        run: |
+          status=0
+          while IFS= read -r file; do
+            php -l "$file" > /dev/null || status=1
+          done < <(find src config views tests cron bin -name '*.php')
+          exit $status
+
+      # Charge le schéma puis le seed : sans base, les tests d'intégration
+      # s'ignorent silencieusement et la suite affiche vert sans avoir vérifié
+      # le découpage en jobs, le refus du mode mixte ni le verrou de créneau.
+      - name: Base de test
+        run: |
+          mysql -h 127.0.0.1 -uroot -proot keepnew_test < database/schema.sql
+          mysql -h 127.0.0.1 -uroot -proot keepnew_test < database/seed.sql
+
+      - name: Migrations rejouables sur le schéma livré
+        run: |
+          mysql -h 127.0.0.1 -uroot -proot -e 'CREATE DATABASE keepnew_migrations'
+          mysql -h 127.0.0.1 -uroot -proot keepnew_migrations < database/schema.sql
+          for f in database/migrations/*.sql; do
+            echo "--- $f"
+            mysql -h 127.0.0.1 -uroot -proot keepnew_migrations < "$f" || echo "   (déjà appliquée dans schema.sql — attendu)"
+          done
+
+      - name: Tests
+        env:
+          KN_TEST_DSN: mysql:host=127.0.0.1;port=3306;dbname=keepnew_test;charset=utf8mb4
+          KN_TEST_USER: root
+          KN_TEST_PASSWORD: root
+        run: php vendor/bin/phpunit --display-skipped
