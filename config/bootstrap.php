@@ -5,8 +5,18 @@ declare(strict_types=1);
 /**
  * Amorçage de l'application.
  *
- * Renvoie un Kernel prêt à traiter une Request. Utilisé par public/index.php
- * (web) et par les scripts cron/CLI. Fonctionne AVEC ou SANS Composer :
+ * Renvoie le CONTENEUR de services, dans lequel le Kernel est enregistré.
+ * Utilisé par public/index.php (web) et par les scripts cron/CLI, qui ont tous
+ * deux besoin des mêmes services déjà câblés.
+ *
+ * Il renvoyait auparavant le Kernel seul, ce qui obligeait cron/cron.php à
+ * reconstruire un conteneur « léger » et à ré-exécuter config/routes.php — or
+ * routes.php résout Session dès son chargement pour construire les
+ * RoleMiddleware, service absent de ce conteneur réduit. Le cron mourait donc
+ * sur « Service non enregistré : Session », avant d'avoir expédié la moindre
+ * notification.
+ *
+ * Fonctionne AVEC ou SANS Composer :
  *  - si vendor/autoload.php existe, on l'utilise (PHPMailer, PHPUnit…) ;
  *  - un autoloader PSR-4 maison prend en charge le namespace Keepnew\ afin que
  *    le projet démarre sur un mutualisé même sans `composer install`.
@@ -71,4 +81,10 @@ $container->instance(Router::class, $router);
 (require $root . '/config/routes.php')($router, $container);
 
 // --- Kernel -----------------------------------------------------------------
-return new Kernel($container, $router, $config);
+$container->singleton(Kernel::class, static fn (Container $c): Kernel => new Kernel(
+    $c,
+    $c->get(Router::class),
+    $c->get(Config::class),
+));
+
+return $container;
