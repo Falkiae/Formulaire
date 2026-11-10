@@ -28,12 +28,24 @@ final class UblGenerator
         $doc = new \DOMDocument('1.0', 'UTF-8');
         $doc->formatOutput = true;
 
-        $root = $doc->createElementNS(self::INV, 'Invoice');
-        $root->setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:cbc', self::CBC);
-        $root->setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:cac', self::CAC);
-        $doc->appendChild($root);
+        // Racine chargée depuis une chaîne, et NON construite par
+        // createElementNS + setAttributeNS : cette seconde forme n'inscrit pas
+        // les préfixes dans la portée du document, si bien que chaque élément
+        // enfant re-déclarait son propre xmlns (35 déclarations redondantes
+        // dans une facture d'une ligne). Le XML restait valide et les montants
+        // justes, mais illisible — et toute assertion textuelle dessus devenait
+        // fausse. Déclarés ici, les trois préfixes sont réutilisés tels quels.
+        $doc->loadXML(sprintf(
+            '<?xml version="1.0" encoding="UTF-8"?><Invoice xmlns="%s" xmlns:cbc="%s" xmlns:cac="%s"/>',
+            self::INV,
+            self::CBC,
+            self::CAC,
+        ));
 
-        $cbc = fn (string $name, string $value): \DOMElement => $doc->createElementNS(self::CBC, 'cbc:' . $name, htmlspecialchars($value, ENT_XML1));
+        /** @var \DOMElement $root */
+        $root = $doc->documentElement;
+
+        $cbc = fn (string $name, string $value): \DOMElement => $doc->createElement('cbc:' . $name, htmlspecialchars($value, ENT_XML1));
 
         $root->appendChild($cbc('CustomizationID', 'urn:cen.eu:en16931:2017#compliant#urn:fdc:peppol.eu:2017:poacc:billing:3.0'));
         $root->appendChild($cbc('ProfileID', 'urn:fdc:peppol.eu:2017:poacc:billing:01:1.0'));
@@ -46,21 +58,21 @@ final class UblGenerator
         $root->appendChild($this->party($doc, 'AccountingCustomerParty', $customer));
 
         // TaxTotal.
-        $taxTotal = $doc->createElementNS(self::CAC, 'cac:TaxTotal');
+        $taxTotal = $doc->createElement('cac:TaxTotal');
         $taxAmount = $cbc('TaxAmount', $this->money((int) $invoice['vat_cents']));
         $taxAmount->setAttribute('currencyID', 'EUR');
         $taxTotal->appendChild($taxAmount);
-        $sub = $doc->createElementNS(self::CAC, 'cac:TaxSubtotal');
+        $sub = $doc->createElement('cac:TaxSubtotal');
         $tb = $cbc('TaxableAmount', $this->money((int) $invoice['subtotal_cents']));
         $tb->setAttribute('currencyID', 'EUR');
         $ta = $cbc('TaxAmount', $this->money((int) $invoice['vat_cents']));
         $ta->setAttribute('currencyID', 'EUR');
         $sub->appendChild($tb);
         $sub->appendChild($ta);
-        $cat = $doc->createElementNS(self::CAC, 'cac:TaxCategory');
+        $cat = $doc->createElement('cac:TaxCategory');
         $cat->appendChild($cbc('ID', 'S'));
         $cat->appendChild($cbc('Percent', number_format(((int) $invoice['vat_rate_bp']) / 100, 2, '.', '')));
-        $scheme = $doc->createElementNS(self::CAC, 'cac:TaxScheme');
+        $scheme = $doc->createElement('cac:TaxScheme');
         $scheme->appendChild($cbc('ID', 'VAT'));
         $cat->appendChild($scheme);
         $sub->appendChild($cat);
@@ -68,7 +80,7 @@ final class UblGenerator
         $root->appendChild($taxTotal);
 
         // LegalMonetaryTotal.
-        $mt = $doc->createElementNS(self::CAC, 'cac:LegalMonetaryTotal');
+        $mt = $doc->createElement('cac:LegalMonetaryTotal');
         foreach ([
             'LineExtensionAmount' => (int) $invoice['subtotal_cents'],
             'TaxExclusiveAmount' => (int) $invoice['subtotal_cents'],
@@ -84,7 +96,7 @@ final class UblGenerator
         // Lignes.
         $i = 1;
         foreach ($lines as $line) {
-            $il = $doc->createElementNS(self::CAC, 'cac:InvoiceLine');
+            $il = $doc->createElement('cac:InvoiceLine');
             $il->appendChild($cbc('ID', (string) $i++));
             $qty = $cbc('InvoicedQuantity', (string) ((int) ($line['quantity'] ?? 1)));
             $qty->setAttribute('unitCode', 'C62');
@@ -92,10 +104,10 @@ final class UblGenerator
             $lea = $cbc('LineExtensionAmount', $this->money((int) $line['line_total_cents']));
             $lea->setAttribute('currencyID', 'EUR');
             $il->appendChild($lea);
-            $item = $doc->createElementNS(self::CAC, 'cac:Item');
+            $item = $doc->createElement('cac:Item');
             $item->appendChild($cbc('Name', (string) ($line['description'] ?? 'Prestation')));
             $il->appendChild($item);
-            $price = $doc->createElementNS(self::CAC, 'cac:Price');
+            $price = $doc->createElement('cac:Price');
             $pa = $cbc('PriceAmount', $this->money((int) $line['unit_price_cents']));
             $pa->setAttribute('currencyID', 'EUR');
             $price->appendChild($pa);
@@ -111,18 +123,18 @@ final class UblGenerator
      */
     private function party(\DOMDocument $doc, string $role, array $party): \DOMElement
     {
-        $wrap = $doc->createElementNS(self::CAC, 'cac:' . $role);
-        $p = $doc->createElementNS(self::CAC, 'cac:Party');
+        $wrap = $doc->createElement('cac:' . $role);
+        $p = $doc->createElement('cac:Party');
 
-        $nameWrap = $doc->createElementNS(self::CAC, 'cac:PartyName');
-        $nameWrap->appendChild($doc->createElementNS(self::CBC, 'cbc:Name', htmlspecialchars((string) ($party['name'] ?? ''), ENT_XML1)));
+        $nameWrap = $doc->createElement('cac:PartyName');
+        $nameWrap->appendChild($doc->createElement('cbc:Name', htmlspecialchars((string) ($party['name'] ?? ''), ENT_XML1)));
         $p->appendChild($nameWrap);
 
         if (!empty($party['vat'])) {
-            $taxScheme = $doc->createElementNS(self::CAC, 'cac:PartyTaxScheme');
-            $taxScheme->appendChild($doc->createElementNS(self::CBC, 'cbc:CompanyID', htmlspecialchars((string) $party['vat'], ENT_XML1)));
-            $ts = $doc->createElementNS(self::CAC, 'cac:TaxScheme');
-            $ts->appendChild($doc->createElementNS(self::CBC, 'cbc:ID', 'VAT'));
+            $taxScheme = $doc->createElement('cac:PartyTaxScheme');
+            $taxScheme->appendChild($doc->createElement('cbc:CompanyID', htmlspecialchars((string) $party['vat'], ENT_XML1)));
+            $ts = $doc->createElement('cac:TaxScheme');
+            $ts->appendChild($doc->createElement('cbc:ID', 'VAT'));
             $taxScheme->appendChild($ts);
             $p->appendChild($taxScheme);
         }
