@@ -172,6 +172,32 @@ Gardez ces 4 valeurs sous la main : elles vont dans le fichier `.env` (étape 5)
 
 ---
 
+## Étape 6 bis — Appliquer les migrations
+
+Le schéma livré (`database/schema.sql`) est **déjà à jour** : sur une
+installation neuve, il n'y a rien à migrer. Enregistrez simplement l'état pour
+que les prochaines migrations sachent où elles en sont :
+
+```
+cd keepnew
+php bin/migrate.php --mark-all
+```
+
+Par la suite, après chaque mise à jour des fichiers :
+
+```
+php bin/migrate.php --status   # ce qui manque, sans rien appliquer
+php bin/migrate.php            # applique ce qui manque
+```
+
+Le suivi vit dans la table `schema_migrations`. **Sur une base existante déjà
+migrée à la main**, lancez `--mark-all` une seule fois : les fichiers sont
+marqués comme appliqués sans être rejoués, ce qui évite de repasser des `ALTER`
+déjà effectués.
+
+Sans SSH : créez une tâche planifiée ponctuelle sur `keepnew/bin/migrate.php`,
+puis supprimez-la.
+
 ## Étape 7 — Installer PHPMailer (pour les vrais e-mails) — optionnel mais recommandé
 
 Sans cette étape, l'application **fonctionne quand même** : les e-mails sont

@@ -30,6 +30,7 @@ INSERT INTO settings (`key`, `value`, value_type, `group`, label, is_secret) VAL
 ('display.timezone',             'Europe/Brussels',       'string',  'general',      'Fuseau d''affichage', 0),
 ('finance.vat_rate_bp',          '2100',                  'int',     'finance',      'Taux TVA (points de base, 2100 = 21%)', 0),
 ('finance.simplified_invoice_max_cents', '25000',         'int',     'finance',      'Seuil facture simplifiée TVAC (centimes)', 0),
+('invoice.auto_delay_hours',      '24',                    'int',     'finance',      'Délai (h) après complétion avant facturation automatique par le cron', 0),
 ('geo.provider',                 'ors',                   'string',  'integrations', 'Fournisseur cartographie par défaut', 0),
 ('geo.fallback',                 'postal_matrix',         'string',  'integrations', 'Repli si API indisponible', 0),
 ('geo.cache_ttl_days',           '30',                    'int',     'integrations', 'TTL cache trajets (jours)', 0),
