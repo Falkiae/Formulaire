@@ -44,8 +44,9 @@ Récapitulatif · Confirmé`
 ## Détails de conception (conformes au brief UX)
 
 - **Mobile-first**, cibles ≥ 48 px, une décision par écran.
-- **Barre de progression nommée** + **pastilles cliquables** des choix déjà faits
-  (retour direct à une étape).
+- **Barre de progression nommée** (sur les étapes réellement parcourues, voir
+  plus bas) + **pastilles cliquables** des choix déjà faits (retour direct à une
+  étape).
 - **Panier collant** en bas (nombre de prestations + total), toujours visible.
 - **Réassurance contextuelle** : une phrase par étape, jamais un bandeau permanent.
 - **Voix** : vouvoiement, libellés d'action explicites (« Ajouter au panier »,
@@ -54,6 +55,63 @@ Récapitulatif · Confirmé`
   étape).
 - **Accessibilité** : `label` réels, `inputmode`/`autocomplete`, focus visible,
   taille de police ≥ 16 px (anti-zoom iOS), `prefers-reduced-motion` respecté.
+
+## Révision UX (novembre 2026)
+
+Huit points relevés en relisant le tunnel comme un client, et ce qui a changé.
+
+1. **Les champs n'étaient pas validés.** Un `required` HTML sur des `<input>`
+   hors `<form>` ne déclenche rien, et le serveur ne vérifiait que le honeypot,
+   le consentement et le formulaire d'intake : une réservation à domicile sans
+   rue partait, et le technicien recevait un rendez-vous sans adresse.
+   `BookingService::assertCustomerAndAddress()` est désormais l'autorité
+   (identité complète, e-mail et téléphone plausibles, adresse exigée dès
+   qu'une ligne est `onsite`), et renvoie des clés `customer.*` / `address.*`.
+   Le widget applique les **mêmes** règles avant d'appeler l'API, pour éviter
+   l'aller-retour, jamais à la place du serveur.
+   Testé sans base : `tests/Booking/CustomerValidationTest.php`.
+2. **Les erreurs étaient globales.** Un bandeau « Merci de compléter vos
+   coordonnées » laissait le client chercher le champ fautif. Chaque champ porte
+   maintenant son message sous lui (`aria-invalid`, `aria-describedby`), la page
+   défile sur le premier et lui donne le focus ; le bandeau ne dit plus que
+   « corrigez les champs signalés » et est annoncé (`role="alert"`).
+   Les erreurs renvoyées par l'API (`fields`) sont replacées sur les mêmes
+   champs, étape Coordonnées **ou** Questions selon la clé.
+3. **L'étape « aucune disponibilité » était une impasse.** Le client voyait une
+   liste vide et abandonnait. Il a désormais deux sorties : *Chercher plus loin*
+   (30 → 60 → 90 jours) et *Être rappelé*, qui crée une vraie commande **sans
+   créneau** (statut `pending`, événement `booking_created` au lieu de la
+   confirmation et des rappels — programmer un rappel sur un rendez-vous
+   inexistant enverrait un SMS sans date). L'écran final le dit : « nous
+   revenons vers vous avec une proposition de date », pas « c'est confirmé ».
+   La réponse de l'API porte `scheduled: false`.
+4. **Le honeypot n'existait pas.** Le widget envoyait `hp: ""` en dur ; aucun
+   champ n'était dans le DOM, donc le contrôle serveur ne pouvait jamais se
+   déclencher. Le champ est réel, masqué en CSS (pas `hidden` : un robot ne
+   remplit pas un champ `hidden`), hors parcours clavier et hors arbre
+   d'accessibilité.
+5. **Le consentement portait sur des documents illisibles.** Le texte était
+   brut, sans lien. Le réglage `company.terms_url` est exposé par
+   `/api/catalog` et rendu en lien (`target="_blank"`, `rel="noopener"`).
+6. **La barre de progression mentait.** Le dénominateur était figé à 9 : le
+   client lisait « étape 6/9 » pour un parcours qui en compte 7 (« Confirmé »
+   est un aboutissement, et « Questions » disparaît quand le formulaire publié
+   n'a aucun champ). Elle compte les étapes réellement parcourues et affiche
+   100 % sur la confirmation.
+7. **Les champs du formulaire dynamique étaient inaccessibles** : pas de
+   `label for`, des groupes de choix sans nom, des pastilles sans état. Chaque
+   champ a un `label` associé, les groupes un `role="group"` nommé, les
+   pastilles un `aria-pressed`.
+8. **Le téléphone était optionnel** alors que le tunnel promet un SMS au départ
+   du technicien. Il est obligatoire, avec un `inputmode="tel"`, et les
+   écritures belges courantes sont acceptées (`+32 470 12 34 56`,
+   `0470/12.34.56`, `0032470123456`, `04 70 12 34 56`).
+
+Vérifié dans Chromium (viewport 390 px, API simulée) : nom accessible et
+`inputmode` sur chaque champ, honeypot hors écran, 7 erreurs placées avec focus
+sur la première à la soumission à vide, message d'e-mail mal formé, lien CGV,
+les deux sorties de l'étape créneau, et la demande de rappel qui aboutit à
+l'écran « demande enregistrée » avec `slots: {}`.
 
 ## Validation réelle (navigateur, Playwright + Chromium)
 

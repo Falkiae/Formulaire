@@ -8,10 +8,19 @@
 - [ ] Code postal hors zone → message « hors zone », pas de créneaux.
 - [ ] Choix service (cartes), configuration (variante + extras) → **prix live**.
 - [ ] Ajout au panier ; ajout d'une 2ᵉ prestation → **remise cumul** affichée.
-- [ ] Panier mixte domicile + atelier → deux blocs, deux créneaux.
+- [ ] Panier déjà commencé en domicile → l'atelier n'est plus proposé (une
+      commande ne mélange pas les deux modes : un seul créneau est choisi).
 - [ ] Questions d'intake (formulaire dynamique) ; champs requis bloquants.
-- [ ] Coordonnées + consentement RGPD obligatoire.
-- [ ] Choix de créneau (domicile et/ou atelier).
+- [ ] Coordonnées : chaque champ a un libellé, le téléphone un clavier
+      numérique, le consentement un lien vers les CGV.
+- [ ] Coordonnées incomplètes → une erreur **sous chaque champ** fautif, focus
+      sur le premier ; e-mail mal formé refusé.
+- [ ] Barre de progression : le dénominateur correspond au parcours réel
+      (7 étapes quand le formulaire publié n'a aucun champ).
+- [ ] Choix de créneau.
+- [ ] Aucun créneau disponible → « Chercher plus loin » puis « Être rappelé »
+      → commande créée **sans date** (`pending`), écran final qui annonce une
+      demande enregistrée et non un rendez-vous confirmé.
 - [ ] Récapitulatif + code promo + confirmation **sans paiement**.
 - [ ] Écran de confirmation : référence, téléphone, « vous payez après ».
 - [ ] Email de confirmation reçu (ou dans `storage/logs/mail.log`).
@@ -20,6 +29,9 @@
 
 - [ ] Double-réservation du même créneau → refus (409) propre.
 - [ ] Réponses de formulaire incomplètes → 422, champs signalés.
+- [ ] Appel direct à `POST /api/bookings` (hors widget) sans adresse sur une
+      prestation à domicile → 422, clés `address.*` (le serveur est l'autorité,
+      pas le widget).
 - [ ] Coupon invalide / sous le minimum → ignoré sans casse.
 - [ ] Perte de session → panier et étape retrouvés (localStorage).
 

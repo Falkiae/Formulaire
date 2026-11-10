@@ -193,6 +193,7 @@
       city_label: "Ville",
       privacy_reassurance: "Vos données servent uniquement à organiser votre rendez-vous. Conservées le temps légal. Voir notre politique de confidentialité.",
       consent_label: "J'accepte les conditions générales et la politique de confidentialité.",
+      consent_link_label: "Lire les conditions générales",
       continue_button: "Choisir un créneau",
       required_error: "Merci d'indiquer au moins votre prénom et votre email.",
       consent_error: "Merci d'accepter les conditions pour continuer.",
@@ -206,6 +207,10 @@
       sms_reassurance: "Vous recevez un SMS quand le technicien part vers chez vous.",
       continue_button: "Continuer",
       select_required_error: "Merci de choisir un créneau.",
+      no_slot_heading: "Aucune disponibilité sur cette période",
+      search_further_button: "Chercher plus loin",
+      callback_hint: "Vous préférez qu'on vous rappelle ? Nous vous proposons une date par e-mail, sans engagement.",
+      callback_button: "Être rappelé",
       load_error: "Impossible de vérifier les disponibilités pour le moment.",
       retry_button: "Réessayer",
       morning_label: "Matin",
@@ -229,12 +234,17 @@
       message_prefix: "Votre demande ",
       message_suffix: " est bien enregistrée.",
       subtext: "Vous recevez un email de confirmation. Vous payez après l'intervention.",
+      pending_subtext: "Nous revenons vers vous très vite avec une proposition de date. Vous payez après l'intervention.",
       contact_prefix: "Une question ? Appelez-nous au ",
       contact_fallback_phone: "+32 4 000 00 00",
       restart_button: "Réserver une autre prestation",
     },
     shared: {
       loading: "Chargement…",
+      field_required: "Ce champ est nécessaire.",
+      email_invalid: "Cette adresse e-mail semble incorrecte.",
+      phone_invalid: "Ce numéro semble incomplet.",
+      fix_fields: "Merci de corriger les champs signalés.",
       generic_error: "Une erreur est survenue.",
       out_of_zone_message: "Nous n'intervenons pas encore automatiquement à cette adresse. Contactez-nous pour un devis sur mesure :",
       out_of_zone_fallback: "Contactez-nous depuis notre site.",
@@ -338,12 +348,34 @@
     });
   }
 
+  // Étapes réellement parcourues : « Confirmé » est un aboutissement, pas une
+  // étape de travail, et « Questions » disparaît quand le formulaire publié
+  // n'a aucun champ. Le dénominateur était figé à 9 : le client lisait « 9
+  // étapes » pour un parcours qui en compte souvent 7.
+  function pathSteps() {
+    return STEPS.filter(function (s) {
+      if (s.key === "done") return false;
+      if (s.key === "intake" && state._form && state._form.fields && state._form.fields.length === 0) return false;
+      return true;
+    });
+  }
+
   function updateProgressBar(step) {
-    var idx = stepIndex(step);
+    var path = pathSteps();
+    var idx = path.findIndex(function (s) {
+      return s.key === step;
+    });
+
+    // Sur l'écran de confirmation, le parcours est terminé : barre pleine.
+    if (step === "done") {
+      progressFillEl.style.width = "100%";
+      progressLabelEl.textContent = STEPS[STEPS.length - 1].label;
+      return;
+    }
+
     var safeIdx = idx < 0 ? 0 : idx;
-    var pct = Math.round(((safeIdx + 1) / STEPS.length) * 100);
-    progressFillEl.style.width = pct + "%";
-    progressLabelEl.textContent = "Étape " + (safeIdx + 1) + "/" + STEPS.length + " · " + STEPS[safeIdx].label;
+    progressFillEl.style.width = Math.round(((safeIdx + 1) / path.length) * 100) + "%";
+    progressLabelEl.textContent = "Étape " + (safeIdx + 1) + "/" + path.length + " · " + path[safeIdx].label;
   }
 
   // Masqué à partir de l'étape Panier (incluse) : une fois le devis établi,
@@ -962,7 +994,9 @@
     var actions = el('<div class="kn-actions"></div>');
     var cont = el('<button class="kn-btn kn-btn-primary" type="button">' + esc(t("intake.continue_button")) + "</button>");
     cont.addEventListener("click", function () {
-      if (!validateForm(hasOnsite)) {
+      var errors = formErrors(hasOnsite);
+      if (Object.keys(errors).length) {
+        showFieldErrors(body, errors);
         flash(t("intake.validation_error"));
         return;
       }
@@ -1012,46 +1046,101 @@
       if (node) container.appendChild(node);
     });
   }
+  // Les champs du formulaire dynamique portaient le même défaut que ceux des
+  // coordonnées : libellé et champ frères, sans association. `data-field` vaut
+  // ici la clé du champ, car c'est elle que FormValidator renvoie dans
+  // `fields` quand le serveur revalide les réponses.
   function fieldNode(f, required, hasOnsite, container) {
-    var label = f.label + (required ? " *" : "");
+    var label = f.label;
+    var star = required ? ' <span class="kn-req" aria-hidden="true">*</span>' : "";
+    var id = "kn-q-" + ++fieldSeq;
+    var req = required ? ' required aria-required="true"' : "";
+    var errP = '<p class="kn-field-error" id="' + id + '-err" hidden></p>';
+    var attrs = ' id="' + id + '"' + req + ' aria-describedby="' + id + '-err"';
+
     if (f.field_type === "radio" || f.field_type === "select" || f.field_type === "cards") {
-      var wrap = el('<div class="kn-field"><label>' + esc(label) + "</label></div>");
-      var row = el('<div class="kn-choice-row"></div>');
+      // Groupe de boutons : pas de champ natif à étiqueter, on décrit donc le
+      // groupe lui-même (role=group + aria-labelledby).
+      var wrap = el(
+        '<div class="kn-field" data-field="' + esc(f.field_key) + '">' +
+          '<span class="kn-field-label" id="' + id + '">' + esc(label) + star + "</span>" +
+          errP +
+          "</div>"
+      );
+      var row = el('<div class="kn-choice-row" role="group" aria-labelledby="' + id + '"></div>');
       (f.options || []).forEach(function (o) {
-        var b = el('<button type="button" class="kn-chip ' + (state.answers[f.field_key] === o.value ? "on" : "") + '">' + esc(o.label) + "</button>");
+        var selected = state.answers[f.field_key] === o.value;
+        var b = el(
+          '<button type="button" class="kn-chip ' + (selected ? "on" : "") + '" aria-pressed="' +
+            (selected ? "true" : "false") + '">' + esc(o.label) + "</button>"
+        );
         b.addEventListener("click", function () {
           state.answers[f.field_key] = o.value;
           renderFormFields(container, hasOnsite);
         });
         row.appendChild(b);
       });
-      wrap.appendChild(row);
+      wrap.insertBefore(row, wrap.querySelector(".kn-field-error"));
       return wrap;
     }
     if (f.field_type === "checkbox") {
-      var w2 = el('<label class="kn-extra"><span>' + esc(label) + "</span><input type=\"checkbox\" " + (state.answers[f.field_key] === "yes" ? "checked" : "") + "></label>");
-      w2.querySelector("input").addEventListener("change", function (e) { state.answers[f.field_key] = e.target.checked ? "yes" : "no"; });
+      var w2 = el(
+        '<div class="kn-field" data-field="' + esc(f.field_key) + '">' +
+          '<label class="kn-extra"><span>' + esc(label) + star + "</span>" +
+          '<input id="' + id + '" type="checkbox" ' + (state.answers[f.field_key] === "yes" ? "checked" : "") + "></label>" +
+          errP +
+          "</div>"
+      );
+      w2.querySelector("input").addEventListener("change", function (e) {
+        state.answers[f.field_key] = e.target.checked ? "yes" : "no";
+        clearFieldError(w2);
+      });
       return w2;
     }
     if (f.field_type === "textarea") {
-      var w3 = el('<div class="kn-field"><label>' + esc(label) + '</label><textarea rows="2" style="width:100%;min-height:64px;padding:8px;border:1px solid var(--line);border-radius:8px;font:inherit;">' + esc(state.answers[f.field_key] || "") + "</textarea></div>");
-      w3.querySelector("textarea").addEventListener("input", function (e) { state.answers[f.field_key] = e.target.value; });
+      var w3 = el(
+        '<div class="kn-field" data-field="' + esc(f.field_key) + '">' +
+          '<label for="' + id + '">' + esc(label) + star + "</label>" +
+          "<textarea" + attrs + ' rows="2" style="width:100%;min-height:64px;padding:8px;border:1px solid var(--line);border-radius:8px;font:inherit;">' +
+          esc(state.answers[f.field_key] || "") + "</textarea>" +
+          errP +
+          "</div>"
+      );
+      w3.querySelector("textarea").addEventListener("input", function (e) {
+        state.answers[f.field_key] = e.target.value;
+        clearFieldError(w3);
+      });
       return w3;
     }
     // text, number, date, consent, autres → input
-    var type = f.field_type === "number" ? "number" : (f.field_type === "date" ? "date" : "text");
-    var w4 = el('<div class="kn-field"><label>' + esc(label) + '</label><input type="' + type + '" value="' + esc(state.answers[f.field_key] || "") + '"></div>');
-    w4.querySelector("input").addEventListener("input", function (e) { state.answers[f.field_key] = e.target.value; });
+    var type = f.field_type === "number" ? "number" : f.field_type === "date" ? "date" : "text";
+    var inputmode = f.field_type === "number" ? ' inputmode="numeric"' : "";
+    var w4 = el(
+      '<div class="kn-field" data-field="' + esc(f.field_key) + '">' +
+        '<label for="' + id + '">' + esc(label) + star + "</label>" +
+        '<input type="' + type + '"' + attrs + inputmode + ' value="' + esc(state.answers[f.field_key] || "") + '">' +
+        errP +
+        "</div>"
+    );
+    w4.querySelector("input").addEventListener("input", function (e) {
+      state.answers[f.field_key] = e.target.value;
+      clearFieldError(w4);
+    });
     return w4;
   }
-  function validateForm(hasOnsite) {
+
+  // Renvoie les erreurs par clé de champ, et non un simple booléen : le
+  // message doit pouvoir s'afficher sous le champ concerné.
+  function formErrors(hasOnsite) {
     var st = formState(hasOnsite);
-    return state._form.fields.every(function (f) {
+    var errors = {};
+    state._form.fields.forEach(function (f) {
       var m = st[f.field_key];
-      if (!m.visible || !m.required) return true;
+      if (!m.visible || !m.required) return;
       var v = state.answers[f.field_key];
-      return v != null && String(v).trim() !== "";
+      if (v == null || String(v).trim() === "") errors[f.field_key] = t("shared.field_required");
     });
+    return errors;
   }
 
   // --- Étape 6 : COORDONNÉES -------------------------------------------------
@@ -1059,18 +1148,22 @@
     body.appendChild(el('<h2 class="kn-h">' + esc(t("contact.title")) + "</h2>"));
     var hasOnsite = cartHasMode("onsite");
     var fields = [
-      ["first_name", t("contact.first_name_label"), "given-name", "text"],
-      ["last_name", t("contact.last_name_label"), "family-name", "text"],
-      ["email", t("contact.email_label"), "email", "email"],
-      ["phone", t("contact.phone_label"), "tel", "tel"],
+      ["first_name", t("contact.first_name_label"), "given-name", "text", {}],
+      ["last_name", t("contact.last_name_label"), "family-name", "text", {}],
+      ["email", t("contact.email_label"), "email", "email", {}],
+      // Le tunnel promet un SMS au départ du technicien : le téléphone n'est
+      // pas optionnel.
+      ["phone", t("contact.phone_label"), "tel", "tel", { inputmode: "tel" }],
     ];
     fields.forEach(function (f) {
-      body.appendChild(textField("customer", f[0], f[1], f[2], f[3]));
+      var opts = f[4] || {};
+      opts.required = true;
+      body.appendChild(textField("customer", f[0], f[1], f[2], f[3], opts));
     });
     if (hasOnsite) {
       body.appendChild(el('<h3 class="kn-h3">' + esc(t("contact.address_heading")) + "</h3>"));
-      body.appendChild(textField("address", "street", t("contact.street_label"), "address-line1", "text"));
-      body.appendChild(textField("address", "number", t("contact.number_label"), "", "text"));
+      body.appendChild(textField("address", "street", t("contact.street_label"), "address-line1", "text", { required: true }));
+      body.appendChild(textField("address", "number", t("contact.number_label"), "address-line2", "text", { required: true }));
       // Toujours resynchronisé depuis state.postal (validé à l'étape « Où »),
       // jamais figé à la première visite : un retour en arrière pour corriger
       // le code postal ne doit jamais laisser une ancienne valeur invalide
@@ -1078,45 +1171,184 @@
       // en priorité, voir renderSlot()). L'utilisateur reste libre de la
       // modifier manuellement ensuite dans ce champ.
       state.address.postal_code = state.postal;
-      body.appendChild(textField("address", "postal_code", t("contact.postal_label"), "postal-code", "text"));
-      body.appendChild(textField("address", "city", t("contact.city_label"), "address-level2", "text"));
+      // inputmode numérique, comme à l'étape « Où » : le clavier alphabétique
+      // par défaut sur un code postal était une friction mobile gratuite.
+      body.appendChild(textField("address", "postal_code", t("contact.postal_label"), "postal-code", "text", { required: true, inputmode: "numeric" }));
+      body.appendChild(textField("address", "city", t("contact.city_label"), "address-level2", "text", { required: true }));
     }
     body.appendChild(reassure(t("contact.privacy_reassurance")));
-    var consent = el('<label class="kn-extra"><span>' + esc(t("contact.consent_label")) + '</span><input type="checkbox" id="kn-consent"></label>');
+
+    // Le consentement portait sur des documents que le client ne pouvait pas
+    // ouvrir : le texte était brut, sans lien. Le lien vient du réglage
+    // company.terms_url, exposé par /api/catalog.
+    var termsUrl = catalog && catalog.contact ? catalog.contact.terms_url : null;
+    var consentText = esc(t("contact.consent_label"));
+    if (termsUrl) {
+      consentText +=
+        ' <a href="' + esc(termsUrl) + '" target="_blank" rel="noopener noreferrer">' +
+        esc(t("contact.consent_link_label")) +
+        "</a>";
+    }
+    var consent = el('<label class="kn-extra"><span>' + consentText + '</span><input type="checkbox" id="kn-consent"></label>');
     body.appendChild(consent);
+
+    // Honeypot RÉEL. Le widget envoyait `hp: ""` en dur, sans qu'aucun champ
+    // n'existe dans le DOM : le contrôle serveur ne pouvait jamais se
+    // déclencher, un robot omettant simplement la clé. Masqué en CSS plutôt
+    // qu'en `hidden` (un champ `hidden` n'est pas rempli par les robots) et
+    // sorti du parcours clavier comme de l'arbre d'accessibilité.
+    var honeypot = el(
+      '<div class="kn-hp" aria-hidden="true">' +
+        '<label for="kn-hp-field">Ne remplissez pas ce champ</label>' +
+        '<input id="kn-hp-field" type="text" name="company_website" tabindex="-1" autocomplete="off">' +
+        "</div>"
+    );
+    body.appendChild(honeypot);
+
     var actions = el('<div class="kn-actions"></div>');
     var cont = el('<button class="kn-btn kn-btn-primary" type="button">' + esc(t("contact.continue_button")) + "</button>");
     cont.addEventListener("click", function () {
-      if (!state.customer.email || !state.customer.first_name) {
-        flash(t("contact.required_error"));
+      var errors = validateContact(hasOnsite);
+      if (Object.keys(errors).length) {
+        showFieldErrors(body, errors);
+        flash(t("shared.fix_fields"));
         return;
       }
+      clearAllErrors(body);
       if (!consent.querySelector("input").checked) {
         flash(t("contact.consent_error"));
         return;
       }
       state._consent = true;
+      state._hp = honeypot.querySelector("input").value;
       goto("slot");
     });
     actions.appendChild(cont);
     body.appendChild(actions);
   }
-  function textField(bag, key, label, autocomplete, type) {
+
+  // Mêmes règles que le serveur (BookingService::assertCustomerAndAddress) :
+  // le client les applique pour éviter un aller-retour réseau, le serveur
+  // reste l'autorité.
+  function validateContact(hasOnsite) {
+    var errors = {};
+    var val = function (bag, key) {
+      return (state[bag][key] || "").trim();
+    };
+
+    ["first_name", "last_name", "email", "phone"].forEach(function (key) {
+      if (val("customer", key) === "") errors["customer." + key] = t("shared.field_required");
+    });
+
+    var email = val("customer", "email");
+    if (email !== "" && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
+      errors["customer.email"] = t("shared.email_invalid");
+    }
+
+    var phone = val("customer", "phone");
+    if (phone !== "" && phone.replace(/\D+/g, "").length < 8) {
+      errors["customer.phone"] = t("shared.phone_invalid");
+    }
+
+    if (hasOnsite) {
+      ["street", "number", "postal_code", "city"].forEach(function (key) {
+        if (val("address", key) === "") errors["address." + key] = t("shared.field_required");
+      });
+    }
+
+    return errors;
+  }
+  // Champ de saisie accessible.
+  //
+  // L'ancienne version produisait « <label>Prénom</label><input> » : deux
+  // FRÈRES, sans `for`/`id` et sans imbrication — aucune association, donc un
+  // lecteur d'écran annonçait « champ de saisie » sans nom, sur les huit
+  // champs de l'étape Coordonnées. Le `data-field` sert de cible aux erreurs
+  // renvoyées par l'API (clés `customer.email`, `address.street`…).
+  var fieldSeq = 0;
+  function textField(bag, key, label, autocomplete, type, opts) {
+    opts = opts || {};
+    var id = "kn-f-" + ++fieldSeq;
     var f = el(
-      '<div class="kn-field"><label>' +
+      '<div class="kn-field" data-field="' + bag + "." + key + '">' +
+        '<label for="' + id + '">' +
         esc(label) +
-        '</label><input type="' +
-        type +
-        '" autocomplete="' +
-        autocomplete +
-        '" value="' +
-        esc(state[bag][key] || "") +
-        '"></div>'
+        (opts.required ? ' <span class="kn-req" aria-hidden="true">*</span>' : "") +
+        "</label>" +
+        '<input id="' + id + '" type="' + type + '"' +
+        (autocomplete ? ' autocomplete="' + autocomplete + '"' : "") +
+        (opts.inputmode ? ' inputmode="' + opts.inputmode + '"' : "") +
+        (opts.required ? ' required aria-required="true"' : "") +
+        ' value="' + esc(state[bag][key] || "") + '">' +
+        '<p class="kn-field-error" id="' + id + '-err" hidden></p>' +
+        "</div>"
     );
     f.querySelector("input").addEventListener("input", function (e) {
       state[bag][key] = e.target.value;
+      clearFieldError(f); // l'erreur s'effacera dès la correction
     });
     return f;
+  }
+
+  // --- Erreurs de saisie ----------------------------------------------------
+  // flash() seul ne suffisait pas : message global, effacé au bout de 3,5 s,
+  // sans dire quel champ était en cause ni rien annoncer à un lecteur d'écran.
+  // Les messages vivent désormais SOUS le champ fautif, et l'API renvoie déjà
+  // ces erreurs par champ (clé `fields`) — elles étaient simplement ignorées.
+  function clearFieldError(fieldEl) {
+    var p = fieldEl.querySelector(".kn-field-error");
+    var i = fieldEl.querySelector("input, select, textarea");
+    if (p) {
+      p.hidden = true;
+      p.textContent = "";
+    }
+    if (i) {
+      i.removeAttribute("aria-invalid");
+      i.removeAttribute("aria-describedby");
+    }
+    fieldEl.classList.remove("has-error");
+  }
+
+  function clearAllErrors(scope) {
+    Array.prototype.forEach.call((scope || root).querySelectorAll(".kn-field"), clearFieldError);
+  }
+
+  function setFieldError(scope, path, message) {
+    var fieldEl = (scope || root).querySelector('[data-field="' + path + '"]');
+    if (!fieldEl) return null;
+    var p = fieldEl.querySelector(".kn-field-error");
+    var i = fieldEl.querySelector("input, select, textarea");
+    if (p) {
+      p.textContent = message;
+      p.hidden = false;
+    }
+    if (i) {
+      i.setAttribute("aria-invalid", "true");
+      if (p && p.id) i.setAttribute("aria-describedby", p.id);
+    }
+    fieldEl.classList.add("has-error");
+    return fieldEl;
+  }
+
+  // Affiche un lot d'erreurs, amène le premier champ fautif à l'écran et lui
+  // donne le focus. Renvoie le nombre d'erreurs effectivement placées.
+  function showFieldErrors(scope, errors) {
+    clearAllErrors(scope);
+    var first = null;
+    var placed = 0;
+    Object.keys(errors).forEach(function (path) {
+      var f = setFieldError(scope, path, errors[path]);
+      if (f) {
+        placed++;
+        if (!first) first = f;
+      }
+    });
+    if (first) {
+      first.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "center" });
+      var input = first.querySelector("input, select, textarea");
+      if (input) input.focus({ preventScroll: true });
+    }
+    return placed;
   }
 
   // --- Étape 7 : RENDEZ-VOUS -------------------------------------------------
@@ -1125,12 +1357,16 @@
     body.appendChild(loading());
     api("/availability", {
       method: "POST",
-      body: { token: state.token, postal: state.address.postal_code || state.postal, days: 10 },
+      // 10 jours seulement alors que le moteur en autorise 90 : en période
+      // chargée, le tunnel annonçait « aucune disponibilité » sans avoir
+      // regardé. Élargissable depuis l'écran lui-même.
+      body: { token: state.token, postal: state.address.postal_code || state.postal, days: state._slotDays || 30 },
     }).then(function (av) {
       state.availability = av;
       clear(body);
       body.appendChild(el('<h2 class="kn-h">' + esc(t("slot.title")) + "</h2>"));
 
+      var offered = 0;
       ["onsite", "workshop"].forEach(function (mode) {
         var block = av[mode];
         if (!block) return;
@@ -1142,9 +1378,37 @@
           body.appendChild(el('<p class="kn-muted">' + esc(mode === "onsite" ? t("slot.empty_onsite") : t("slot.empty_workshop")) + "</p>"));
           return;
         }
+        offered++;
         body.appendChild(el('<h3 class="kn-h3">' + esc(mode === "onsite" ? t("slot.onsite_heading") : t("slot.workshop_heading")) + "</h3>"));
         body.appendChild(slotPicker(mode, block.slots));
       });
+
+      // SORTIE DE SECOURS. Auparavant : une phrase grise, et rien. Le
+      // prospect avait traversé six étapes et livré toutes ses coordonnées —
+      // c'est le moment d'intention maximale, et le tunnel s'arrêtait là.
+      if (offered === 0) {
+        body.appendChild(el('<h3 class="kn-h3">' + esc(t("slot.no_slot_heading")) + "</h3>"));
+
+        var horizon = state._slotDays || 30;
+        if (horizon < 90) {
+          var further = el('<button class="kn-btn kn-btn-ghost" type="button">' + esc(t("slot.search_further_button")) + "</button>");
+          further.addEventListener("click", function () {
+            state._slotDays = horizon < 60 ? 60 : 90;
+            goto("slot");
+          });
+          body.appendChild(further);
+        }
+
+        body.appendChild(reassure(t("slot.callback_hint")));
+        var callback = el('<button class="kn-btn kn-btn-primary" type="button">' + esc(t("slot.callback_button")) + "</button>");
+        callback.addEventListener("click", function () {
+          // Commande sans créneau : jobs `unscheduled`, statut « pending ».
+          // Le client posera sa date depuis son lien de gestion.
+          submitBooking({ dateless: true });
+        });
+        body.appendChild(callback);
+        return;
+      }
 
       body.appendChild(reassure(t("slot.sms_reassurance")));
       var actions = el('<div class="kn-actions"></div>');
@@ -1304,18 +1568,21 @@
       body.appendChild(actions);
     });
   }
-  function submitBooking() {
+  function submitBooking(opts) {
+    opts = opts || {};
     // event_id partagé pixel/serveur pour la déduplication Meta CAPI.
     var eventId = state._eventId || (state._eventId = uuid());
     var payload = {
       token: state.token,
       customer: state.customer,
       address: state.address,
-      slots: state.slots,
+      // Demande de rappel : aucun créneau transmis, le serveur crée des jobs
+      // non planifiés et accuse réception au lieu de confirmer.
+      slots: opts.dateless ? {} : state.slots,
       answers: state.answers,
       consent_terms: !!state._consent,
       event_id: eventId,
-      hp: "",
+      hp: state._hp || "",
     };
     api("/bookings", { method: "POST", body: payload })
       .then(function (res) {
@@ -1333,8 +1600,26 @@
         reset(); // panier consommé
       })
       .catch(function (e) {
-        if (e.status === 409) flash(t("recap.slot_taken_error"));
-        else flash(e.message || t("shared.generic_error"));
+        if (e.status === 409) {
+          flash(t("recap.slot_taken_error"));
+          return;
+        }
+        // L'API renvoie ses erreurs PAR CHAMP (clé `fields`) ; elles étaient
+        // jusqu'ici jetées au profit d'un message global. On ramène
+        // l'utilisateur à l'étape concernée et on marque les champs fautifs.
+        var fields = e && e.data && e.data.fields;
+        if (fields && Object.keys(fields).length) {
+          var onContact = Object.keys(fields).some(function (k) {
+            return k.indexOf("customer.") === 0 || k.indexOf("address.") === 0;
+          });
+          var step = onContact ? "contact" : "intake";
+          goto(step);
+          var panel = findPanel(step);
+          if (panel) showFieldErrors(panel, fields);
+          flash(e.data.error || t("shared.fix_fields"));
+          return;
+        }
+        flash(e.message || t("shared.generic_error"));
       });
   }
   // --- Tracking GA4 (dataLayer) ---------------------------------------------
@@ -1367,7 +1652,9 @@
     body.appendChild(el('<div class="kn-done"><div class="kn-done-mark">✓</div>' +
       '<h2 class="kn-h">' + esc(t("done.title")) + "</h2>" +
       '<p>' + esc(t("done.message_prefix")) + '<strong>' + esc(ref) + '</strong>' + esc(t("done.message_suffix")) + '</p>' +
-      '<p class="kn-muted">' + esc(t("done.subtext")) + '</p>' +
+      // Une demande de rappel n'est pas une réservation confirmée : le dire,
+      // sinon le client attend un rendez-vous dont personne n'a posé la date.
+      '<p class="kn-muted">' + esc(state.booking && state.booking.scheduled === false ? t("done.pending_subtext") : t("done.subtext")) + '</p>' +
       '<p>' + esc(t("done.contact_prefix")) + '<a href="' + esc(phoneHref) + '">' + esc(phone) + '</a>.</p></div>'));
     var again = el('<button class="kn-btn kn-btn-ghost" type="button">' + esc(t("done.restart_button")) + "</button>");
     again.addEventListener("click", function () {
@@ -1437,14 +1724,17 @@
     node.innerHTML = "";
     return node;
   }
+  // role="alert" : sans lui, un lecteur d'écran n'annonçait jamais l'erreur.
+  // 3,5 s suffisaient à peine pour lire un message de validation ; 7 s laissent
+  // le temps de comprendre avant que le message ne s'efface.
   function flash(msg) {
     var f = shadow.querySelector(".kn-flash");
     if (f) f.remove();
-    var n = el('<div class="kn-flash">' + esc(msg) + "</div>");
+    var n = el('<div class="kn-flash" role="alert" aria-live="assertive">' + esc(msg) + "</div>");
     root.appendChild(n);
     setTimeout(function () {
       n.remove();
-    }, 3500);
+    }, 7000);
   }
   function quoteBar() {
     var p = state.cart.pricing;
@@ -1557,7 +1847,16 @@
       ".kn-card-body{display:flex;flex-direction:column;gap:2px;min-width:0}" +
       ".kn-card-icon{font-size:1.6rem;width:44px;text-align:center}.kn-card-title{font-weight:700}.kn-card-desc{color:var(--muted);font-size:.85rem}" +
       ".kn-extra-img{width:48px;height:48px;object-fit:cover;border-radius:4px;flex:0 0 auto}.kn-extra-txt{flex:1;min-width:0}" +
-      ".kn-field{margin:12px 0}.kn-field label{display:block;font-size:.85rem;color:var(--muted);margin-bottom:4px}" +
+      ".kn-field{margin:12px 0}.kn-field label,.kn-field-label{display:block;font-size:.85rem;color:var(--muted);margin-bottom:4px}" +
+      // Astérisque de champ requis, message d'erreur sous le champ et
+      // bordure rouge : l'erreur se lit là où elle se corrige.
+      ".kn-req{color:var(--danger,#B3261E)}" +
+      ".kn-field-error{margin:4px 0 0;font-size:.82rem;color:var(--danger,#B3261E)}" +
+      ".kn-field.has-error input,.kn-field.has-error textarea,.kn-field.has-error select{border-color:var(--danger,#B3261E);outline-color:var(--danger,#B3261E)}" +
+      ".kn-field.has-error .kn-choice-row{outline:1px solid var(--danger,#B3261E);outline-offset:4px;border-radius:8px}" +
+      // Honeypot : hors écran plutôt que display:none — un robot remplit
+      // un champ masqué en CSS, pas un champ absent du rendu.
+      ".kn-hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}" +
       ".kn input[type=text],.kn input[type=email],.kn input[type=tel],.kn input:not([type]){width:100%;min-height:48px;padding:0 12px;font-size:16px;font-family:inherit;border:1px solid var(--line);border-radius:4px;background:var(--surface);color:var(--ink)}" +
       ".kn input:focus{outline:2px solid var(--a);outline-offset:2px}" +
       ".kn-extras{display:flex;flex-direction:column;gap:8px}" +

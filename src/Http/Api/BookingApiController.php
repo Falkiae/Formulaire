@@ -63,16 +63,23 @@ final class BookingApiController
             }
         }
 
+        $slots = $this->normaliseSlots($request->array('slots'));
         $result = $this->bookings->createFromCart(
             $request->string('token'),
             $request->array('customer'),
             $request->array('address'),
-            $this->normaliseSlots($request->array('slots')),
+            $slots,
             $request->array('answers'),
         );
 
-        // Confirmation immédiate + programmation des rappels (48 h / 2 h).
-        foreach (['booking_confirmed', 'reminder_48h', 'reminder_2h'] as $event) {
+        // Sans créneau (demande de rappel émise depuis le tunnel faute de
+        // disponibilité), il n'y a rien à confirmer ni à rappeler : on accuse
+        // réception. Programmer des rappels sur un rendez-vous inexistant
+        // enverrait des SMS sans date.
+        $events = $slots === []
+            ? ['booking_created']
+            : ['booking_confirmed', 'reminder_48h', 'reminder_2h'];
+        foreach ($events as $event) {
             $this->notifications->trigger($event, $result['booking_id']);
         }
 
@@ -85,7 +92,7 @@ final class BookingApiController
             $request->header('user-agent'),
         );
 
-        return Response::json($result + ['event_id' => $eventId], 201);
+        return Response::json($result + ['event_id' => $eventId, 'scheduled' => $slots !== []], 201);
     }
 
     /**

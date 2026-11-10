@@ -49,7 +49,7 @@ final class CatalogApiController
         );
 
         $contact = $this->db->select(
-            "SELECT `key`, `value` FROM settings WHERE `key` IN ('company.phone', 'company.email', 'finance.vat_rate_bp')",
+            "SELECT `key`, `value` FROM settings WHERE `key` IN ('company.phone', 'company.email', 'company.terms_url', 'finance.vat_rate_bp')",
         );
         $contactByKey = [];
         foreach ($contact as $row) {
@@ -63,6 +63,9 @@ final class CatalogApiController
             // un devis sur mesure quand une adresse est hors zone de service.
             'contact' => [
                 'phone' => $contactByKey['company.phone'] ?? null,
+                // Le consentement du tunnel portait sur des documents que le
+                // client ne pouvait pas ouvrir : le lien est désormais fourni.
+                'terms_url' => $contactByKey['company.terms_url'] ?? null,
                 'email' => $contactByKey['company.email'] ?? null,
             ],
             // Taux de TVA (points de base, ex. 2100 = 21 %) — permet au widget

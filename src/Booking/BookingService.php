@@ -9,6 +9,7 @@ use Keepnew\Catalog\CatalogRepository;
 use Keepnew\Core\Database;
 use Keepnew\Core\Exception\HttpException;
 use Keepnew\Core\Exception\NotFoundException;
+use Keepnew\Core\Exception\ValidationException;
 use Keepnew\Form\FormRepository;
 use Keepnew\Geo\NominatimGeocoder;
 use Keepnew\Notification\NotificationService;
@@ -56,6 +57,12 @@ final class BookingService
         // de la règle du mode unique (durée de vie 7 jours) ne doit pas créer
         // deux rendez-vous à planifier séparément.
         self::assertSingleMode($lines);
+
+        // Le serveur exige ce sans quoi la prestation ne peut pas avoir lieu.
+        // Il ne validait jusqu'ici que le honeypot, le consentement et le
+        // formulaire d'intake : une réservation à domicile sans rue passait, et
+        // le technicien recevait un rendez-vous sans adresse.
+        self::assertCustomerAndAddress($customer, $address, $lines);
 
         $couponCode = $cart['coupon_id'] !== null
             ? $this->db->scalar('SELECT code FROM coupons WHERE id = :id', ['id' => (int) $cart['coupon_id']])
@@ -124,7 +131,12 @@ final class BookingService
             }
 
             // 3. Réservation.
-            $bookingId = $this->insertBooking($db, $customerId, $addressId, (int) $cart['id'], $quote, 'confirmed');
+            // Sans créneau choisi (demande de rappel depuis le tunnel quand
+            // aucune disponibilité n'est trouvée), la commande est une DEMANDE,
+            // pas une confirmation : les jobs sont créés `unscheduled` et le
+            // client posera sa date via son lien de gestion.
+            $initialStatus = $slots === [] ? 'pending' : 'confirmed';
+            $bookingId = $this->insertBooking($db, $customerId, $addressId, (int) $cart['id'], $quote, $initialStatus);
 
             // 4. Lignes + jobs.
             $this->insertItemsAndJobs($db, $bookingId, $addressId, $lines, $slots, $jobDurations);
@@ -132,7 +144,11 @@ final class BookingService
             // 5. Réponses au formulaire + historique.
             $this->insertAnswers($db, $bookingId, $answers, $fieldIdByKey);
             $db->insert('booking_status_history', [
-                'booking_id' => $bookingId, 'new_status' => 'confirmed', 'note' => 'Réservation créée depuis le tunnel',
+                'booking_id' => $bookingId,
+                'new_status' => $initialStatus,
+                'note' => $slots === []
+                    ? 'Demande sans créneau depuis le tunnel (rappel à planifier)'
+                    : 'Réservation créée depuis le tunnel',
             ]);
 
             // 6. Conversion du panier + libération des holds.
@@ -384,6 +400,13 @@ final class BookingService
             return; // tous les rendez-vous annulés : l'annulation gère ce cas.
         }
 
+        // Une demande dont aucun rendez-vous n'est encore planifié reste en
+        // attente : la « confirmer » reviendrait à promettre une date au client
+        // alors que personne n'en a posé.
+        if (array_diff($statuses, ['unscheduled']) === []) {
+            return;
+        }
+
         // Pas de array_all()/array_any() : elles n'existent qu'à partir de
         // PHP 8.4, alors que le projet cible 8.2 (et l'hébergement est en 8.2).
         $remaining = array_values(array_diff($statuses, ['completed']));
@@ -474,6 +497,71 @@ final class BookingService
                 'Une même commande ne peut pas mélanger une prestation à domicile et une prestation en atelier. '
                 . 'Terminez cette commande, puis passez-en une seconde pour l\'autre formule.',
             );
+        }
+    }
+
+    /**
+     * Exige les coordonnées et l'adresse sans lesquelles l'intervention ne
+     * peut pas se faire.
+     *
+     * Les clés d'erreur sont préfixées `customer.` / `address.` : le widget
+     * les utilise telles quelles pour afficher le message SOUS le champ fautif
+     * (ValidationException → réponse 422 avec `fields`).
+     *
+     * Le téléphone est requis : tout le tunnel promet un SMS au départ du
+     * technicien. L'e-mail est validé au format, car il porte aussi le lien de
+     * gestion — seul moyen pour le client de replanifier ou d'annuler : une
+     * faute de frappe lui coupe l'accès à sa propre réservation.
+     *
+     * @param array<string, mixed> $customer
+     * @param array<string, mixed> $address
+     * @param list<array<string, mixed>> $lines
+     */
+    private static function assertCustomerAndAddress(array $customer, array $address, array $lines): void
+    {
+        $value = static fn (array $bag, string $key): string => trim((string) ($bag[$key] ?? ''));
+        $errors = [];
+
+        foreach (['first_name' => 'Indiquez votre prénom.', 'last_name' => 'Indiquez votre nom.'] as $key => $message) {
+            if ($value($customer, $key) === '') {
+                $errors['customer.' . $key] = $message;
+            }
+        }
+
+        $email = $value($customer, 'email');
+        if ($email === '') {
+            $errors['customer.email'] = 'Indiquez votre e-mail.';
+        } elseif (filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
+            $errors['customer.email'] = 'Cette adresse e-mail semble incorrecte.';
+        }
+
+        // Au moins 8 chiffres : accepte les formats belges et internationaux
+        // (espaces, points, barres, préfixe +) sans imposer une écriture.
+        $phone = $value($customer, 'phone');
+        if ($phone === '') {
+            $errors['customer.phone'] = 'Indiquez un téléphone : le technicien vous prévient par SMS.';
+        } elseif (strlen((string) preg_replace('/\D+/', '', $phone)) < 8) {
+            $errors['customer.phone'] = 'Ce numéro semble incomplet.';
+        }
+
+        // Adresse exigée seulement si une prestation se fait à domicile.
+        $hasOnsite = array_filter($lines, static fn (array $l): bool => ($l['mode'] ?? '') === 'onsite') !== [];
+        if ($hasOnsite) {
+            $required = [
+                'street' => 'Indiquez la rue.',
+                'number' => 'Indiquez le numéro.',
+                'postal_code' => 'Indiquez le code postal.',
+                'city' => 'Indiquez la ville.',
+            ];
+            foreach ($required as $key => $message) {
+                if ($value($address, $key) === '') {
+                    $errors['address.' . $key] = $message;
+                }
+            }
+        }
+
+        if ($errors !== []) {
+            throw new ValidationException($errors, 'Merci de corriger les champs signalés.');
         }
     }
 

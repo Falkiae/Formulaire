@@ -54,6 +54,24 @@ token) ; endpoints sensibles protégés par **rate limiting**.
 Sécurité : honeypot anti-spam et consentement CGV obligatoire à la création ;
 rate limiting sur disponibilité (40/min) et réservation (15/min).
 
+`POST /api/bookings` valide **aussi les coordonnées** — identité complète,
+e-mail et téléphone plausibles, et adresse (rue, numéro, code postal, ville)
+dès qu'une ligne du panier est `onsite`. En cas d'échec : `422` avec
+`fields: { "customer.phone": "…", "address.street": "…" }`, des clés directement
+utilisables comme chemins de champ par le widget. Ces règles vivent dans
+`BookingService::assertCustomerAndAddress()` et non dans le widget, qui est du
+code client : le serveur les appliquait auparavant seulement au honeypot, au
+consentement et au formulaire d'intake, si bien qu'une réservation à domicile
+sans rue passait et que le technicien recevait un rendez-vous sans adresse.
+
+`slots` vide est un cas légitime, pas une erreur : c'est la **demande de
+rappel** émise depuis le tunnel quand aucun créneau n'est disponible. La
+commande naît alors en `pending`, le job en `unscheduled`, seul
+`booking_created` est déclenché (ni confirmation ni rappels : il n'y a pas de
+date), et la réponse porte `scheduled: false` pour que le widget annonce une
+demande enregistrée plutôt qu'un rendez-vous confirmé. Le client pose sa date
+ensuite via `POST /api/bookings/{token}/schedule`.
+
 ## Validation réelle (MariaDB 10.11 + PHP 8.4)
 
 Flux complet exercé via HTTP :
