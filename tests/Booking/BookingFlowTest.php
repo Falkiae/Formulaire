@@ -71,6 +71,39 @@ final class BookingFlowTest extends TestCase
     }
 
     /**
+     * Des coordonnées complètes, telles que le serveur les exige depuis que
+     * `assertCustomerAndAddress()` les valide : ces fixtures n'avaient ni nom,
+     * ni téléphone, ni numéro de rue — c'est-à-dire exactement la réservation
+     * qui envoyait un technicien sans savoir où aller.
+     *
+     * @return array<string, mixed>
+     */
+    private function customer(string $prefix): array
+    {
+        return [
+            'first_name' => 'Test',
+            'last_name' => 'Intégration',
+            'email' => $prefix . '-' . uniqid() . '@keepnew.be',
+            'phone' => '+32 470 12 34 56',
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function address(): array
+    {
+        return [
+            'street' => 'Rue Test',
+            'number' => '12',
+            'postal_code' => '4000',
+            'city' => 'Liège',
+            'lat' => 50.64,
+            'lng' => 5.57,
+        ];
+    }
+
+    /**
      * Une commande porte un mode unique : plusieurs prestations du même mode
      * sont regroupées en UN seul rendez-vous — donc un seul créneau à choisir.
      */
@@ -86,8 +119,8 @@ final class BookingFlowTest extends TestCase
         $start = (new \DateTimeImmutable('+3 days 08:00', new \DateTimeZone('UTC')))->format('Y-m-d H:i:s');
         $result = $this->bookings->createFromCart(
             $token,
-            ['email' => 'test-' . uniqid() . '@keepnew.be', 'first_name' => 'Test'],
-            ['street' => 'Rue Test', 'postal_code' => '4000', 'city' => 'Liège', 'lat' => 50.64, 'lng' => 5.57],
+            $this->customer('test'),
+            $this->address(),
             ['onsite' => ['start_utc' => $start, 'technician_id' => 4]],
             ['water_access' => 'yes'],
         );
@@ -116,8 +149,8 @@ final class BookingFlowTest extends TestCase
     public function testDoubleBookingIsRejected(): void
     {
         $start = (new \DateTimeImmutable('+4 days 09:00', new \DateTimeZone('UTC')))->format('Y-m-d H:i:s');
-        $customer = ['email' => 'dbl-' . uniqid() . '@keepnew.be'];
-        $address = ['street' => 'A', 'postal_code' => '4000', 'city' => 'Liège', 'lat' => 50.64, 'lng' => 5.57];
+        $customer = $this->customer('dbl');
+        $address = $this->address();
 
         $t1 = $this->cart->create();
         $this->cart->addItem($t1, 4, 'onsite', 21, [], 1);
