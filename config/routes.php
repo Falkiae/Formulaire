@@ -238,6 +238,7 @@ return static function (Router $router, Container $container): void {
         $c->get(TimeEntryService::class),
         $c->get(NotificationService::class),
         $c->get(ImageUpload::class),
+        $c->get(BookingService::class),
     ));
     $container->singleton(BookingApiController::class, static fn (Container $c): BookingApiController => new BookingApiController(
         $c->get(BookingService::class),
@@ -643,8 +644,12 @@ return static function (Router $router, Container $container): void {
     $availabilityLimit = new RateLimitMiddleware($db, 'api_availability', 40, 60);
     $bookingLimit = new RateLimitMiddleware($db, 'api_booking', 15, 60);
     $zoneCheckLimit = new RateLimitMiddleware($db, 'api_zone_check', 40, 60);
+    // Écritures de panier et devis : seuil large (un tunnel actif en consomme
+    // plusieurs par minute) mais non nul — créer un panier insère une ligne,
+    // c'était jusqu'ici illimité.
+    $cartLimit = new RateLimitMiddleware($db, 'api_cart', 60, 60);
 
-    $router->group('/api', [], static function (Router $r) use ($availabilityLimit, $bookingLimit, $zoneCheckLimit): void {
+    $router->group('/api', [], static function (Router $r) use ($availabilityLimit, $bookingLimit, $zoneCheckLimit, $cartLimit): void {
         // Catalogue (lecture)
         $r->get('/catalog', [CatalogApiController::class, 'index']);
         $r->get('/services/{id}', [CatalogApiController::class, 'service']);
@@ -653,15 +658,15 @@ return static function (Router $router, Container $container): void {
         $r->get('/form', [FormApiController::class, 'published']);
 
         // Devis live (sans panier)
-        $r->post('/quote', [CartApiController::class, 'quote']);
+        $r->post('/quote', [CartApiController::class, 'quote'], [$cartLimit]);
 
         // Panier
-        $r->post('/cart', [CartApiController::class, 'create']);
+        $r->post('/cart', [CartApiController::class, 'create'], [$cartLimit]);
         $r->get('/cart/{token}', [CartApiController::class, 'show']);
-        $r->post('/cart/{token}/items', [CartApiController::class, 'addItem']);
-        $r->patch('/cart/{token}/items/{itemId}', [CartApiController::class, 'updateItem']);
-        $r->delete('/cart/{token}/items/{itemId}', [CartApiController::class, 'removeItem']);
-        $r->post('/cart/{token}/coupon', [CartApiController::class, 'setCoupon']);
+        $r->post('/cart/{token}/items', [CartApiController::class, 'addItem'], [$cartLimit]);
+        $r->patch('/cart/{token}/items/{itemId}', [CartApiController::class, 'updateItem'], [$cartLimit]);
+        $r->delete('/cart/{token}/items/{itemId}', [CartApiController::class, 'removeItem'], [$cartLimit]);
+        $r->post('/cart/{token}/coupon', [CartApiController::class, 'setCoupon'], [$cartLimit]);
 
         // Disponibilité (rate-limité : anti-énumération de créneaux)
         $r->post('/availability', [AvailabilityApiController::class, 'search'], [$availabilityLimit]);
@@ -673,7 +678,7 @@ return static function (Router $router, Container $container): void {
         $r->post('/bookings', [BookingApiController::class, 'create'], [$bookingLimit]);
         $r->get('/bookings/{token}', [BookingApiController::class, 'show']);
         $r->post('/bookings/{token}/schedule', [BookingApiController::class, 'schedule'], [$bookingLimit]);
-        $r->post('/bookings/{token}/cancel', [BookingApiController::class, 'cancel']);
+        $r->post('/bookings/{token}/cancel', [BookingApiController::class, 'cancel'], [$bookingLimit]);
     });
 
     // --- Espace client self-service (page /rdv/{token}, sans compte) ------
