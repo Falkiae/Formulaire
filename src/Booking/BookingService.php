@@ -347,6 +347,71 @@ final class BookingService
     }
 
     /**
+     * Aligne le statut de la commande sur celui de ses rendez-vous.
+     *
+     * `bookings.status` n'était écrit qu'à `confirmed` (à la réservation) et
+     * `cancelled` (à l'annulation) : aucune commande n'atteignait jamais
+     * `completed`, alors que les jobs y passent bien. La facturation
+     * automatique du cron, qui cible `status = 'completed'`, ne trouvait donc
+     * jamais rien, et les rapports comptaient faux.
+     *
+     * Règle, en ignorant les rendez-vous annulés :
+     *  - tous terminés            → commande terminée
+     *  - au moins un en cours     → commande en cours
+     *  - sinon                    → commande confirmée
+     *
+     * Une commande annulée n'est jamais touchée : son annulation est une
+     * décision, pas un état dérivé. Chaque changement laisse une trace dans
+     * `booking_status_history` — c'est elle que le cron lit pour appliquer son
+     * délai de grâce avant facturation.
+     */
+    public function syncStatusFromJobs(int $bookingId, ?int $userId = null): void
+    {
+        $booking = $this->db->selectOne('SELECT id, status FROM bookings WHERE id = :id', ['id' => $bookingId]);
+        if ($booking === null || $booking['status'] === 'cancelled') {
+            return;
+        }
+
+        $statuses = array_map(
+            static fn (array $r): string => (string) $r['status'],
+            $this->db->select(
+                "SELECT status FROM jobs WHERE booking_id = :b AND status <> 'cancelled'",
+                ['b' => $bookingId],
+            ),
+        );
+
+        if ($statuses === []) {
+            return; // tous les rendez-vous annulés : l'annulation gère ce cas.
+        }
+
+        // Pas de array_all()/array_any() : elles n'existent qu'à partir de
+        // PHP 8.4, alors que le projet cible 8.2 (et l'hébergement est en 8.2).
+        $remaining = array_values(array_diff($statuses, ['completed']));
+        $inProgress = array_intersect($statuses, ['en_route', 'in_progress']) !== [];
+
+        $target = match (true) {
+            $remaining === [] => 'completed',
+            $inProgress => 'in_progress',
+            default => 'confirmed',
+        };
+
+        if ($target === $booking['status']) {
+            return;
+        }
+
+        $this->db->transaction(function (Database $db) use ($bookingId, $booking, $target, $userId): void {
+            $db->run('UPDATE bookings SET status = :s WHERE id = :id', ['s' => $target, 'id' => $bookingId]);
+            $db->insert('booking_status_history', [
+                'booking_id' => $bookingId,
+                'old_status' => $booking['status'],
+                'new_status' => $target,
+                'changed_by' => $userId,
+                'note' => 'Statut déduit des rendez-vous',
+            ]);
+        });
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function findByManageToken(string $manageToken): array

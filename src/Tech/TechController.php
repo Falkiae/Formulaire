@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Keepnew\Tech;
 
+use Keepnew\Booking\BookingService;
 use Keepnew\Core\Csrf;
 use Keepnew\Core\Database;
 use Keepnew\Core\Exception\HttpException;
@@ -30,6 +31,7 @@ final class TechController
         private readonly TimeEntryService $time,
         private readonly NotificationService $notifications,
         private readonly ImageUpload $uploads,
+        private readonly BookingService $bookings,
     ) {
     }
 
@@ -173,6 +175,11 @@ final class TechController
         } elseif ($status === 'completed') {
             $this->notifications->trigger('job_completed', (int) $job['booking_id']);
         }
+
+        // Le statut de la commande suit celui de ses rendez-vous : c'est le
+        // technicien qui clôture sur le terrain, c'est donc ici que la commande
+        // devient « terminée » et devient facturable.
+        $this->bookings->syncStatusFromJobs((int) $job['booking_id'], $this->session->userId());
 
         return Response::redirect('/tech/job/' . (int) $job['id']);
     }

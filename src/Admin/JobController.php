@@ -249,6 +249,11 @@ final class JobController
             ]);
         });
 
+        // Le statut de la commande se déduit de ses rendez-vous : sans ça,
+        // aucune commande n'atteignait « terminée » et la facturation
+        // automatique du cron ne trouvait jamais rien à facturer.
+        $this->bookings->syncStatusFromJobs((int) $job['booking_id'], $this->session->userId());
+
         $this->session->flash('job_ok', 'Statut mis à jour.');
 
         return $this->finish($request, $id);
