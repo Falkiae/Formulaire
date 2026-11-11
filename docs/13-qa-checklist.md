@@ -17,10 +17,16 @@
       sur le premier ; e-mail mal formé refusé.
 - [ ] Barre de progression : le dénominateur correspond au parcours réel
       (7 étapes quand le formulaire publié n'a aucun champ).
-- [ ] Choix de créneau.
-- [ ] Aucun créneau disponible → « Chercher plus loin » puis « Être rappelé »
-      → commande créée **sans date** (`pending`), écran final qui annonce une
-      demande enregistrée et non un rendez-vous confirmé.
+- [ ] Rendez-vous : calendrier du mois, jours fermés barrés, heures du jour
+      choisi ; les flèches changent de mois, « ‹ » est grisée sur le mois
+      courant et « › » au bout de l'horizon (12 mois).
+- [ ] Choisir une date dans un mois, aller voir un autre mois → la ligne
+      « Créneau retenu : … » rappelle le choix ; recharger la page le retrouve.
+- [ ] Aucun créneau du mois affiché → message + « Être rappelé » → commande
+      créée **sans date** (`pending`), écran final qui annonce une demande
+      enregistrée et non un rendez-vous confirmé.
+- [ ] Recharger la page à l'étape Rendez-vous → on y revient, sans être
+      ramené aux Coordonnées.
 - [ ] Récapitulatif + code promo + confirmation **sans paiement**.
 - [ ] Écran de confirmation : référence, téléphone, « vous payez après ».
 - [ ] Email de confirmation reçu (ou dans `storage/logs/mail.log`).

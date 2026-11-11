@@ -11,6 +11,7 @@ use Keepnew\Core\Request;
 use Keepnew\Core\Response;
 use Keepnew\Geo\GeoPoint;
 use Keepnew\Support\Clock;
+use Keepnew\Support\MonthWindow;
 
 /**
  * API disponibilité — créneaux domicile et/ou atelier pour un panier.
@@ -28,7 +29,12 @@ final class AvailabilityApiController
 
     /**
      * POST /api/availability
-     * Corps : { token, lat?, lng?, postal?, days? }
+     * Corps : { token, lat?, lng?, postal?, month? (AAAA-MM), days? }
+     *
+     * `month` est la fenêtre du calendrier : un mois civil belge, borné au
+     * présent d'un côté et à MonthWindow::MAX_MONTHS_AHEAD de l'autre. `days`
+     * reste accepté (fenêtre glissante depuis maintenant) pour tout appelant
+     * qui ne navigue pas par mois.
      */
     public function search(Request $request): Response
     {
@@ -45,10 +51,21 @@ final class AvailabilityApiController
         );
 
         $now = Clock::nowUtc();
-        $from = $now;
-        $to = $now->modify('+' . max(1, min(90, $request->int('days', 14))) . ' days');
-
+        $month = $request->string('month');
         $result = [];
+
+        if ($month !== '') {
+            if (!MonthWindow::isValidKey($month)) {
+                return Response::json(['error' => 'Mois invalide.'], 422);
+            }
+            $resolved = MonthWindow::resolve($month, $now);
+            $from = $resolved['from'];
+            $to = $resolved['to'];
+            $result['window'] = $resolved['window'];
+        } else {
+            $from = $now;
+            $to = $now->modify('+' . max(1, min(90, $request->int('days', 14))) . ' days');
+        }
 
         $hasOnsite = array_filter($lines, static fn (array $l): bool => $l['mode'] === 'onsite') !== [];
         if ($hasOnsite) {

@@ -206,15 +206,19 @@
     },
     slot: {
       title: "Choisissez votre créneau",
-      empty_onsite: "Aucun créneau à domicile disponible sur la période.",
-      empty_workshop: "Aucun créneau atelier disponible sur la période.",
+      empty_onsite: "Aucun créneau à domicile ce mois-ci.",
+      empty_workshop: "Aucun créneau atelier ce mois-ci.",
       onsite_heading: "À domicile",
       workshop_heading: "À l'atelier",
       sms_reassurance: "Vous recevez un SMS quand le technicien part vers chez vous.",
       continue_button: "Continuer",
       select_required_error: "Merci de choisir un créneau.",
-      no_slot_heading: "Aucune disponibilité sur cette période",
-      search_further_button: "Chercher plus loin",
+      no_slot_heading: "Aucune disponibilité ce mois-ci",
+      month_previous_label: "Mois précédent",
+      month_next_label: "Mois suivant",
+      month_hint: "Utilisez les flèches pour voir les mois suivants.",
+      pick_a_day_hint: "Choisissez une date pour voir les heures disponibles.",
+      kept_choice_prefix: "Créneau retenu : ",
       callback_hint: "Vous préférez qu'on vous rappelle ? Nous vous proposons une date par e-mail, sans engagement.",
       callback_button: "Être rappelé",
       load_error: "Impossible de vérifier les disponibilités pour le moment.",
@@ -986,10 +990,22 @@
         .then(function (f) {
           state._form = f;
           if (f.fields.length === 0) {
-            // Reprise de session sur une étape devenue vide entretemps (aucun
-            // risque de réentrance ici : ce callback s'exécute toujours après
-            // le retour du goto() qui a mené à ce panneau).
-            goto("contact");
+            if (state.step === body.dataset.step) {
+              // Le client est bien sur cette étape, qui n'a finalement rien à
+              // demander : on l'avance (aucun risque de réentrance, ce
+              // callback s'exécute après le retour du goto() qui a mené ici).
+              goto("contact");
+              return;
+            }
+            // Reprise d'une session DÉJÀ plus avancée : ce panneau n'est que
+            // de l'historique de défilement. Le `goto("contact")` était
+            // inconditionnel — un client qui rechargeait la page à l'étape
+            // Rendez-vous était ramené aux Coordonnées, et son créneau
+            // disparaissait avec les panneaux tronqués. On retire simplement
+            // le panneau vide ; la barre de progression ne compte déjà plus
+            // « Questions » quand le formulaire publié n'a aucun champ.
+            if (stepObserver) stepObserver.unobserve(body);
+            body.remove();
             return;
           }
           renderStepInto(clear(body), body.dataset.step);
@@ -1382,121 +1398,265 @@
   }
 
   // --- Étape 7 : RENDEZ-VOUS -------------------------------------------------
-  function renderSlot(body) {
-    body.appendChild(el('<h2 class="kn-h">' + esc(t("slot.title")) + "</h2>"));
-    body.appendChild(loading());
-    api("/availability", {
-      method: "POST",
-      // 10 jours seulement alors que le moteur en autorise 90 : en période
-      // chargée, le tunnel annonçait « aucune disponibilité » sans avoir
-      // regardé. Élargissable depuis l'écran lui-même.
-      body: { token: state.token, postal: state.address.postal_code || state.postal, days: state._slotDays || 30 },
-    }).then(function (av) {
-      state.availability = av;
-      clear(body);
-      body.appendChild(el('<h2 class="kn-h">' + esc(t("slot.title")) + "</h2>"));
+  // Le client navigue de mois en mois, aussi loin que l'agenda est ouvert.
+  // Auparavant : une bande horizontale des dates d'une fenêtre glissante de 30
+  // jours, élargissable à 60 puis 90 par un bouton « Chercher plus loin », puis
+  // plus rien. Qui voulait réserver en mars depuis novembre n'avait aucun
+  // moyen d'y arriver. Chaque mois affiché est une requête ; le serveur dit
+  // lui-même jusqu'où on peut aller (window.first_month / last_month).
+  var MONTHS_FR = [
+    "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
+    "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre",
+  ];
+  // Semaine commençant le lundi : c'est la convention belge.
+  var WEEKDAYS_FR = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
 
-      var offered = 0;
-      ["onsite", "workshop"].forEach(function (mode) {
-        var block = av[mode];
-        if (!block) return;
-        if (block.status === "out_of_zone") {
-          body.appendChild(outOfZoneMessage());
-          return;
-        }
-        if (block.status !== "ok" || !block.slots || !block.slots.length) {
-          body.appendChild(el('<p class="kn-muted">' + esc(mode === "onsite" ? t("slot.empty_onsite") : t("slot.empty_workshop")) + "</p>"));
-          return;
-        }
-        offered++;
-        body.appendChild(el('<h3 class="kn-h3">' + esc(mode === "onsite" ? t("slot.onsite_heading") : t("slot.workshop_heading")) + "</h3>"));
-        body.appendChild(slotPicker(mode, block.slots));
-      });
-
-      // SORTIE DE SECOURS. Auparavant : une phrase grise, et rien. Le
-      // prospect avait traversé six étapes et livré toutes ses coordonnées —
-      // c'est le moment d'intention maximale, et le tunnel s'arrêtait là.
-      if (offered === 0) {
-        body.appendChild(el('<h3 class="kn-h3">' + esc(t("slot.no_slot_heading")) + "</h3>"));
-
-        var horizon = state._slotDays || 30;
-        if (horizon < 90) {
-          var further = el('<button class="kn-btn kn-btn-ghost" type="button">' + esc(t("slot.search_further_button")) + "</button>");
-          further.addEventListener("click", function () {
-            state._slotDays = horizon < 60 ? 60 : 90;
-            goto("slot");
-          });
-          body.appendChild(further);
-        }
-
-        body.appendChild(reassure(t("slot.callback_hint")));
-        var callback = el('<button class="kn-btn kn-btn-primary" type="button">' + esc(t("slot.callback_button")) + "</button>");
-        callback.addEventListener("click", function () {
-          // Commande sans créneau : jobs `unscheduled`, statut « pending ».
-          // Le client posera sa date depuis son lien de gestion.
-          submitBooking({ dateless: true });
-        });
-        body.appendChild(callback);
-        return;
-      }
-
-      body.appendChild(reassure(t("slot.sms_reassurance")));
-      var actions = el('<div class="kn-actions"></div>');
-      var cont = el('<button class="kn-btn kn-btn-primary" type="button">' + esc(t("slot.continue_button")) + "</button>");
-      cont.addEventListener("click", function () {
-        var need = [];
-        if (av.onsite && av.onsite.status === "ok") need.push("onsite");
-        if (av.workshop && av.workshop.status === "ok") need.push("workshop");
-        var ok = need.every(function (m) {
-          return state.slots[m];
-        });
-        if (!ok) {
-          flash(t("slot.select_required_error"));
-          return;
-        }
-        goto("recap");
-      });
-      actions.appendChild(cont);
-      body.appendChild(actions);
-    })
-    .catch(function (err) {
-      clear(body);
-      body.appendChild(el('<h2 class="kn-h">' + esc(t("slot.title")) + "</h2>"));
-      body.appendChild(el('<p class="kn-alert">' + esc(t("slot.load_error")) + "</p>"));
-      var retry = el('<button class="kn-btn kn-btn-ghost" type="button">' + esc(t("slot.retry_button")) + "</button>");
-      retry.addEventListener("click", function () {
-        goto("slot");
-      });
-      body.appendChild(retry);
-      flash(err && err.data && err.data.error ? err.data.error : t("shared.generic_error"));
-    });
+  function pad2(n) {
+    return (n < 10 ? "0" : "") + n;
   }
-  function slotPicker(mode, slots) {
-    // Regroupe par date locale (JJ/MM/AAAA).
+  function monthKeyOf(date) {
+    return date.getFullYear() + "-" + pad2(date.getMonth() + 1);
+  }
+  function monthShift(key, delta) {
+    return monthKeyOf(new Date(+key.slice(0, 4), +key.slice(5, 7) - 1 + delta, 1));
+  }
+  function monthLabel(key) {
+    return MONTHS_FR[+key.slice(5, 7) - 1] + " " + key.slice(0, 4);
+  }
+
+  function renderSlot(body) {
+    // Première arrivée : on s'autorise à avancer jusqu'au premier mois qui a
+    // quelque chose à offrir. Dès que le client a tourné une page du
+    // calendrier lui-même, on respecte son choix et on n'avance plus seul.
+    load(state._slotMonth || monthKeyOf(new Date()), state._slotMonthPicked ? 0 : 3);
+
+    // `autoHops` : quand le client arrive sur un mois vide sans l'avoir
+    // choisi (fin de mois, agenda fermé), on avance tout seul jusqu'au premier
+    // mois qui a quelque chose à offrir, au plus trois fois. Au-delà, on le
+    // dit et on propose le rappel plutôt que de faire défiler l'année.
+    function load(monthKey, autoHops) {
+      // Deux rendus du même panneau peuvent se chevaucher (le panneau est
+      // redessiné quand le catalogue arrive, alors qu'un chargement de
+      // disponibilité est déjà en vol). Sans repère, c'est la réponse la plus
+      // lente qui gagnait le DOM — donc parfois le mauvais mois. Le dernier
+      // chargement demandé est le seul qui a le droit d'écrire.
+      var mySeq = (body._knSlotSeq = (body._knSlotSeq || 0) + 1);
+      var stale = function () {
+        return body._knSlotSeq !== mySeq;
+      };
+
+      clear(body);
+      body.appendChild(el('<h2 class="kn-h">' + esc(t("slot.title")) + "</h2>"));
+      body.appendChild(loading());
+
+      api("/availability", {
+        method: "POST",
+        body: { token: state.token, postal: state.address.postal_code || state.postal, month: monthKey },
+      })
+        .then(function (av) {
+          if (stale()) return;
+          state.availability = av;
+          // Le serveur a pu ramener le mois dans la période réservable : c'est
+          // le sien qui fait foi, jamais celui qu'on a demandé.
+          var win = av.window || { month: monthKey, first_month: monthKey, last_month: monthKey };
+          state._slotMonth = win.month;
+
+          var withSlots = [];
+          ["onsite", "workshop"].forEach(function (mode) {
+            var block = av[mode];
+            if (block && block.status === "ok" && block.slots && block.slots.length) withSlots.push(mode);
+          });
+
+          if (withSlots.length === 0 && autoHops > 0 && win.month < win.last_month) {
+            load(monthShift(win.month, 1), autoHops - 1);
+            return;
+          }
+
+          clear(body);
+          body.appendChild(el('<h2 class="kn-h">' + esc(t("slot.title")) + "</h2>"));
+          body.appendChild(monthNav(win));
+
+          var outOfZone = false;
+          ["onsite", "workshop"].forEach(function (mode) {
+            var block = av[mode];
+            if (!block) return;
+            if (block.status === "out_of_zone") {
+              outOfZone = true;
+              body.appendChild(outOfZoneMessage());
+              return;
+            }
+            if (withSlots.indexOf(mode) < 0) {
+              body.appendChild(el('<p class="kn-muted">' + esc(mode === "onsite" ? t("slot.empty_onsite") : t("slot.empty_workshop")) + "</p>"));
+              return;
+            }
+            body.appendChild(el('<h3 class="kn-h3">' + esc(mode === "onsite" ? t("slot.onsite_heading") : t("slot.workshop_heading")) + "</h3>"));
+            body.appendChild(slotPicker(mode, block.slots, win.month));
+          });
+
+          // Le client peut avoir retenu une date puis être parti regarder un
+          // autre mois : le calendrier affiché ne montre alors aucune
+          // sélection, alors que « Continuer » fonctionne. On le dit, plutôt
+          // que de le laisser croire qu'il a perdu son choix.
+          ["onsite", "workshop"].forEach(function (mode) {
+            var chosen = state.slots[mode];
+            if (!chosen || !chosen.start_local) return;
+            var parts = chosen.start_local.split(" ")[0].split("/"); // JJ/MM/AAAA
+            if (parts[2] + "-" + parts[1] === win.month) return;
+            body.appendChild(el('<p class="kn-muted">' + esc(t("slot.kept_choice_prefix") + chosen.start_local) + "</p>"));
+          });
+
+          // SORTIE DE SECOURS. Auparavant : une phrase grise, et rien. Le
+          // prospect avait traversé six étapes et livré toutes ses
+          // coordonnées — c'est le moment d'intention maximale, et le tunnel
+          // s'arrêtait là. Les flèches restent au-dessus : « chercher plus
+          // loin », c'est désormais le calendrier lui-même.
+          if (withSlots.length === 0) {
+            if (!outOfZone) {
+              body.appendChild(el('<h3 class="kn-h3">' + esc(t("slot.no_slot_heading")) + "</h3>"));
+              if (win.month < win.last_month) body.appendChild(reassure(t("slot.month_hint")));
+            }
+            body.appendChild(reassure(t("slot.callback_hint")));
+            var callback = el('<button class="kn-btn kn-btn-primary" type="button">' + esc(t("slot.callback_button")) + "</button>");
+            callback.addEventListener("click", function () {
+              // Commande sans créneau : jobs `unscheduled`, statut « pending ».
+              // Le client posera sa date depuis son lien de gestion.
+              submitBooking({ dateless: true });
+            });
+            body.appendChild(callback);
+            return;
+          }
+
+          body.appendChild(reassure(t("slot.sms_reassurance")));
+          var actions = el('<div class="kn-actions"></div>');
+          var cont = el('<button class="kn-btn kn-btn-primary" type="button">' + esc(t("slot.continue_button")) + "</button>");
+          cont.addEventListener("click", function () {
+            var ok = withSlots.every(function (m) {
+              return state.slots[m];
+            });
+            if (!ok) {
+              flash(t("slot.select_required_error"));
+              return;
+            }
+            goto("recap");
+          });
+          actions.appendChild(cont);
+          body.appendChild(actions);
+        })
+        .catch(function (err) {
+          if (stale()) return;
+          clear(body);
+          body.appendChild(el('<h2 class="kn-h">' + esc(t("slot.title")) + "</h2>"));
+          body.appendChild(el('<p class="kn-alert">' + esc(t("slot.load_error")) + "</p>"));
+          var retry = el('<button class="kn-btn kn-btn-ghost" type="button">' + esc(t("slot.retry_button")) + "</button>");
+          retry.addEventListener("click", function () {
+            load(state._slotMonth || monthKeyOf(new Date()), 0);
+          });
+          body.appendChild(retry);
+          flash(err && err.data && err.data.error ? err.data.error : t("shared.generic_error"));
+        });
+    }
+
+    // Barre de navigation du calendrier. Les flèches ne sont pas des icônes
+    // muettes : elles portent un nom accessible et disparaissent du parcours
+    // clavier quand elles ne mènent nulle part.
+    function monthNav(win) {
+      var nav = el('<div class="kn-month-nav"></div>');
+      var prev = el('<button type="button" class="kn-month-arrow" aria-label="' + esc(t("slot.month_previous_label")) + '">‹</button>');
+      var next = el('<button type="button" class="kn-month-arrow" aria-label="' + esc(t("slot.month_next_label")) + '">›</button>');
+      if (win.month <= win.first_month) prev.disabled = true;
+      if (win.month >= win.last_month) next.disabled = true;
+      prev.addEventListener("click", function () {
+        state._slotMonthPicked = true;
+        load(monthShift(win.month, -1), 0);
+      });
+      next.addEventListener("click", function () {
+        state._slotMonthPicked = true;
+        load(monthShift(win.month, 1), 0);
+      });
+      nav.appendChild(prev);
+      nav.appendChild(el('<div class="kn-month-label" aria-live="polite">' + esc(monthLabel(win.month)) + "</div>"));
+      nav.appendChild(next);
+      return nav;
+    }
+  }
+
+  // Calendrier d'un mois + heures du jour choisi.
+  function slotPicker(mode, slots, monthKey) {
+    // Les créneaux portent une date locale « JJ/MM/AAAA HH:MM ».
     var byDate = {};
     slots.forEach(function (s) {
       var d = s.start_local.split(" ")[0];
       (byDate[d] = byDate[d] || []).push(s);
     });
+
     var wrap = el('<div class="kn-slots"></div>');
-    var dates = Object.keys(byDate);
-    var strip = el('<div class="kn-dates"></div>');
-    var listBox = el('<div class="kn-slot-list"></div>');
-    dates.forEach(function (d, i) {
-      var b = el('<button type="button" class="kn-date ' + (i === 0 ? "on" : "") + '">' + esc(d) + "</button>");
-      b.addEventListener("click", function () {
-        strip.querySelectorAll(".kn-date").forEach(function (x) {
-          x.classList.remove("on");
-        });
-        b.classList.add("on");
-        fillSlots(listBox, mode, byDate[d]);
-      });
-      strip.appendChild(b);
+    var grid = el('<div class="kn-cal" role="group" aria-label="' + esc(monthLabel(monthKey)) + '"></div>');
+    WEEKDAYS_FR.forEach(function (w) {
+      grid.appendChild(el('<div class="kn-cal-wd" aria-hidden="true">' + esc(w) + "</div>"));
     });
-    wrap.appendChild(strip);
+
+    var year = +monthKey.slice(0, 4);
+    var monthIdx = +monthKey.slice(5, 7) - 1;
+    // getDay() : 0 = dimanche. On décale pour une semaine qui commence lundi.
+    var offset = (new Date(year, monthIdx, 1).getDay() + 6) % 7;
+    var daysInMonth = new Date(year, monthIdx + 1, 0).getDate();
+    for (var i = 0; i < offset; i++) {
+      grid.appendChild(el('<div class="kn-cal-pad"></div>'));
+    }
+
+    var listBox = el('<div class="kn-slot-list"></div>');
+    // Jour retenu : celui déjà choisi s'il est dans ce mois et encore
+    // disponible, sinon le premier jour ouvert — jamais un jour vide.
+    var chosenKey = state.slots[mode] ? dayKeyOfChosen(mode, byDate) : null;
+    var openDays = Object.keys(byDate).sort(function (a, b) {
+      return a.split("/").reverse().join("") < b.split("/").reverse().join("") ? -1 : 1;
+    });
+    var selected = chosenKey || openDays[0];
+
+    var dayButtons = {};
+    for (var day = 1; day <= daysInMonth; day++) {
+      var key = pad2(day) + "/" + pad2(monthIdx + 1) + "/" + year;
+      var open = !!byDate[key];
+      var cell = el(
+        '<button type="button" class="kn-cal-day' + (open ? "" : " off") + (key === selected ? " on" : "") + '"' +
+          (open ? "" : " disabled") +
+          ' aria-pressed="' + (key === selected ? "true" : "false") + '">' +
+          day +
+          "</button>"
+      );
+      if (open) {
+        dayButtons[key] = cell;
+        (function (k, b) {
+          b.addEventListener("click", function () {
+            selected = k;
+            Object.keys(dayButtons).forEach(function (x) {
+              dayButtons[x].classList.remove("on");
+              dayButtons[x].setAttribute("aria-pressed", "false");
+            });
+            b.classList.add("on");
+            b.setAttribute("aria-pressed", "true");
+            fillSlots(listBox, mode, byDate[k]);
+          });
+        })(key, cell);
+      }
+      grid.appendChild(cell);
+    }
+
+    wrap.appendChild(grid);
     wrap.appendChild(listBox);
-    fillSlots(listBox, mode, byDate[dates[0]]);
+    fillSlots(listBox, mode, byDate[selected] || []);
     return wrap;
+  }
+
+  // Le jour du créneau déjà retenu, s'il fait partie de ceux encore proposés.
+  function dayKeyOfChosen(mode, byDate) {
+    var chosen = state.slots[mode];
+    var found = null;
+    Object.keys(byDate).forEach(function (d) {
+      if (found) return;
+      if (byDate[d].some(function (s) { return s.start_utc === chosen.start_utc; })) found = d;
+    });
+    return found;
   }
   // Le moteur de disponibilité renvoie un créneau DISTINCT par technicien
   // libre à une même heure (technician_id porté par chaque créneau, pour que
@@ -1551,7 +1711,14 @@
           // créneau, sinon prend le premier disponible du groupe.
           var current = state.slots[mode];
           var pick = (current && group.find(function (g) { return g.technician_id === current.technician_id; })) || group[0];
-          state.slots[mode] = { start_utc: pick.start_utc, technician_id: pick.technician_id, bay_id: pick.bay_id || null };
+          // start_local n'est pas envoyé au serveur (normaliseSlots ne lit que
+          // start_utc / technician_id / bay_id) : il sert à rappeler au client
+          // la date qu'il a retenue quand il regarde un autre mois.
+          state.slots[mode] = { start_utc: pick.start_utc, technician_id: pick.technician_id, bay_id: pick.bay_id || null, start_local: pick.start_local };
+          // Le choix n'était mémorisé qu'au changement d'étape : recharger la
+          // page à cet écran le perdait, alors que le tunnel promet de
+          // retrouver le client là où il s'était arrêté.
+          save();
           box.querySelectorAll(".kn-slot").forEach(function (x) {
             x.classList.remove("on");
           });
@@ -1923,9 +2090,20 @@
       ".kn-line-r{display:flex;flex-direction:column;align-items:flex-end;gap:4px}" +
       ".kn-total{border-bottom:0;border-top:2px solid var(--ink);font-weight:700;font-size:1.15rem;margin-top:4px}" +
       ".kn-ok{color:var(--ok)}" +
-      ".kn-dates{display:flex;gap:8px;overflow-x:auto;padding-bottom:8px}" +
-      ".kn-date{white-space:nowrap;min-height:44px;padding:0 12px;border:1px solid var(--line);border-radius:4px;background:var(--surface);font:inherit;cursor:pointer}" +
-      ".kn-date.on{border-color:var(--a);color:var(--a);font-weight:700}" +
+      // Calendrier mensuel. Les flèches et les jours gardent la cible de 48 px
+      // du reste du tunnel ; un jour fermé est barré plutôt que simplement
+      // pâle, pour qu'il reste lisible sans dépendre uniquement de la couleur.
+      ".kn-month-nav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:4px 0 12px}" +
+      ".kn-month-arrow{width:48px;height:48px;border:1px solid var(--line);border-radius:4px;background:var(--surface);color:var(--ink);font-size:1.5rem;line-height:1;cursor:pointer}" +
+      ".kn-month-arrow:disabled{opacity:.35;cursor:default}" +
+      ".kn-month-label{flex:1;text-align:center;font-weight:700;font-size:1.05rem}" +
+      ".kn-cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;border:1px solid var(--line);border-radius:8px;padding:10px;background:var(--surface)}" +
+      ".kn-cal-wd{text-align:center;font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;padding-bottom:4px}" +
+      ".kn-cal-pad{min-height:44px}" +
+      ".kn-cal-day{min-height:44px;border:0;border-radius:50%;background:transparent;color:var(--ink);font:inherit;font-weight:600;cursor:pointer}" +
+      ".kn-cal-day:hover:not(.off):not(.on){background:var(--royal-soft)}" +
+      ".kn-cal-day.off{color:var(--muted);opacity:.55;text-decoration:line-through;cursor:default}" +
+      ".kn-cal-day.on{background:var(--a);color:#fff}" +
       // Hauteur plafonnée + défilement interne : une journée avec beaucoup de
       // créneaux libres reste scannable sans faire défiler toute la page (le
       // sélecteur de date et le bouton Continuer restent visibles).

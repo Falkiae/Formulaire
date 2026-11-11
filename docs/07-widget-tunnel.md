@@ -35,8 +35,8 @@ Récapitulatif · Confirmé`
    de salissure).
 6. **Coordonnées** — contact + adresse (autocomplete natif, `inputmode`), et
    consentement RGPD obligatoire.
-7. **Rendez-vous** — `POST /api/availability` → bande de dates défilante + liste
-   de créneaux ; un créneau par job (domicile et/ou atelier).
+7. **Rendez-vous** — `POST /api/availability` → **calendrier mensuel navigable**
+   + liste des heures du jour choisi (voir plus bas).
 8. **Récapitulatif** — devis final, code promo, « Confirmer la demande ».
 9. **Confirmé** — référence, rappel « vous payez après l'intervention »,
    téléphone visible.
@@ -78,9 +78,9 @@ Huit points relevés en relisant le tunnel comme un client, et ce qui a changé.
    Les erreurs renvoyées par l'API (`fields`) sont replacées sur les mêmes
    champs, étape Coordonnées **ou** Questions selon la clé.
 3. **L'étape « aucune disponibilité » était une impasse.** Le client voyait une
-   liste vide et abandonnait. Il a désormais deux sorties : *Chercher plus loin*
-   (30 → 60 → 90 jours) et *Être rappelé*, qui crée une vraie commande **sans
-   créneau** (statut `pending`, événement `booking_created` au lieu de la
+   liste vide et abandonnait. Il a désormais deux sorties : chercher plus loin
+   (devenu depuis la navigation du calendrier, voir plus bas) et *Être
+   rappelé*, qui crée une vraie commande **sans créneau** (statut `pending`, événement `booking_created` au lieu de la
    confirmation et des rappels — programmer un rappel sur un rendez-vous
    inexistant enverrait un SMS sans date). L'écran final le dit : « nous
    revenons vers vous avec une proposition de date », pas « c'est confirmé ».
@@ -113,6 +113,48 @@ Vérifié dans Chromium (viewport 390 px, API simulée) : nom accessible et
 sur la première à la soumission à vide, message d'e-mail mal formé, lien CGV,
 les deux sorties de l'étape créneau, et la demande de rappel qui aboutit à
 l'écran « demande enregistrée » avec `slots: {}`.
+
+### Calendrier de l'étape Rendez-vous
+
+Le client navigue de mois en mois, aussi loin que l'agenda est ouvert.
+Auparavant : une bande horizontale des dates d'une fenêtre glissante de 30
+jours, élargissable à 60 puis 90 par un bouton « Chercher plus loin », puis
+plus rien. Qui voulait réserver en mars depuis novembre n'avait aucun moyen
+d'y arriver.
+
+- **Une requête par mois affiché.** `POST /api/availability` accepte
+  `month` (`AAAA-MM`) et renvoie `window: { month, first_month, last_month }`.
+  Les bornes viennent du serveur : l'interface n'a aucune règle d'horizon en
+  dur, elle active ou grise les flèches d'après ce qu'il lui dit. `days` reste
+  accepté pour un appelant qui ne navigue pas par mois.
+- **`Keepnew\Support\MonthWindow`** calcule la fenêtre, isolée et testée
+  (`tests/Support/MonthWindowTest.php`, pur, sans base) : un mois « belge » ne
+  commence pas à minuit UTC et le décalage change deux fois par an ; le mois
+  courant ne doit jamais proposer d'heures déjà passées ; un mois hors période
+  est **ramené** dans la période plutôt que refusé, parce qu'un client dans un
+  autre fuseau peut demander le mois d'à côté en toute bonne foi. C'est le
+  mois renvoyé qui fait foi.
+- **Horizon : 12 mois** (`MonthWindow::MAX_MONTHS_AHEAD`). Cette borne existe
+  pour qu'une requête forgée ne fasse pas calculer l'agenda sur dix ans, pas
+  pour limiter le client.
+- **Semaine commençant le lundi**, jours fermés barrés (et pas seulement
+  pâles : la couleur seule ne suffit pas), jour ouvert = cible de 44 px,
+  `aria-pressed` sur le jour retenu, flèches nommées pour les lecteurs d'écran.
+- **Arrivée sur un mois vide** (fin de mois, agenda fermé) : le tunnel avance
+  tout seul jusqu'au premier mois qui a quelque chose à offrir, au plus trois
+  fois. Dès que le client a tourné une page lui-même, on respecte son choix.
+- **Choix retenu dans un autre mois** : le calendrier affiché ne montre alors
+  aucune sélection alors que « Continuer » fonctionne — une ambiguïté que la
+  navigation par mois introduit. Une ligne le rappelle : « Créneau retenu :
+  17/11/2026 11:30 ». Le créneau est aussi enregistré immédiatement, donc il
+  survit à un rechargement.
+- **Deux rendus concurrents du même panneau** (le panneau est redessiné quand
+  le catalogue arrive, alors qu'un chargement de disponibilité est déjà en
+  vol) : c'était la réponse la plus lente qui gagnait le DOM, donc parfois le
+  mauvais mois. Seul le dernier chargement demandé a le droit d'écrire.
+
+La sortie de secours (« Être rappelé ») reste sur un mois vide ; « chercher
+plus loin », c'est désormais le calendrier lui-même.
 
 ### Le honeypot qui refusait de vrais clients
 
