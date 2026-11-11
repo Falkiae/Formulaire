@@ -35,6 +35,29 @@ $badge = static function (string $state): string {
         <?php if (!empty($data['error'])): ?><p class="kn-alert kn-alert-error"><?= $e($data['error']) ?></p><?php endif; ?>
 
         <section class="kn-card">
+            <h2>Notifications</h2>
+            <p class="kn-muted">
+                Pourquoi un e-mail part — ou ne part pas. Trois conditions doivent être
+                réunies : un serveur SMTP déclaré dans le fichier <code>.env</code>, un cron
+                qui tourne pour les rappels différés, et un modèle actif pour l'événement.
+            </p>
+            <div class="kn-table-wrap">
+                <table class="kn-table">
+                    <thead><tr><th>Point de contrôle</th><th>État</th><th>Détail</th></tr></thead>
+                    <tbody>
+                        <?php foreach ($data['notifications'] as $libelle => $n): ?>
+                            <tr>
+                                <td><strong><?= $e($libelle) ?></strong></td>
+                                <td><span class="kn-badge <?= $n['ok'] ? 'kn-badge-on' : 'kn-badge-late' ?>"><?= $e($n['etat']) ?></span></td>
+                                <td class="kn-muted"><?= $e($n['detail']) ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="kn-card kn-mt-sm">
             <h2>Jeu de rendez-vous de démonstration</h2>
             <p class="kn-muted">
                 Remplit le planning du <strong><?= $e($data['demo_from']) ?></strong> au

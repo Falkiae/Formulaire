@@ -53,6 +53,25 @@ message s'appuie sur `{{review.url}}`, alimentée par le réglage
 > technicien. Un rendez-vous passé à « Terminé » depuis le back-office
 > (`JobController::updateStatus`) ne notifie pas le client.
 
+## Pourquoi un e-mail ne part pas
+
+Trois conditions indépendantes, dont aucune n'était visible : il fallait lire
+le code pour savoir laquelle manquait. `Réglages → Diagnostic` les affiche
+désormais toutes, avec la cause exacte.
+
+1. **Un serveur SMTP déclaré.** Le conteneur choisit `SmtpMailer` seulement si
+   `MAIL_HOST` est renseigné dans `.env` **et** que PHPMailer est présent.
+   Sinon il retombe sur `LogMailer`, qui écrit dans `storage/logs/mail.log` au
+   lieu d'envoyer. C'est le repli par défaut, et c'est silencieux : rien
+   n'échoue, rien ne part. Ce réglage n'est pas dans le back-office — il est
+   dans `.env`, sur le serveur.
+2. **Un cron qui tourne.** La confirmation part dans la requête elle-même
+   (échéance déjà atteinte) ; les rappels 48 h / 2 h sont mis en file et
+   n'attendent que `cron/cron.php`. Des notifications `queued` dont
+   `scheduled_at` est dépassé sont le symptôme d'un cron mort.
+3. **Un modèle actif pour l'événement.** `trigger()` sort immédiatement si
+   l'événement n'a aucun `notification_template` actif.
+
 ## Facturation (`src/Invoice/`)
 
 - **`InvoiceService`** — génère la facture d'une commande :

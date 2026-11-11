@@ -405,6 +405,9 @@ return static function (Router $router, Container $container): void {
         $c->get(Router::class),
         $c->get(Csrf::class),
         $c->get(DemoDataService::class),
+        $c->get(Config::class),
+        $c->get(MailerInterface::class),
+        $c->get(SmsProviderInterface::class),
     ));
     $container->singleton(SettingsController::class, static fn (Container $c): SettingsController => new SettingsController(
         $c->get(View::class),

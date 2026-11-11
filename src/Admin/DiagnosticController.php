@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Keepnew\Admin;
 
+use Keepnew\Core\Config;
 use Keepnew\Core\Csrf;
 use Keepnew\Core\Database;
 use Keepnew\Core\Exception\NotFoundException;
@@ -12,6 +13,8 @@ use Keepnew\Core\Response;
 use Keepnew\Core\Router;
 use Keepnew\Core\Session;
 use Keepnew\Core\View;
+use Keepnew\Notification\MailerInterface;
+use Keepnew\Notification\SmsProviderInterface;
 use Keepnew\Support\Clock;
 
 /**
@@ -40,6 +43,9 @@ final class DiagnosticController
         private readonly Router $router,
         private readonly Csrf $csrf,
         private readonly DemoDataService $demo,
+        private readonly Config $config,
+        private readonly MailerInterface $mailer,
+        private readonly SmsProviderInterface $sms,
     ) {
     }
 
@@ -52,6 +58,7 @@ final class DiagnosticController
             'server' => $this->server($root),
             'rewrite' => $this->rewrite($root),
             'technicians' => $this->technicians(),
+            'notifications' => $this->notifications($root),
             'demo_count' => $this->demo->count(),
             'demo_blockers' => $this->demo->blockers(),
             'demo_from' => self::DEMO_FROM,
@@ -100,6 +107,95 @@ final class DiagnosticController
         );
 
         return Response::redirect('/admin/diagnostic');
+    }
+
+    /**
+     * Pourquoi les e-mails ne partent pas.
+     *
+     * Trois conditions indépendantes doivent être réunies, et aucune n'était
+     * visible nulle part : il fallait lire le code pour savoir laquelle
+     * manquait. Cette section répond à la question à la place de l'utilisateur.
+     *
+     * @return array<string, array{etat:string, ok:bool, detail:string}>
+     */
+    private function notifications(string $root): array
+    {
+        $out = [];
+
+        // 1. Quel mailer le conteneur a-t-il réellement choisi ?
+        $host = (string) $this->config->get('mail.host', '');
+        $isLog = $this->mailer->name() === 'log';
+        $out['Envoi des e-mails'] = [
+            'etat' => $isLog ? 'AUCUN ENVOI RÉEL' : 'SMTP',
+            'ok' => !$isLog,
+            'detail' => $isLog
+                ? ($host === ''
+                    ? 'MAIL_HOST est vide dans le fichier .env : les e-mails sont écrits dans storage/logs/mail.log au lieu d\'être envoyés.'
+                    : 'MAIL_HOST est renseigné mais PHPMailer est introuvable : vérifiez que le dossier vendor/ a bien été envoyé.')
+                : 'Serveur ' . $host . ':' . (string) $this->config->get('mail.port', '587')
+                    . ' — expéditeur ' . (string) $this->config->get('mail.from_address', ''),
+        ];
+
+        // 2. Le journal de secours est-il seulement accessible en écriture ?
+        if ($isLog) {
+            $dir = $root . '/storage/logs';
+            $writable = is_dir($dir) ? is_writable($dir) : is_writable(dirname($dir));
+            $file = $dir . '/mail.log';
+            $out['Journal de secours'] = [
+                'etat' => $writable ? 'accessible' : 'NON ACCESSIBLE EN ÉCRITURE',
+                'ok' => $writable,
+                'detail' => is_file($file)
+                    ? $file . ' — ' . number_format((float) (filesize($file) ?: 0) / 1024, 1, ',', ' ') . ' Ko, dernière écriture le '
+                        . date('d/m/Y H:i', (int) filemtime($file))
+                    : $file . ' — aucun e-mail enregistré pour l\'instant',
+            ];
+        }
+
+        // 3. Les rappels ne partent que si le cron tourne.
+        $enAttente = (int) ($this->db->scalar(
+            "SELECT COUNT(*) FROM notifications_log WHERE status = 'queued' AND scheduled_at <= UTC_TIMESTAMP()"
+        ) ?? 0);
+        $dernier = $this->db->scalar("SELECT MAX(sent_at) FROM notifications_log WHERE status = 'sent'");
+        $out['File d\'attente'] = [
+            'etat' => $enAttente === 0 ? 'à jour' : $enAttente . ' en retard',
+            'ok' => $enAttente === 0,
+            'detail' => $enAttente === 0
+                ? 'Aucune notification due n\'attend d\'être expédiée.'
+                : 'Ces notifications ont dépassé leur échéance sans partir : c\'est le signe que cron/cron.php ne tourne pas.',
+        ];
+        $out['Dernier envoi'] = [
+            'etat' => $dernier !== null ? Clock::format(new \DateTimeImmutable((string) $dernier, new \DateTimeZone('UTC')), 'd/m/Y H:i') : 'jamais',
+            'ok' => $dernier !== null,
+            'detail' => $dernier !== null
+                ? 'Date du dernier envoi réussi, tous canaux confondus.'
+                : 'Aucune notification n\'a jamais été expédiée depuis cette base.',
+        ];
+
+        // 4. Un événement sans modèle actif est muet.
+        $muets = $this->db->select(
+            "SELECT e.event_key FROM notification_events e
+             LEFT JOIN notification_templates t ON t.event_id = e.id AND t.is_active = 1
+             WHERE e.is_active = 1 GROUP BY e.id HAVING COUNT(t.id) = 0 ORDER BY e.event_key"
+        );
+        $out['Événements sans modèle'] = [
+            'etat' => $muets === [] ? 'aucun' : count($muets) . ' muet' . (count($muets) > 1 ? 's' : ''),
+            'ok' => $muets === [],
+            'detail' => $muets === []
+                ? 'Chaque événement actif a au moins un modèle : aucun n\'est silencieux.'
+                : 'Ces événements ne produisent aucun message : '
+                    . implode(', ', array_column($muets, 'event_key'))
+                    . '. Un modèle doit être ajouté en base — /admin/notifications ne sait qu\'éditer les modèles existants.',
+        ];
+
+        $out['SMS'] = [
+            'etat' => $this->sms->name() === 'null' ? 'AUCUN ENVOI RÉEL' : $this->sms->name(),
+            'ok' => $this->sms->name() !== 'null',
+            'detail' => $this->sms->name() === 'null'
+                ? 'SMS_PROVIDER n\'est pas configuré dans .env : les SMS sont seulement journalisés.'
+                : 'Fournisseur configuré dans .env.',
+        ];
+
+        return $out;
     }
 
     /**
