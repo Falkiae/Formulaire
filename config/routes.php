@@ -14,6 +14,7 @@ use Keepnew\Admin\CalendarController;
 use Keepnew\Admin\CatalogController;
 use Keepnew\Admin\CategoryController;
 use Keepnew\Admin\CustomerController;
+use Keepnew\Admin\DemoDataService;
 use Keepnew\Admin\DiagnosticController;
 use Keepnew\Admin\DispatchController;
 use Keepnew\Admin\DispatchService;
@@ -394,11 +395,16 @@ return static function (Router $router, Container $container): void {
         $c->get(Csrf::class),
         $c->get(Database::class),
     ));
+    $container->singleton(DemoDataService::class, static fn (Container $c): DemoDataService => new DemoDataService(
+        $c->get(Database::class),
+    ));
     $container->singleton(DiagnosticController::class, static fn (Container $c): DiagnosticController => new DiagnosticController(
         $c->get(View::class),
         $c->get(Session::class),
         $c->get(Database::class),
         $c->get(Router::class),
+        $c->get(Csrf::class),
+        $c->get(DemoDataService::class),
     ));
     $container->singleton(SettingsController::class, static fn (Container $c): SettingsController => new SettingsController(
         $c->get(View::class),
@@ -527,8 +533,13 @@ return static function (Router $router, Container $container): void {
             $r->get('/notifications', [NotificationController::class, 'index']);
             $r->post('/notifications/{id}', [NotificationController::class, 'update'], [CsrfMiddleware::class]);
 
-            // Diagnostic (support) : état du code déployé, routes, comptes tech.
+            // Diagnostic (support) : état du serveur, routes, comptes tech.
             $r->get('/diagnostic', [DiagnosticController::class, 'index']);
+            // Jeu de rendez-vous fictifs : écrit dans la vraie base, donc
+            // POST + CSRF comme toute écriture, et réservé au rôle admin par
+            // le groupe qui contient ces routes.
+            $r->post('/diagnostic/demo', [DiagnosticController::class, 'generateDemo'], [CsrfMiddleware::class]);
+            $r->post('/diagnostic/demo/supprimer', [DiagnosticController::class, 'purgeDemo'], [CsrfMiddleware::class]);
 
             // Réglages généraux (contact, CGV, délai libre-service client)
             $r->get('/reglages', [SettingsController::class, 'index']);

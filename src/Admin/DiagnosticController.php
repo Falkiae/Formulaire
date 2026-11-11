@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Keepnew\Admin;
 
+use Keepnew\Core\Csrf;
 use Keepnew\Core\Database;
 use Keepnew\Core\Exception\NotFoundException;
 use Keepnew\Core\Request;
@@ -11,25 +12,34 @@ use Keepnew\Core\Response;
 use Keepnew\Core\Router;
 use Keepnew\Core\Session;
 use Keepnew\Core\View;
+use Keepnew\Support\Clock;
 
 /**
  * Page de diagnostic (réservée à l'administrateur).
  *
- * Sert à répondre à distance, sans SSH, à la question « le code déployé est-il
- * bien celui attendu, et pourquoi telle URL ne répond-elle pas ? ». Elle
- * compare les fichiers présents sur le serveur à des marqueurs connus, rejoue
- * la résolution de quelques routes sur la table de routage réellement chargée,
- * et vérifie l'état des comptes techniciens.
+ * Sert à répondre à distance, sans SSH, à la question « pourquoi telle URL ne
+ * répond-elle pas ? » : elle rejoue la résolution de quelques routes sur la
+ * table réellement chargée, vérifie la réécriture d'URL et l'état des comptes
+ * techniciens.
+ *
+ * Elle héberge aussi le jeu de rendez-vous de démonstration, qui est un outil
+ * de la même famille : on s'en sert pour voir si le planning tient debout.
  *
  * Ne divulgue AUCUN secret : ni contenu du .env, ni identifiants, ni hash.
  */
 final class DiagnosticController
 {
+    /** Période couverte par le jeu de démonstration (heure belge). */
+    private const DEMO_FROM = '2026-11-01';
+    private const DEMO_TO = '2026-12-31';
+
     public function __construct(
         private readonly View $view,
         private readonly Session $session,
         private readonly Database $db,
         private readonly Router $router,
+        private readonly Csrf $csrf,
+        private readonly DemoDataService $demo,
     ) {
     }
 
@@ -42,8 +52,54 @@ final class DiagnosticController
             'server' => $this->server($root),
             'rewrite' => $this->rewrite($root),
             'technicians' => $this->technicians(),
+            'demo_count' => $this->demo->count(),
+            'demo_blockers' => $this->demo->blockers(),
+            'demo_from' => self::DEMO_FROM,
+            'demo_to' => self::DEMO_TO,
+            'csrf' => $this->csrf->field(),
+            'flash' => $this->session->pullFlash('diag_ok'),
+            'error' => $this->session->pullFlash('diag_error'),
             'user_name' => $this->session->get('user_name'),
         ]);
+    }
+
+    /**
+     * POST /admin/diagnostic/demo — crée le jeu de rendez-vous fictifs.
+     */
+    public function generateDemo(Request $request): Response
+    {
+        try {
+            $created = $this->demo->generate(
+                new \DateTimeImmutable(self::DEMO_FROM . ' 00:00:00', new \DateTimeZone(Clock::DISPLAY_TZ)),
+                new \DateTimeImmutable(self::DEMO_TO . ' 00:00:00', new \DateTimeZone(Clock::DISPLAY_TZ)),
+            );
+            $this->session->flash(
+                'diag_ok',
+                $created === 0
+                    ? "Aucun rendez-vous créé : les créneaux de la période sont déjà occupés."
+                    : "{$created} rendez-vous de démonstration créés. Ils portent la référence « " . DemoDataService::REFERENCE_PREFIX . "… » et se retirent d'un clic.",
+            );
+        } catch (\RuntimeException $e) {
+            $this->session->flash('diag_error', $e->getMessage());
+        }
+
+        return Response::redirect('/admin/diagnostic');
+    }
+
+    /**
+     * POST /admin/diagnostic/demo/supprimer — retire le jeu.
+     */
+    public function purgeDemo(Request $request): Response
+    {
+        $removed = $this->demo->purge();
+        $this->session->flash(
+            'diag_ok',
+            $removed === 0
+                ? 'Aucune donnée de démonstration à retirer.'
+                : "{$removed} rendez-vous de démonstration retirés. Les vraies données n'ont pas été touchées.",
+        );
+
+        return Response::redirect('/admin/diagnostic');
     }
 
     /**

@@ -55,7 +55,7 @@ $buildLink = static function (array $overrides) use ($data): string {
 
     <div class="kn-cal-sidebar-section">
         <h3>Assigné à</h3>
-        <a class="kn-cal-sidebar-link<?= $filters['technician_id'] === 0 ? ' is-active' : '' ?>" href="<?= $e($buildLink(['tech' => null])) ?>">Tous les jobs</a>
+        <a class="kn-cal-sidebar-link<?= $filters['technician_id'] === 0 ? ' is-active' : '' ?>" href="<?= $e($buildLink(['tech' => null])) ?>">Tous les rendez-vous</a>
         <?php foreach ($data['technicians'] as $t): ?>
             <a class="kn-cal-sidebar-link kn-cal-sidebar-link-tech<?= $filters['technician_id'] === (int) $t['id'] ? ' is-active' : '' ?>"
                href="<?= $e($buildLink(['tech' => (int) $t['id']])) ?>">

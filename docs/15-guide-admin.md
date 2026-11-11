@@ -145,3 +145,36 @@ aucun rendez-vous et son planning reste vide.
 
 Les barèmes et seuils (TVA, remise cumul, délais de
 réservation, fournisseurs) vivent dans la table `settings` — jamais en dur.
+
+## Jeu de rendez-vous de démonstration
+
+`Réglages → Diagnostic` propose de remplir le planning de rendez-vous fictifs,
+pour vérifier que les vues Jour / Semaine / Mois, la carte et les filtres
+tiennent la charge sans attendre d'avoir de vrais clients.
+
+Ces données sont écrites dans la **vraie** base. Deux garde-fous, et ils sont
+la raison d'être de cet outil :
+
+- **Tout est marqué.** Les commandes portent une référence `KN-DEMO-……` et les
+  clients une adresse en `@demo.invalid` — un domaine que la RFC 2606 réserve
+  et qu'aucun serveur ne peut livrer, donc une notification partie par accident
+  ne touchera jamais personne.
+- **Tout se retire.** Un second bouton supprime exactement ce que le premier a
+  créé, et rien d'autre.
+
+Un créneau déjà occupé par une vraie intervention est **sauté** : le jeu
+d'essai ne masque ni ne concurrence le travail réel.
+
+Deux choses à savoir :
+
+- Tant qu'elles sont en base, ces commandes **comptent dans les rapports**
+  (chiffre d'affaires, conversion, annulations) et dans la liste des clients.
+  Retirez-les avant de lire vos chiffres.
+- Les états « en route » et « en cours » n'apparaissent que si la génération a
+  lieu pendant les heures ouvrées. Marquer « en cours » une intervention à 22 h
+  serait faux, et un back-office rempli de statuts impossibles ne prouve rien.
+
+La logique de placement (`Keepnew\Admin\DemoPlanner`) est une classe pure,
+testée sans base : pas de chevauchement pour un même technicien, heures
+ouvrées, pas de dimanche, statuts cohérents avec la date, et jeu reproductible
+à graine donnée.

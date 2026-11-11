@@ -84,7 +84,7 @@ $summary = $data['summary'];
 
             <div class="kn-schedule-main">
                 <div class="kn-schedule-summary">
-                    <span><strong><?= (int) $summary['job_count'] ?></strong> job<?= $summary['job_count'] > 1 ? 's' : '' ?></span>
+                    <span><strong><?= (int) $summary['job_count'] ?></strong> rendez-vous</span>
                     <span><strong><?= $e($durationLabel($summary['total_duration_min'])) ?></strong> estimées</span>
                     <span><strong><?= $e($euro($summary['total_tvac_cents'])) ?></strong> estimés (TVAC)</span>
                     <?php if ($summary['route_url'] !== null): ?>
