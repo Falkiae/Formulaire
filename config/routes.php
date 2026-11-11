@@ -501,9 +501,12 @@ return static function (Router $router, Container $container): void {
             $r->post('/formulaire/{id}/champs/ordre', [FormBuilderController::class, 'reorderFields'], [CsrfMiddleware::class]);
             $r->post('/formulaire/{id}/champ/{fieldId}/services', [FormBuilderController::class, 'updateFieldServices'], [CsrfMiddleware::class]);
             $r->post('/formulaire/{id}/champ/{fieldId}/option', [FormBuilderController::class, 'addOption'], [CsrfMiddleware::class]);
-            $r->get('/formulaire/{id}/option/{optionId}/supprimer', [FormBuilderController::class, 'deleteOption']);
+            // Suppression en POST + CSRF, comme toutes les autres : en GET, un
+            // simple <img src> sur une page tierce suffisait à l'exécuter dans le
+            // navigateur d'un administrateur connecté.
+            $r->post('/formulaire/{id}/option/{optionId}/supprimer', [FormBuilderController::class, 'deleteOption'], [CsrfMiddleware::class]);
             $r->post('/formulaire/{id}/condition', [FormBuilderController::class, 'addCondition'], [CsrfMiddleware::class]);
-            $r->get('/formulaire/{id}/condition/{conditionId}/supprimer', [FormBuilderController::class, 'deleteCondition']);
+            $r->post('/formulaire/{id}/condition/{conditionId}/supprimer', [FormBuilderController::class, 'deleteCondition'], [CsrfMiddleware::class]);
 
             // Utilisateurs & rôles
             $r->get('/utilisateurs', [UserController::class, 'index']);

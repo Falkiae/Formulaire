@@ -41,7 +41,7 @@
                                 <td class="kn-num"><?= (int) $t['max_jobs_per_day'] ?></td>
                                 <td>
                                     <?php if ((int) $t['is_active'] === 1): ?>
-                                        <span class="kn-badge kn-badge-onsite">actif</span>
+                                        <span class="kn-badge kn-badge-on">actif</span>
                                     <?php else: ?>
                                         <span class="kn-badge kn-badge-off">inactif</span>
                                     <?php endif; ?>

@@ -67,20 +67,20 @@
     --kn-touch: 48px;
 }
 
-/* Mode sombre optionnel — navy comme fond, mêmes principes */
-@media (prefers-color-scheme: dark) {
-    :root {
-        --kn-ink: #F2EFE6;
-        --kn-muted: #A9B0C6;
-        --kn-paper: #1B2A4A;
-        --kn-paper-raised: #24355C;
-        --kn-surface: #24355C;
-        --kn-line: rgba(247, 244, 236, .16);
-        --kn-line-strong: rgba(247, 244, 236, .28);
-        --kn-accent: #7E90F6;
-        --kn-accent-ink: #A9B6F9;
-    }
-}
+/* PAS de variante sombre.
+   Il en existait une, déclenchée automatiquement par `prefers-color-scheme`,
+   qui ne redéfinissait que dix variables sur une trentaine : les fonds de
+   statut, de badge et de bouton restaient clairs. Mesuré au navigateur, le
+   résultat était inutilisable — badge « À domicile » à 1,27:1, « Atelier » à
+   1,62:1, bouton « Supprimer » à 1,81:1, bouton principal à 2,91:1, alors que
+   le minimum lisible est 4,5:1. Personne ne l'avait demandée et elle
+   s'imposait à tout écran réglé en sombre.
+
+   Le choix est assumé : une seule apparence, crème et navy, cohérente avec le
+   tunnel public qui n'a jamais eu de mode sombre — plutôt que deux à tenir,
+   dont une fausse. Rétablir une vraie variante sombre demanderait de
+   redéfinir AUSSI les six couleurs de statut, les quatre fonds de badge et
+   les deux boutons, puis de remesurer. */
 
 /* Respecte la préférence de mouvement réduit */
 @media (prefers-reduced-motion: reduce) {

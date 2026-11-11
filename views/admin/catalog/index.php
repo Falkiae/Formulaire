@@ -109,7 +109,7 @@ $tvacEuros = static fn (int $htCents): string =>
                                     <td class="kn-num"><?= (int) $s['base_duration_min'] ?> min</td>
                                     <td>
                                         <?php if ((int) $s['is_active'] === 1): ?>
-                                            <span class="kn-badge kn-badge-onsite">actif</span>
+                                            <span class="kn-badge kn-badge-on">actif</span>
                                         <?php else: ?>
                                             <span class="kn-badge kn-badge-off">inactif</span>
                                         <?php endif; ?>

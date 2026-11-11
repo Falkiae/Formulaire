@@ -17,10 +17,26 @@ use Keepnew\Support\Clock;
  */
 final class HoldService
 {
-    private const HOLD_MINUTES = 10;
+    /** Repli si le réglage est absent de la base. */
+    private const HOLD_MINUTES_DEFAULT = 10;
 
     public function __construct(private readonly Database $db)
     {
+    }
+
+    /**
+     * Durée de blocage d'un créneau, réglable depuis /admin/reglages.
+     *
+     * La valeur vivait en constante PHP alors que `booking.hold_minutes`
+     * existait en base depuis le départ : le réglage ne servait à rien et
+     * l'ajuster demandait de modifier le code.
+     */
+    private function holdMinutes(): int
+    {
+        $v = $this->db->scalar("SELECT `value` FROM settings WHERE `key` = 'booking.hold_minutes'");
+        $minutes = (int) ($v ?? self::HOLD_MINUTES_DEFAULT);
+
+        return max(1, min(120, $minutes));
     }
 
     /**
@@ -109,7 +125,7 @@ final class HoldService
                 return null;
             }
 
-            $expires = Clock::nowUtc()->modify('+' . self::HOLD_MINUTES . ' minutes')->format('Y-m-d H:i:s');
+            $expires = Clock::nowUtc()->modify('+' . $this->holdMinutes() . ' minutes')->format('Y-m-d H:i:s');
 
             return $db->insert('slot_holds', [
                 'cart_id' => $cartId,

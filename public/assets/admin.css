@@ -194,11 +194,18 @@ img { max-width: 100%; }
     box-shadow: inset 0 0 0 1px var(--kn-line);
 }
 
-/* Groupe courant dans l'en-tête : marqué sans la pastille pleine réservée à
+/* Le groupe courant s'écrivait `aria-current="true"` dans le balisage alors
+   que les règles visaient `page` : aucune des deux ne s'appliquait vraiment.
+   Le balisage dit maintenant `page` (le jeton correct pour une navigation),
+   et c'est la règle mobile ci-dessus (fond blush) qui marque le groupe dans
+   le tiroir. En desktop, pas de pastille pleine : elle est réservée à
    l'onglet actif de niveau 2, pour ne pas signaler deux « pages courantes ». */
-.kn-nav a[aria-current="true"] {
-    color: var(--kn-accent-ink);
-    font-weight: 600;
+@media (min-width: 768px) {
+    .kn-nav a[aria-current="page"] {
+        background: none;
+        color: var(--kn-accent-ink);
+        font-weight: 600;
+    }
 }
 
 /* Croix de retrait intégrée à un badge (extra d'une ligne de commande). */
@@ -418,15 +425,55 @@ table.kn-table {
     background: var(--kn-surface);
     color: var(--kn-muted);
 }
+/* DEUX FAMILLES, DEUX FORMES.
+   Le mode et le statut partageaient les mêmes teintes : dans le planning du
+   jour, « À domicile » et « En cours » étaient deux pastilles roses
+   identiques, côte à côte, et le catalogue empruntait le rose du mode
+   domicile pour dire « actif ». La couleur ne portait plus aucun sens.
+
+   Désormais : le MODE est une pastille pleine (rose = domicile, bleu =
+   atelier), le STATUT est une pastille claire à liseré, marquée d'un point
+   de couleur. La forme dit de quoi on parle, la couleur dit quel état —
+   et le point reste lisible pour qui distingue mal les teintes, puisqu'il
+   s'ajoute à un libellé toujours écrit en toutes lettres. */
+
+/* Famille 1 — mode d'exécution. */
 .kn-badge-onsite   { background: var(--kn-blush); color: var(--kn-accent-ink); border-color: transparent; }
 .kn-badge-workshop { background: var(--kn-royal-soft); color: var(--kn-accent-ink); border-color: transparent; }
-.kn-badge-off      { color: var(--kn-muted); background: var(--kn-paper); }
 
-/* Statuts de RDV (vue Jour du planning) : mêmes teintes que les alertes. */
-.kn-badge-late      { background: var(--kn-warning-bg); color: var(--kn-warning); border-color: transparent; }
-.kn-badge-complete  { background: var(--kn-success-bg); color: var(--kn-success); border-color: transparent; }
-.kn-badge-scheduled { background: var(--kn-royal-soft); color: var(--kn-accent-ink); border-color: transparent; }
-.kn-badge-info      { background: var(--kn-blush); color: var(--kn-accent-ink); border-color: transparent; }
+/* Famille 2 — état. Fond papier, liseré, point coloré. */
+.kn-badge-on,
+.kn-badge-off,
+.kn-badge-scheduled,
+.kn-badge-info,
+.kn-badge-late,
+.kn-badge-complete {
+    background: var(--kn-paper);
+    color: var(--kn-ink);
+    border-color: var(--kn-line);
+    gap: 6px;
+}
+.kn-badge-on::before,
+.kn-badge-off::before,
+.kn-badge-scheduled::before,
+.kn-badge-info::before,
+.kn-badge-late::before,
+.kn-badge-complete::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: currentColor;
+}
+.kn-badge-off::before       { background: var(--kn-muted); }
+.kn-badge-scheduled::before { background: var(--kn-accent); }
+.kn-badge-info::before      { background: var(--kn-warning); }
+/* « En retard » en rouge et non en ambre : c'est la seule chose qu'un
+   dispatcher doit voir sans la chercher. */
+.kn-badge-late::before      { background: var(--kn-alert); }
+.kn-badge-complete::before,
+.kn-badge-on::before        { background: var(--kn-success); }
 
 /* --- Alertes --------------------------------------------------------------- */
 .kn-alert {
@@ -603,12 +650,26 @@ table.kn-table {
     font-weight: 600;
     padding: 3px 8px;
     border-radius: var(--kn-radius-pill);
-    background: var(--kn-line);
+    /* Fond papier et non filet : sur le filet, le texte secondaire tombait à
+       4,4:1, juste sous le minimum lisible de 4,5:1. */
+    background: var(--kn-paper);
+    border: 1px solid var(--kn-line);
     color: var(--kn-muted);
 }
-.kn-status.completed  { background: var(--kn-success-bg); color: var(--kn-success); }
-.kn-status.in_progress { background: var(--kn-blush); color: var(--kn-accent-ink); }
-.kn-status.en_route   { background: var(--kn-royal-soft); color: var(--kn-accent-ink); }
+/* Mêmes règles dans l'app technicien : un point, pas une teinte de fond. */
+.kn-status { gap: 6px; }
+.kn-status.completed::before,
+.kn-status.in_progress::before,
+.kn-status.en_route::before {
+    content: "";
+    width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+}
+.kn-status.completed   { color: var(--kn-ink); }
+.kn-status.completed::before   { background: var(--kn-success); }
+.kn-status.in_progress { color: var(--kn-ink); }
+.kn-status.in_progress::before { background: var(--kn-warning); }
+.kn-status.en_route    { color: var(--kn-ink); }
+.kn-status.en_route::before    { background: var(--kn-accent); }
 
 /* Page de connexion centrée */
 .kn-login-wrap {

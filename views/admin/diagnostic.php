@@ -6,7 +6,7 @@
  */
 $badge = static function (string $state): string {
     return match ($state) {
-        'ok' => 'kn-badge kn-badge-onsite',
+        'ok' => 'kn-badge kn-badge-on',
         default => 'kn-badge kn-badge-off',
     };
 };

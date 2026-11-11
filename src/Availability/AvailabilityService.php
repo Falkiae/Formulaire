@@ -159,6 +159,18 @@ final class AvailabilityService
         ];
     }
 
+    /**
+     * Horizon de réservation configuré, en jours.
+     *
+     * Exposé pour que le calendrier du tunnel s'arrête exactement là où le
+     * moteur cesse de proposer des créneaux : sans cela, le client pouvait
+     * tourner les pages du calendrier sur des mois structurellement vides.
+     */
+    public function horizonDays(): int
+    {
+        return $this->loadConfig()->horizonDays;
+    }
+
     private function loadConfig(): EngineConfig
     {
         $s = [];

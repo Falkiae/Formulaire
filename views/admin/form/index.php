@@ -32,7 +32,7 @@
                             <tr>
                                 <td>v<?= (int) $v['version'] ?></td>
                                 <td><a href="/admin/formulaire/<?= (int) $v['id'] ?>"><?= $e($v['label']) ?></a></td>
-                                <td><?= (int) $v['is_published'] === 1 ? '<span class="kn-badge kn-badge-onsite">publiée</span>' : '<span class="kn-badge kn-badge-off">brouillon</span>' ?></td>
+                                <td><?= (int) $v['is_published'] === 1 ? '<span class="kn-badge kn-badge-on">publiée</span>' : '<span class="kn-badge kn-badge-off">brouillon</span>' ?></td>
                                 <td><a href="/admin/formulaire/<?= (int) $v['id'] ?>">Éditer</a></td>
                             </tr>
                         <?php endforeach; ?>

@@ -25,7 +25,7 @@ final class MonthWindowTest extends TestCase
 
     public function testAMonthStartsAndEndsAtBelgianMidnight(): void
     {
-        $r = MonthWindow::resolve('2027-05', $this->at('2027-01-15 10:00:00'));
+        $r = MonthWindow::resolve('2027-05', $this->at('2027-01-15 10:00:00'), 365);
 
         self::assertSame('01/05/2027 00:00', Clock::format($r['from']));
         self::assertSame('31/05/2027 23:59', Clock::format($r['to']));
@@ -38,7 +38,7 @@ final class MonthWindowTest extends TestCase
     public function testDaylightSavingMonthsKeepLocalMidnightBoundaries(): void
     {
         foreach (['2027-03' => '31/03/2027 23:59', '2027-10' => '31/10/2027 23:59'] as $month => $expectedEnd) {
-            $r = MonthWindow::resolve($month, $this->at('2027-01-15 10:00:00'));
+            $r = MonthWindow::resolve($month, $this->at('2027-01-15 10:00:00'), 365);
 
             self::assertSame('01/' . substr($month, 5) . '/2027 00:00', Clock::format($r['from']), $month);
             self::assertSame($expectedEnd, Clock::format($r['to']), $month);
@@ -76,18 +76,37 @@ final class MonthWindowTest extends TestCase
 
     public function testAMonthBeyondTheHorizonIsBroughtBackToTheLastOne(): void
     {
-        $r = MonthWindow::resolve('2099-01', $this->at('2026-11-17 13:30:00'));
+        $r = MonthWindow::resolve('2099-01', $this->at('2026-11-17 13:30:00'), 365);
 
         self::assertSame('2027-11', $r['window']['month']);
         self::assertSame('2027-11', $r['window']['last_month']);
     }
 
-    public function testTheHorizonIsTwelveMonthsAhead(): void
+    /**
+     * Le calendrier doit s'arrêter là où le moteur cesse de proposer des
+     * créneaux, sinon le client tourne les pages sur des mois vides.
+     */
+    public function testTheLastMonthFollowsTheConfiguredBookingHorizon(): void
     {
         $now = $this->at('2026-11-17 13:30:00');
 
         self::assertSame('2026-11', MonthWindow::firstMonth($now));
-        self::assertSame('2027-11', MonthWindow::lastMonth($now));
+        // 90 jours après le 17 novembre 2026 : le 15 février 2027.
+        self::assertSame('2027-02', MonthWindow::lastMonth($now, 90));
+        self::assertSame('2026-12', MonthWindow::lastMonth($now, 14));
+        self::assertSame('2027-11', MonthWindow::lastMonth($now, 365));
+    }
+
+    /**
+     * Quel que soit l'horizon configuré, on ne calcule jamais l'agenda
+     * au-delà du plafond dur.
+     */
+    public function testTheHardCeilingCapsAnOverlyLongHorizon(): void
+    {
+        $now = $this->at('2026-11-17 13:30:00');
+
+        self::assertSame('2027-11', MonthWindow::lastMonth($now, 36500));
+        self::assertSame('2027-11', MonthWindow::resolve('2030-01', $now, 36500)['window']['month']);
     }
 
     /**
@@ -116,7 +135,7 @@ final class MonthWindowTest extends TestCase
     public function testTheReturnedWindowAlwaysFramesTheDisplayedMonth(): void
     {
         foreach (['2026-11', '2027-03', '2027-11'] as $month) {
-            $w = MonthWindow::resolve($month, $this->at('2026-11-17 13:30:00'))['window'];
+            $w = MonthWindow::resolve($month, $this->at('2026-11-17 13:30:00'), 365)['window'];
 
             self::assertGreaterThanOrEqual($w['first_month'], $w['month'], $month);
             self::assertLessThanOrEqual($w['last_month'], $w['month'], $month);

@@ -155,7 +155,7 @@ $_knTabLinks = $_knTabLinks ?? [];
 
     <nav class="kn-nav" id="kn-nav" aria-label="Navigation principale">
         <?php foreach ($_knMenu as $_i => $_g): ?>
-            <a href="<?= $e($_g['children'][0]['href']) ?>"<?= $_i === $_knActiveGroup ? ' aria-current="true"' : '' ?>><?= $e($_g['label']) ?></a>
+            <a href="<?= $e($_g['children'][0]['href']) ?>"<?= $_i === $_knActiveGroup ? ' aria-current="page"' : '' ?>><?= $e($_g['label']) ?></a>
         <?php endforeach; ?>
         <a href="/admin/deconnexion" class="kn-nav-logout">Déconnexion</a>
     </nav>

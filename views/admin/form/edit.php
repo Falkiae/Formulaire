@@ -26,7 +26,7 @@ foreach ($data['fields'] as $f) { $fieldsById[(int) $f['id']] = $f; }
 
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:var(--kn-space-4);">
             <h1 style="margin:0;">v<?= (int) $version['version'] ?> — <?= $e($version['label']) ?>
-                <?= (int) $version['is_published'] === 1 ? '<span class="kn-badge kn-badge-onsite">publiée</span>' : '<span class="kn-badge kn-badge-off">brouillon</span>' ?>
+                <?= (int) $version['is_published'] === 1 ? '<span class="kn-badge kn-badge-on">publiée</span>' : '<span class="kn-badge kn-badge-off">brouillon</span>' ?>
             </h1>
             <form method="post" action="/admin/formulaire/<?= (int) $version['id'] ?>/publier" onsubmit="return confirm('Publier cette version comme formulaire en ligne ?');">
                 <?= $data['csrf'] ?>
@@ -77,7 +77,11 @@ foreach ($data['fields'] as $f) { $fieldsById[(int) $f['id']] = $f; }
                                 <td>
                                     <?php foreach ($f['options'] as $o): ?>
                                         <span class="kn-badge"><?= $e($o['label']) ?>
-                                            <a href="/admin/formulaire/<?= (int) $version['id'] ?>/option/<?= (int) $o['id'] ?>/supprimer" onclick="return confirm('Supprimer ?')" style="color:var(--kn-alert);text-decoration:none;">✕</a>
+                                            <form method="post" action="/admin/formulaire/<?= (int) $version['id'] ?>/option/<?= (int) $o['id'] ?>/supprimer"
+                                                  style="display:inline;" onsubmit="return confirm('Supprimer l\'option « <?= $e($o['label']) ?> » ?');">
+                                                <?= $data['csrf'] ?>
+                                                <button type="submit" class="kn-btn-inline-x" aria-label="Supprimer l'option <?= $e($o['label']) ?>">✕</button>
+                                            </form>
                                         </span>
                                     <?php endforeach; ?>
                                     <?php if (in_array($f['field_type'], ['select','radio','checkbox','cards'], true)): ?>
@@ -130,7 +134,11 @@ foreach ($data['fields'] as $f) { $fieldsById[(int) $f['id']] = $f; }
                     <?= $e($c['operator']) ?> « <?= $e($c['compare_value'] ?? '') ?> »
                     ALORS <strong><?= $e($c['action']) ?></strong>
                     <strong><?= $e($fieldsById[(int) $c['target_field_id']]['field_key'] ?? '?') ?></strong>
-                    <a href="/admin/formulaire/<?= (int) $version['id'] ?>/condition/<?= (int) $c['id'] ?>/supprimer" onclick="return confirm('Supprimer ?')" style="color:var(--kn-alert);">✕</a>
+                    <form method="post" action="/admin/formulaire/<?= (int) $version['id'] ?>/condition/<?= (int) $c['id'] ?>/supprimer"
+                          style="display:inline;" onsubmit="return confirm('Supprimer cette condition ?');">
+                        <?= $data['csrf'] ?>
+                        <button type="submit" class="kn-btn-inline-x" style="color:var(--kn-alert);" aria-label="Supprimer cette condition">✕</button>
+                    </form>
                 </p>
             <?php endforeach; ?>
             <?php if ($data['conditions'] === []): ?><p class="kn-muted">Aucune condition.</p><?php endif; ?>

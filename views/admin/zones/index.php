@@ -50,7 +50,7 @@ $typeLabels = ['radius' => 'Rayon', 'postal_codes' => 'Codes postaux', 'polygon'
                                 <td class="kn-num"><?= (int) $z['technician_count'] ?></td>
                                 <td>
                                     <?php if ((int) $z['is_active'] === 1): ?>
-                                        <span class="kn-badge kn-badge-onsite">active</span>
+                                        <span class="kn-badge kn-badge-on">active</span>
                                     <?php else: ?>
                                         <span class="kn-badge kn-badge-off">inactive</span>
                                     <?php endif; ?>

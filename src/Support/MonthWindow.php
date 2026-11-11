@@ -19,11 +19,13 @@ namespace Keepnew\Support;
 final class MonthWindow
 {
     /**
-     * Jusqu'où le client peut avancer. Cette borne n'existe que pour qu'une
-     * requête forgée ne fasse pas calculer l'agenda sur dix ans : un an est
-     * très au-delà de l'horizon réel d'une prise de rendez-vous.
+     * Plafond dur, quel que soit l'horizon configuré : une requête forgée ne
+     * doit pas faire calculer l'agenda sur dix ans.
      */
     public const MAX_MONTHS_AHEAD = 12;
+
+    /** Horizon par défaut, aligné sur `availability.horizon_days`. */
+    public const DEFAULT_HORIZON_DAYS = 90;
 
     /** Mois en cours à Bruxelles, au format AAAA-MM. */
     public static function firstMonth(\DateTimeImmutable $now): string
@@ -31,13 +33,25 @@ final class MonthWindow
         return Clock::format($now, 'Y-m');
     }
 
-    /** Dernier mois consultable, au format AAAA-MM. */
-    public static function lastMonth(\DateTimeImmutable $now): string
+    /**
+     * Dernier mois consultable, au format AAAA-MM.
+     *
+     * Il suit l'horizon de réservation réellement configuré
+     * (`availability.horizon_days`), et non une constante : le calendrier du
+     * tunnel s'arrête ainsi exactement là où le moteur cesse de proposer des
+     * créneaux. Auparavant il laissait avancer sur douze mois alors que le
+     * moteur s'arrêtait à quatre-vingt-dix jours — le client tournait les
+     * pages sur des mois structurellement vides.
+     */
+    public static function lastMonth(\DateTimeImmutable $now, int $horizonDays = self::DEFAULT_HORIZON_DAYS): string
     {
-        return Clock::toDisplay($now)
-            ->modify('first day of this month')
+        $local = Clock::toDisplay($now);
+        $horizon = $local->modify('+' . max(1, $horizonDays) . ' days')->format('Y-m');
+        $plafond = $local->modify('first day of this month')
             ->modify('+' . self::MAX_MONTHS_AHEAD . ' months')
             ->format('Y-m');
+
+        return min($horizon, $plafond);
     }
 
     public static function isValidKey(string $month): bool
@@ -51,9 +65,9 @@ final class MonthWindow
      * bonne foi, le mois d'à côté. C'est le mois retourné qui fait foi, et
      * l'interface affiche celui-là.
      */
-    public static function clamp(string $month, \DateTimeImmutable $now): string
+    public static function clamp(string $month, \DateTimeImmutable $now, int $horizonDays = self::DEFAULT_HORIZON_DAYS): string
     {
-        return max(self::firstMonth($now), min(self::lastMonth($now), $month));
+        return max(self::firstMonth($now), min(self::lastMonth($now, $horizonDays), $month));
     }
 
     /**
@@ -61,9 +75,9 @@ final class MonthWindow
      *
      * @return array{from: \DateTimeImmutable, to: \DateTimeImmutable, window: array<string, string>}
      */
-    public static function resolve(string $month, \DateTimeImmutable $now): array
+    public static function resolve(string $month, \DateTimeImmutable $now, int $horizonDays = self::DEFAULT_HORIZON_DAYS): array
     {
-        $month = self::clamp($month, $now);
+        $month = self::clamp($month, $now, $horizonDays);
 
         // Bornes locales : un client qui regarde « novembre » attend le 1er au
         // 30 chez lui, pas une fenêtre UTC décalée d'une heure ou deux.
@@ -79,7 +93,7 @@ final class MonthWindow
             'window' => [
                 'month' => $month,
                 'first_month' => self::firstMonth($now),
-                'last_month' => self::lastMonth($now),
+                'last_month' => self::lastMonth($now, $horizonDays),
             ],
         ];
     }

@@ -62,7 +62,7 @@ $eur = static fn (int $c): string => number_format($c / 100, 2, ',', ' ');
                                 <td class="kn-num"><?= $e($eur((int) $i['total_cents'])) ?> €</td>
                                 <td>
                                     <?php if ($i['peppol_status'] === 'not_applicable'): ?><span class="kn-muted">—</span>
-                                    <?php else: ?><span class="kn-badge kn-badge-onsite"><?= $e($i['peppol_status']) ?></span><?php endif; ?>
+                                    <?php else: ?><span class="kn-badge kn-badge-on"><?= $e($i['peppol_status']) ?></span><?php endif; ?>
                                 </td>
                                 <td>
                                     <?php if ($i['peppol_status'] !== 'not_applicable'): ?>

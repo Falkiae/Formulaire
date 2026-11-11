@@ -22,7 +22,8 @@ use Keepnew\Support\Clock;
  */
 final class CartService
 {
-    private const EXPIRY_DAYS = 7;
+    /** Repli si le réglage `cart.expiry_days` est absent de la base. */
+    private const EXPIRY_DAYS_DEFAULT = 7;
 
     public function __construct(
         private readonly Database $db,
@@ -36,10 +37,21 @@ final class CartService
     /**
      * Crée un panier vide et renvoie son token.
      */
+    /**
+     * Durée de vie d'un panier, réglable depuis /admin/reglages. Le réglage
+     * `cart.expiry_days` existait en base sans qu'aucun code ne le lise.
+     */
+    private function expiryDays(): int
+    {
+        $v = $this->db->scalar("SELECT `value` FROM settings WHERE `key` = 'cart.expiry_days'");
+
+        return max(1, min(90, (int) ($v ?? self::EXPIRY_DAYS_DEFAULT)));
+    }
+
     public function create(): string
     {
         $token = bin2hex(random_bytes(20)); // 40 caractères
-        $expires = Clock::nowUtc()->modify('+' . self::EXPIRY_DAYS . ' days')->format('Y-m-d H:i:s');
+        $expires = Clock::nowUtc()->modify('+' . $this->expiryDays() . ' days')->format('Y-m-d H:i:s');
 
         $this->db->insert('carts', [
             'token' => $token,

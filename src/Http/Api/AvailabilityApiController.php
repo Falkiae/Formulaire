@@ -58,7 +58,9 @@ final class AvailabilityApiController
             if (!MonthWindow::isValidKey($month)) {
                 return Response::json(['error' => 'Mois invalide.'], 422);
             }
-            $resolved = MonthWindow::resolve($month, $now);
+            // L'horizon vient du réglage `availability.horizon_days` : le
+            // calendrier s'arrête là où le moteur cesse de proposer.
+            $resolved = MonthWindow::resolve($month, $now, $this->availability->horizonDays());
             $from = $resolved['from'];
             $to = $resolved['to'];
             $result['window'] = $resolved['window'];
