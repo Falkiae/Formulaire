@@ -51,6 +51,12 @@
     booking: null,
   };
 
+  // Purge d'une session déjà empoisonnée : la version précédente recopiait la
+  // valeur du champ-piège dans l'état, donc dans localStorage. Plus personne
+  // ne la lit, mais on l'efface pour que le client bloqué reparte vraiment
+  // propre, sans vider son navigateur.
+  if (state && state._hp !== undefined) delete state._hp;
+
   var catalog = null; // { categories, services }
 
   // --- Utilitaires ----------------------------------------------------------
@@ -637,6 +643,16 @@
       });
   }
 
+  // Note sur les six appels `renderStepInto(clear(body), body.dataset.step)`
+  // ci-dessous : ils redessinaient `state.step`, l'étape COURANTE, dans un
+  // panneau qui n'est pas forcément le sien. À la reprise d'une session
+  // (replaySession reconstruit tous les panneaux d'un coup), le catalogue
+  // arrive après coup et le callback du panneau « Quoi » se déclenche alors
+  // que l'étape courante est déjà « Coordonnées » : le formulaire de
+  // coordonnées était rendu DANS le panneau « Quoi ». D'où, en remontant le
+  // tunnel, un second formulaire identique, des `id` en double — et un second
+  // champ-piège. Un panneau ne redessine que sa propre étape.
+
   // --- Étape 2 : QUOI (catégorie → service) ---------------------------------
   function renderWhat(body) {
     body.appendChild(el('<h2 class="kn-h">' + esc(t("what.title")) + "</h2>"));
@@ -644,7 +660,7 @@
       body.appendChild(loading());
       api("/catalog").then(function (d) {
         catalog = d;
-        renderStepInto(clear(body), state.step);
+        renderStepInto(clear(body), body.dataset.step);
       });
       return;
     }
@@ -659,7 +675,7 @@
             choiceCard("📦", cat.name, cat.description || "", function () {
               state.categoryId = cat.id;
               // Descend d'un niveau si sous-catégories, sinon services.
-              renderStepInto(clear(body), state.step);
+              renderStepInto(clear(body), body.dataset.step);
             }, false, imgUrl(cat.image_path))
           );
         });
@@ -703,7 +719,7 @@
       });
       body.appendChild(backLink(function () {
         state.categoryId = null;
-        renderStepInto(clear(body), state.step);
+        renderStepInto(clear(body), body.dataset.step);
       }, t("what.back_link")));
     }
     body.appendChild(cards);
@@ -741,7 +757,7 @@
       body.appendChild(loading());
       api("/services/" + state.serviceId).then(function (d) {
         state._serviceConfig = d;
-        renderStepInto(clear(body), state.step);
+        renderStepInto(clear(body), body.dataset.step);
       });
       return;
     }
@@ -976,11 +992,11 @@
             goto("contact");
             return;
           }
-          renderStepInto(clear(body), state.step);
+          renderStepInto(clear(body), body.dataset.step);
         })
         .catch(function () {
           state._form = { fields: [], conditions: [] };
-          renderStepInto(clear(body), state.step);
+          renderStepInto(clear(body), body.dataset.step);
         });
       return;
     }
@@ -1189,18 +1205,33 @@
         esc(t("contact.consent_link_label")) +
         "</a>";
     }
-    var consent = el('<label class="kn-extra"><span>' + consentText + '</span><input type="checkbox" id="kn-consent"></label>');
+    var consentId = "kn-consent-" + ++fieldSeq;
+    var consent = el('<label class="kn-extra" for="' + consentId + '"><span>' + consentText + '</span><input type="checkbox" id="' + consentId + '"></label>');
     body.appendChild(consent);
 
     // Honeypot RÉEL. Le widget envoyait `hp: ""` en dur, sans qu'aucun champ
     // n'existe dans le DOM : le contrôle serveur ne pouvait jamais se
-    // déclencher, un robot omettant simplement la clé. Masqué en CSS plutôt
-    // qu'en `hidden` (un champ `hidden` n'est pas rempli par les robots) et
-    // sorti du parcours clavier comme de l'arbre d'accessibilité.
+    // déclencher, un robot omettant simplement la clé.
+    //
+    // Il doit être invisible POUR LE NAVIGATEUR, pas seulement pour l'œil.
+    // Première version : masqué par `position:absolute;left:-9999px` et nommé
+    // `company_website`. Les deux étaient faux. Un champ sorti de l'écran
+    // reste, pour Chrome, un champ affiché et remplissable, et un nom
+    // contenant « company » est justement ce que son remplissage automatique
+    // d'adresse associe à `organization`. Résultat : le client qui remplissait
+    // ses coordonnées d'un clic voyait son piège rempli par son propre
+    // navigateur, et le serveur le prenait pour un robot — « Requête
+    // rejetée. », sans recours.
+    //
+    // `display:none` (voir la règle .kn-hp) est ignoré par le remplissage
+    // automatique de Chrome, de Safari et des gestionnaires de mots de passe,
+    // alors qu'un script qui poste tous les `<input>` d'un formulaire le
+    // remplit toujours — c'est-à-dire exactement la population visée.
+    var honeypotId = "kn-hp-" + ++fieldSeq;
     var honeypot = el(
       '<div class="kn-hp" aria-hidden="true">' +
-        '<label for="kn-hp-field">Ne remplissez pas ce champ</label>' +
-        '<input id="kn-hp-field" type="text" name="company_website" tabindex="-1" autocomplete="off">' +
+        '<label for="' + honeypotId + '">Ne remplissez pas ce champ</label>' +
+        '<input id="' + honeypotId + '" type="text" name="subject_line" tabindex="-1" autocomplete="off">' +
         "</div>"
     );
     body.appendChild(honeypot);
@@ -1220,7 +1251,6 @@
         return;
       }
       state._consent = true;
-      state._hp = honeypot.querySelector("input").value;
       goto("slot");
     });
     actions.appendChild(cont);
@@ -1568,6 +1598,17 @@
       body.appendChild(actions);
     });
   }
+  // Valeur du piège, lue dans le champ vivant au moment de l'envoi et jamais
+  // recopiée dans `state`. La version précédente la mémorisait à l'étape
+  // Coordonnées : comme tout `state` part dans localStorage, une valeur
+  // déposée par erreur (remplissage automatique) survivait au rechargement et
+  // condamnait le client à « Requête rejetée. » pour toujours, sans qu'il
+  // puisse rien y faire. Ici, recharger la page suffit à repartir propre.
+  function honeypotValue() {
+    var f = shadow.querySelector(".kn-hp input");
+    return f ? f.value : "";
+  }
+
   function submitBooking(opts) {
     opts = opts || {};
     // event_id partagé pixel/serveur pour la déduplication Meta CAPI.
@@ -1582,7 +1623,7 @@
       answers: state.answers,
       consent_terms: !!state._consent,
       event_id: eventId,
-      hp: state._hp || "",
+      hp: honeypotValue(),
     };
     api("/bookings", { method: "POST", body: payload })
       .then(function (res) {
@@ -1856,7 +1897,9 @@
       ".kn-field.has-error .kn-choice-row{outline:1px solid var(--danger,#B3261E);outline-offset:4px;border-radius:8px}" +
       // Honeypot : hors écran plutôt que display:none — un robot remplit
       // un champ masqué en CSS, pas un champ absent du rendu.
-      ".kn-hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}" +
+      // display:none, et non un simple décalage hors écran : un champ
+      // seulement déplacé reste remplissable par le navigateur.
+      ".kn-hp{display:none}" +
       ".kn input[type=text],.kn input[type=email],.kn input[type=tel],.kn input:not([type]){width:100%;min-height:48px;padding:0 12px;font-size:16px;font-family:inherit;border:1px solid var(--line);border-radius:4px;background:var(--surface);color:var(--ink)}" +
       ".kn input:focus{outline:2px solid var(--a);outline-offset:2px}" +
       ".kn-extras{display:flex;flex-direction:column;gap:8px}" +

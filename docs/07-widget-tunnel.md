@@ -87,9 +87,10 @@ Huit points relevés en relisant le tunnel comme un client, et ce qui a changé.
    La réponse de l'API porte `scheduled: false`.
 4. **Le honeypot n'existait pas.** Le widget envoyait `hp: ""` en dur ; aucun
    champ n'était dans le DOM, donc le contrôle serveur ne pouvait jamais se
-   déclencher. Le champ est réel, masqué en CSS (pas `hidden` : un robot ne
-   remplit pas un champ `hidden`), hors parcours clavier et hors arbre
-   d'accessibilité.
+   déclencher. Le champ est réel, hors parcours clavier et hors arbre
+   d'accessibilité — et **invisible pour le navigateur**, pas seulement pour
+   l'œil : voir ci-dessous, la première version de ce champ a bloqué de vrais
+   clients.
 5. **Le consentement portait sur des documents illisibles.** Le texte était
    brut, sans lien. Le réglage `company.terms_url` est exposé par
    `/api/catalog` et rendu en lien (`target="_blank"`, `rel="noopener"`).
@@ -112,6 +113,45 @@ Vérifié dans Chromium (viewport 390 px, API simulée) : nom accessible et
 sur la première à la soumission à vide, message d'e-mail mal formé, lien CGV,
 les deux sorties de l'étape créneau, et la demande de rappel qui aboutit à
 l'écran « demande enregistrée » avec `slots: {}`.
+
+### Le honeypot qui refusait de vrais clients
+
+Signalé en production : « Requête rejetée. » au moment de confirmer, sans
+recours. C'est le message du honeypot — le serveur prenait le client pour un
+robot. Trois défauts se cumulaient, tous dans la première version du champ.
+
+- **Un champ hors écran reste un champ affiché.** Il était masqué par
+  `position:absolute; left:-9999px`, ce qui ne le retire ni du rendu ni du
+  remplissage automatique : le navigateur le voyait en 26 × 48 px. Il est
+  désormais en `display:none`, que le remplissage automatique de Chrome et de
+  Safari, comme les gestionnaires de mots de passe, ignorent — alors qu'un
+  script qui poste tous les `<input>` d'un formulaire le remplit toujours,
+  c'est-à-dire exactement la population visée.
+- **Son nom le désignait au remplissage automatique.** `company_website`
+  contient « company », que l'heuristique d'adresse de Chrome associe à
+  `organization`. Le client qui remplissait ses coordonnées d'un clic faisait
+  remplir le piège par son propre navigateur. Le champ s'appelle maintenant
+  `subject_line`, hors de la taxonomie d'adresse.
+- **L'erreur était définitive.** La valeur du piège était recopiée dans
+  `state`, donc dans `localStorage` : une fois posée, elle survivait au
+  rechargement et condamnait le client pour toujours. Elle est maintenant lue
+  dans le champ vivant au moment de l'envoi, jamais mémorisée ; une session
+  déjà bloquée est purgée au chargement.
+
+Un quatrième défaut a été trouvé en cherchant le premier : six rappels
+asynchrones redessinaient **l'étape courante** (`state.step`) dans **leur
+propre panneau**. À la reprise d'une session (`replaySession()` reconstruit
+tous les panneaux d'un coup), le catalogue arrivait alors que l'étape courante
+était déjà « Coordonnées » : le formulaire de coordonnées était rendu dans le
+panneau « Quoi ». D'où, en remontant le tunnel, un second formulaire identique,
+des `id` en double — et un second champ-piège. Un panneau ne redessine
+désormais que sa propre étape (`body.dataset.step`).
+
+Vérifié dans Chromium, trois parcours complets : un vrai client (`hp: ""` →
+201, écran de confirmation), un robot qui poste tous les champs (`hp` rempli →
+400 « Requête rejetée. », le piège fait toujours son travail), et une session
+déjà bloquée par l'ancienne version (repart et aboutit). Plus, sur la page : un
+seul piège, un seul formulaire de coordonnées, aucun `id` en double.
 
 ## Validation réelle (navigateur, Playwright + Chromium)
 
