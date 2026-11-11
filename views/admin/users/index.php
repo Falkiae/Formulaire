@@ -34,7 +34,7 @@ $roleLabels = [
 
         <section class="kn-card">
             <div class="kn-table-wrap">
-                <table class="kn-table">
+                <table class="kn-table kn-table-sticky">
                     <thead>
                         <tr><th>Nom</th><th>E-mail</th><th>Rôle</th><th>État</th><th>Dernière connexion</th><th></th></tr>
                     </thead>

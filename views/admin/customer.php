@@ -15,18 +15,18 @@ $addressFields = static function (array $a, callable $e): string {
     ob_start();
     ?>
     <div class="kn-grid kn-grid-2">
-        <div class="kn-field" style="margin-bottom:8px;"><label>Libellé</label><input type="text" name="label" value="<?= $e($a['label'] ?? '') ?>" placeholder="Domicile, Garage…"></div>
-        <div class="kn-field" style="margin-bottom:8px;"><label>Rue</label><input type="text" name="street" value="<?= $e($a['street'] ?? '') ?>" required></div>
+        <div class="kn-field" style="margin-bottom:8px;"><label>Libellé</label><input type="text" name="label" value="<?= $e($a['label'] ?? '') ?>" placeholder="Domicile, Garage…" aria-label="Libellé"></div>
+        <div class="kn-field" style="margin-bottom:8px;"><label>Rue</label><input type="text" name="street" value="<?= $e($a['street'] ?? '') ?>" required aria-label="Rue"></div>
     </div>
     <div class="kn-grid kn-grid-2">
-        <div class="kn-field" style="margin-bottom:8px;"><label>Numéro</label><input type="text" name="number" value="<?= $e($a['number'] ?? '') ?>"></div>
-        <div class="kn-field" style="margin-bottom:8px;"><label>Boîte</label><input type="text" name="box" value="<?= $e($a['box'] ?? '') ?>"></div>
+        <div class="kn-field" style="margin-bottom:8px;"><label>Numéro</label><input type="text" name="number" value="<?= $e($a['number'] ?? '') ?>" aria-label="Numéro"></div>
+        <div class="kn-field" style="margin-bottom:8px;"><label>Boîte</label><input type="text" name="box" value="<?= $e($a['box'] ?? '') ?>" aria-label="Boîte"></div>
     </div>
     <div class="kn-grid kn-grid-2">
-        <div class="kn-field" style="margin-bottom:8px;"><label>Code postal</label><input type="text" name="postal_code" value="<?= $e($a['postal_code'] ?? '') ?>" required></div>
-        <div class="kn-field" style="margin-bottom:8px;"><label>Ville</label><input type="text" name="city" value="<?= $e($a['city'] ?? '') ?>" required></div>
+        <div class="kn-field" style="margin-bottom:8px;"><label>Code postal</label><input type="text" name="postal_code" value="<?= $e($a['postal_code'] ?? '') ?>" required aria-label="Code postal"></div>
+        <div class="kn-field" style="margin-bottom:8px;"><label>Ville</label><input type="text" name="city" value="<?= $e($a['city'] ?? '') ?>" required aria-label="Ville"></div>
     </div>
-    <div class="kn-field" style="margin-bottom:8px;"><label>Notes d'accès</label><input type="text" name="access_notes" value="<?= $e($a['access_notes'] ?? '') ?>" placeholder="Étage, parking, digicode…"></div>
+    <div class="kn-field" style="margin-bottom:8px;"><label>Notes d'accès</label><input type="text" name="access_notes" value="<?= $e($a['access_notes'] ?? '') ?>" placeholder="Étage, parking, digicode…" aria-label="Notes d'accès"></div>
     <?php
     return (string) ob_get_clean();
 };

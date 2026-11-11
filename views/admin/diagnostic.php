@@ -26,27 +26,10 @@ $badge = static function (string $state): string {
     <main class="kn-wrap">
         <h1>Diagnostic</h1>
         <p class="kn-muted">
-            État réel du code déployé sur ce serveur. Aucun secret n'est affiché.
-            Le fait que cette page s'ouvre prouve déjà que le dernier envoi de fichiers est arrivé.
+            État réel du serveur et de l'application. Aucun secret n'est affiché.
+            Utile pour vérifier, après un envoi de fichiers, que les routes et la
+            réécriture d'URL répondent comme attendu.
         </p>
-
-        <section class="kn-card">
-            <h2>Fichiers du correctif « app technicien »</h2>
-            <div class="kn-table-wrap">
-                <table class="kn-table">
-                    <thead><tr><th>Fichier</th><th>État</th><th>Détail</th></tr></thead>
-                    <tbody>
-                        <?php foreach ($data['files'] as $f): ?>
-                            <tr>
-                                <td><code><?= $e($f['path']) ?></code></td>
-                                <td><span class="<?= $badge($f['state']) ?>"><?= $e($f['state']) ?></span></td>
-                                <td class="kn-muted"><?= $e($f['detail']) ?></td>
-                            </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-            </div>
-        </section>
 
         <section class="kn-card">
             <h2>Routes reconnues par l'application</h2>

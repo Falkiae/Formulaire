@@ -13,7 +13,7 @@ $j = $data['job'];
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Job <?= $e($j['reference']) ?> — Keepnew</title>
+    <title>Commande <?= $e($j['reference']) ?> — Keepnew</title>
     <link rel="stylesheet" href="/assets/design-tokens.css">
     <link rel="stylesheet" href="/assets/admin.css">
     <link rel="stylesheet" href="/assets/vendor/leaflet/leaflet.css">
@@ -22,7 +22,7 @@ $j = $data['job'];
     <?php include __DIR__ . '/_nav.php'; ?>
 
     <main class="kn-wrap">
-        <p><a href="/admin/dispatch">← Dispatch</a></p>
+        <p><a href="/admin/dispatch">← Planning du jour</a></p>
         <?php include __DIR__ . '/job/_panel.php'; ?>
     </main>
 

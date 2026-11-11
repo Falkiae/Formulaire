@@ -398,6 +398,27 @@ table.kn-table {
 .kn-table td.kn-num,
 .kn-table th.kn-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
+/* Première colonne figée au défilement horizontal.
+   Sur un écran de 390 px, un tableau de quatre colonnes en fait 440 : on
+   défile, et la colonne qui dit DE QUI il s'agit sort de l'écran. On la fige,
+   mais seulement là où le défilement existe — en desktop, rien ne bouge.
+   Réservé aux tableaux dont la première colonne identifie la ligne
+   (classe .kn-table-sticky), pas à ceux qui commencent par une case à cocher
+   ou des flèches de réordonnancement. */
+@media (max-width: 639px) {
+    .kn-table-sticky th:first-child,
+    .kn-table-sticky td:first-child {
+        position: sticky;
+        left: 0;
+        z-index: 1;
+        max-width: 48vw;
+        /* Fond opaque obligatoire : sans lui, les colonnes défilent dessous. */
+        background: var(--kn-surface);
+        box-shadow: 1px 0 0 var(--kn-line);
+    }
+    .kn-table-sticky th:first-child { background: var(--kn-paper); }
+}
+
 /* Table sans bordure externe (dans une .kn-card) */
 .kn-card .kn-table-wrap {
     border: none;
@@ -474,6 +495,58 @@ table.kn-table {
 .kn-badge-late::before      { background: var(--kn-alert); }
 .kn-badge-complete::before,
 .kn-badge-on::before        { background: var(--kn-success); }
+
+/* Texte réservé aux lecteurs d'écran : présent dans l'arbre d'accessibilité,
+   invisible à l'œil. `display:none` l'en retirerait aussi. */
+.kn-visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* --- Réordonnancement d'une liste ------------------------------------------ */
+.kn-reorder-controls {
+    display: inline-flex;
+    flex-direction: column;
+    gap: 2px;
+    vertical-align: middle;
+    margin-right: var(--kn-space-2);
+}
+.kn-reorder-btn {
+    /* 22 px chacun, 44 px pour la paire : la cible tactile du projet, sans
+       transformer une liste en colonne de gros boutons. */
+    width: 30px;
+    height: 22px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.6rem;
+    line-height: 1;
+    color: var(--kn-muted);
+    background: var(--kn-surface);
+    border: 1px solid var(--kn-line);
+    border-radius: 3px;
+    cursor: pointer;
+}
+.kn-reorder-btn:hover:not(:disabled) { color: var(--kn-accent-ink); border-color: var(--kn-accent); }
+.kn-reorder-btn:disabled { opacity: 0.35; cursor: default; }
+
+.kn-reorder-status {
+    margin: var(--kn-space-2) 0 0;
+    font-size: var(--kn-fs-small);
+    color: var(--kn-muted);
+}
+.kn-reorder-status.is-error {
+    color: var(--kn-alert);
+    font-weight: 600;
+}
 
 /* --- Alertes --------------------------------------------------------------- */
 .kn-alert {

@@ -30,7 +30,7 @@ $eur = static fn (int $c): string => number_format($c / 100, 2, ',', ' ');
             <section class="kn-card" style="margin-bottom:24px;">
                 <h2>Commandes à facturer</h2>
                 <div class="kn-table-wrap">
-                    <table class="kn-table">
+                    <table class="kn-table kn-table-sticky">
                         <?php foreach ($data['to_invoice'] as $b): ?>
                             <tr>
                                 <td><?= $e($b['reference']) ?></td>
@@ -46,12 +46,24 @@ $eur = static fn (int $c): string => number_format($c / 100, 2, ',', ' ');
                     </table>
                 </div>
             </section>
+        <?php if (($data['pages'] ?? 1) > 1): ?>
+            <nav class="kn-row kn-mt" aria-label="Pagination des factures">
+                <?php if ($data['page'] > 1): ?>
+                    <a class="kn-btn kn-btn-ghost kn-btn-sm" href="/admin/factures?page=<?= (int) $data['page'] - 1 ?>" rel="prev">← Précédentes</a>
+                <?php endif; ?>
+                <span class="kn-muted"><?= (int) $data['invoices_total'] ?> factures · page <?= (int) $data['page'] ?> sur <?= (int) $data['pages'] ?></span>
+                <?php if ($data['page'] < $data['pages']): ?>
+                    <a class="kn-btn kn-btn-ghost kn-btn-sm" href="/admin/factures?page=<?= (int) $data['page'] + 1 ?>" rel="next">Suivantes →</a>
+                <?php endif; ?>
+            </nav>
+        <?php endif; ?>
+
         <?php endif; ?>
 
         <section class="kn-card">
             <h2>Factures émises</h2>
             <div class="kn-table-wrap">
-                <table class="kn-table">
+                <table class="kn-table kn-table-sticky">
                     <thead><tr><th>Numéro</th><th>Client</th><th>Type</th><th class="kn-num">TVAC</th><th>Peppol</th><th></th></tr></thead>
                     <tbody>
                         <?php foreach ($data['invoices'] as $i): ?>

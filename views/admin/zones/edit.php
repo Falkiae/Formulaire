@@ -110,17 +110,17 @@ $techZoneIds = $data['zone_technician_ids'];
                     <summary>Ajouter une règle</summary>
                     <form method="post" action="/admin/zones/<?= $zoneId ?>/regle" id="kn-mod-form" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin-top:12px;">
                         <?= $data['csrf'] ?>
-                        <div class="kn-field" style="margin:0;"><label>Type</label><select name="modifier_type" id="kn-mod-type">
+                        <div class="kn-field" style="margin:0;"><label>Type</label><select name="modifier_type" id="kn-mod-type" aria-label="Type de règle tarifaire">
                             <option value="refuse">Refus</option>
                             <option value="surcharge">Supplément</option>
                             <option value="discount">Remise</option>
                         </select></div>
-                        <div class="kn-field kn-mod-calc" style="margin:0;"><label>Calcul</label><select name="calc_type">
+                        <div class="kn-field kn-mod-calc" style="margin:0;"><label>Calcul</label><select name="calc_type" aria-label="Mode de calcul">
                             <option value="fixed">Montant fixe (€)</option>
                             <option value="percent">Pourcentage (%)</option>
                         </select></div>
-                        <div class="kn-field kn-mod-calc" style="margin:0;"><label>Valeur</label><input type="text" name="calc_value" inputmode="decimal" placeholder="ex. 15" style="max-width:100px;"></div>
-                        <div class="kn-field" style="margin:0;flex:1;"><label>Libellé</label><input type="text" name="label" placeholder="ex. Supplément déplacement"></div>
+                        <div class="kn-field kn-mod-calc" style="margin:0;"><label>Valeur</label><input type="text" name="calc_value" inputmode="decimal" placeholder="ex. 15" aria-label="Valeur de la règle" style="max-width:100px;"></div>
+                        <div class="kn-field" style="margin:0;flex:1;"><label>Libellé</label><input type="text" name="label" placeholder="ex. Supplément déplacement" aria-label="Libellé"></div>
                         <button type="submit" class="kn-btn kn-btn-ghost">Ajouter</button>
                     </form>
                     <script>

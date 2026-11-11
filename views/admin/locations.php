@@ -40,7 +40,7 @@
                 </ul>
                 <form method="post" action="/admin/ateliers/<?= (int) $loc['id'] ?>/poste" style="display:flex;gap:8px;align-items:end;max-width:420px;">
                     <?= $data['csrf'] ?>
-                    <div class="kn-field" style="margin:0;flex:1;"><label>Nouveau poste</label><input type="text" name="name" placeholder="Ex. Poste 3"></div>
+                    <div class="kn-field" style="margin:0;flex:1;"><label>Nouveau poste</label><input type="text" name="name" placeholder="Ex. Poste 3" aria-label="Nom"></div>
                     <button type="submit" class="kn-btn kn-btn-ghost">Ajouter</button>
                 </form>
 
@@ -53,9 +53,9 @@
                 </ul>
                 <form method="post" action="/admin/ateliers/<?= (int) $loc['id'] ?>/fermeture" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;max-width:560px;">
                     <?= $data['csrf'] ?>
-                    <div class="kn-field" style="margin:0;"><label>Du</label><input type="date" name="from"></div>
-                    <div class="kn-field" style="margin:0;"><label>Au</label><input type="date" name="to"></div>
-                    <div class="kn-field" style="margin:0;flex:1;"><label>Motif</label><input type="text" name="reason"></div>
+                    <div class="kn-field" style="margin:0;"><label>Du</label><input type="date" name="from" aria-label="Du"></div>
+                    <div class="kn-field" style="margin:0;"><label>Au</label><input type="date" name="to" aria-label="Au"></div>
+                    <div class="kn-field" style="margin:0;flex:1;"><label>Motif</label><input type="text" name="reason" aria-label="Motif"></div>
                     <button type="submit" class="kn-btn kn-btn-ghost">Enregistrer</button>
                 </form>
             </section>

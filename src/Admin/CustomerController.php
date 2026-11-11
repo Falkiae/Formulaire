@@ -28,11 +28,21 @@ final class CustomerController
     ) {
     }
 
+    private const PER_PAGE = 50;
+
     public function index(Request $request): Response
     {
+        $q = $request->string('q');
+        $page = max(1, $request->int('page', 1));
+        $result = $this->customers->list($q, $page, self::PER_PAGE);
+        $pages = max(1, (int) ceil($result['total'] / self::PER_PAGE));
+
         return $this->view->render('admin/customers', [
-            'customers' => $this->customers->list($request->string('q')),
-            'q' => $request->string('q'),
+            'customers' => $result['rows'],
+            'total' => $result['total'],
+            'page' => min($page, $pages),
+            'pages' => $pages,
+            'q' => $q,
             'can_edit' => $this->canEdit(),
             'flash' => $this->session->pullFlash('customer_ok'),
             'user_name' => $this->session->get('user_name'),

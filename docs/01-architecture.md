@@ -155,3 +155,32 @@ chargement réel sur MariaDB 10.11 (61 tables, 81 clés étrangères, 223 index)
 Aucune ligne de code applicatif PHP n'est livrée en Phase 1 (conforme à la
 méthode : Phase 1 = fondations données). Les moteurs, l'API, le widget et le
 back-office arrivent aux phases suivantes, dans l'ordre défini par le prompt.
+
+## Système visuel : une seule apparence, deux familles de pastilles
+
+Les jetons de marque vivent dans `public/assets/design-tokens.css`, les styles
+applicatifs dans `public/assets/admin.css`, et le tunnel public porte son propre
+CSS inline dans son Shadow DOM.
+
+**Pas de variante sombre.** Il en existait une, déclenchée automatiquement par
+`prefers-color-scheme`, qui ne redéfinissait que dix variables sur une
+trentaine : les fonds de statut, de badge et de bouton restaient clairs.
+Mesuré au navigateur, c'était inutilisable (badge « À domicile » à 1,27:1,
+bouton « Supprimer » à 1,81:1, pour un minimum lisible de 4,5:1). Une seule
+apparence à tenir, crème et navy, cohérente avec le tunnel public qui n'en a
+jamais eu. La rétablir demanderait de redéfinir AUSSI les six couleurs de
+statut, les quatre fonds de badge et les deux boutons, puis de remesurer.
+
+**Badges : la forme dit la famille, la couleur dit l'état.** Le mode
+d'exécution est une pastille pleine (rose = domicile, bleu = atelier) ; l'état
+est une pastille claire à liseré marquée d'un point de couleur
+(`kn-badge-on/off/scheduled/info/late/complete`). Les deux partageaient
+auparavant les mêmes teintes : dans le planning du jour, « À domicile » et
+« En cours » étaient deux pastilles roses identiques côte à côte, et le
+catalogue empruntait le rose du mode domicile pour dire « actif ».
+
+**Contraste.** Toute évolution du CSS se vérifie en mesurant, pas à l'œil :
+une galerie de tous les composants réels est ouverte dans Chromium et chaque
+nœud de texte est comparé à son fond effectif (opacités et ancêtres compris,
+Shadow DOM traversé pour le tunnel). Référence actuelle : **0 écart** sur 78
+textes du back-office et 278 textes sur cinq étapes du tunnel.

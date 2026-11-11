@@ -27,16 +27,33 @@ final class CustomerRepository
     /**
      * @return list<array<string, mixed>>
      */
-    public function list(string $q): array
+    /**
+     * Page de la liste des clients.
+     *
+     * La requête s'arrêtait à `LIMIT 200` sans pagination ni avertissement, et
+     * triée par chiffre d'affaires décroissant : passé ce seuil, un nouveau
+     * client (0 €) devenait tout simplement introuvable. La recherche, elle,
+     * interrogeait l'e-mail, le nom et la société mais PAS le prénom — chercher
+     * « Nina » ne renvoyait rien.
+     *
+     * @return array{rows: list<array<string, mixed>>, total: int}
+     */
+    public function list(string $q, int $page = 1, int $perPage = 50): array
     {
         $where = 'WHERE c.anonymized_at IS NULL';
         $params = [];
         if ($q !== '') {
-            $where .= ' AND (c.email LIKE :q OR c.last_name LIKE :q OR c.company_name LIKE :q)';
+            $where .= ' AND (c.email LIKE :q OR c.last_name LIKE :q OR c.first_name LIKE :q'
+                . " OR c.company_name LIKE :q OR CONCAT_WS(' ', c.first_name, c.last_name) LIKE :q)";
             $params['q'] = '%' . $q . '%';
         }
 
-        return $this->db->select(
+        $total = (int) ($this->db->scalar("SELECT COUNT(*) FROM customers c {$where}", $params) ?? 0);
+
+        $perPage = max(10, min(200, $perPage));
+        $offset = max(0, ($page - 1) * $perPage);
+
+        $rows = $this->db->select(
             "SELECT c.id, c.type, c.first_name, c.last_name, c.company_name, c.email, c.phone,
                     COUNT(DISTINCT b.id) AS bookings_count,
                     COALESCE(SUM(CASE WHEN b.status <> 'cancelled' THEN b.total_cents ELSE 0 END), 0) AS ltv_cents,
@@ -45,10 +62,12 @@ final class CustomerRepository
              LEFT JOIN bookings b ON b.customer_id = c.id
              {$where}
              GROUP BY c.id
-             ORDER BY ltv_cents DESC
-             LIMIT 200",
+             ORDER BY ltv_cents DESC, c.id DESC
+             LIMIT {$perPage} OFFSET {$offset}",
             $params,
         );
+
+        return ['rows' => $rows, 'total' => $total];
     }
 
     /**

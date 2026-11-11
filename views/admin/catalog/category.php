@@ -46,8 +46,13 @@ $cat = $data['category'];
                 <input type="text" id="description" name="description" value="<?= $e($cat['description'] ?? '') ?>">
             </div>
             <div class="kn-field">
-                <label for="icon">Icône (nom du set SVG)</label>
-                <input type="text" id="icon" name="icon" value="<?= $e($cat['icon'] ?? '') ?>">
+                <label for="icon">Icône</label>
+                <input type="text" id="icon" name="icon" value="<?= $e($cat['icon'] ?? '') ?>"
+                       maxlength="8" placeholder="🛋️" aria-describedby="icon-help">
+                <p class="kn-muted" id="icon-help" style="font-size:var(--kn-fs-small);margin:4px 0 0;">
+                    Un emoji, affiché dans le tunnel client à gauche du nom de la catégorie.
+                    Sans icône ni image, un pictogramme générique est utilisé.
+                </p>
             </div>
             <div class="kn-field">
                 <label>Image (affichée dans le tunnel client)</label>
@@ -55,7 +60,7 @@ $cat = $data['category'];
                     <img src="/uploads/<?= $e($cat['image_path']) ?>" alt="" style="max-width:140px;border-radius:4px;display:block;margin-bottom:8px;">
                     <label class="kn-check"><input type="checkbox" name="remove_image" value="1"> Retirer l'image</label>
                 <?php endif; ?>
-                <input type="file" name="image" accept="image/jpeg,image/png,image/webp">
+                <input type="file" name="image" accept="image/jpeg,image/png,image/webp" aria-label="Image de la catégorie">
                 <p class="kn-muted" style="font-size:.8rem;margin-top:4px;">JPEG, PNG ou WebP — recadrée et ré-encodée automatiquement.</p>
             </div>
             <label class="kn-check" style="margin-bottom:16px;">

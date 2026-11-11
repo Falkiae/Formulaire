@@ -48,7 +48,7 @@ $tvacEuros = static fn (int $htCents): string =>
                                         <?php if (($x['image_path'] ?? '') !== ''): ?>
                                             <img src="/uploads/<?= $e($x['image_path']) ?>" alt="" style="width:40px;height:40px;object-fit:cover;border-radius:6px;">
                                         <?php endif; ?>
-                                        <input type="text" name="label" value="<?= $e($x['label']) ?>" style="max-width:200px;">
+                                        <input type="text" name="label" value="<?= $e($x['label']) ?>" style="max-width:200px;" aria-label="Libellé">
                                         <input type="text" name="default_price" value="<?= $e($tvacEuros((int) $x['default_price_cents'])) ?>" inputmode="decimal" style="max-width:90px;" aria-label="Prix (TVAC)">
                                         <input type="number" name="default_duration" value="<?= (int) $x['default_duration_min'] ?>" min="0" style="max-width:80px;" aria-label="Durée">
                                         <label class="kn-check">

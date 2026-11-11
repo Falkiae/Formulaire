@@ -35,10 +35,19 @@ final class InvoiceController
 
     public function index(Request $request): Response
     {
+        // Même piège que la liste clients : un LIMIT muet laissait croire que
+        // tout était affiché. On pagine, et on dit combien il y en a.
+        $perPage = 50;
+        $page = max(1, $request->int('page', 1));
+        $total = (int) ($this->db->scalar('SELECT COUNT(*) FROM invoices') ?? 0);
+        $pages = max(1, (int) ceil($total / $perPage));
+        $page = min($page, $pages);
+        $offset = ($page - 1) * $perPage;
+
         $invoices = $this->db->select(
             "SELECT i.*, COALESCE(c.company_name, CONCAT(c.first_name,' ',c.last_name)) AS customer
              FROM invoices i JOIN customers c ON c.id = i.customer_id
-             ORDER BY i.number DESC LIMIT 200",
+             ORDER BY i.number DESC LIMIT {$perPage} OFFSET {$offset}",
         );
         // Commandes complétées sans facture (à facturer).
         $toInvoice = $this->db->select(
@@ -51,6 +60,9 @@ final class InvoiceController
         return $this->view->render('admin/invoice/index', [
             'csrf' => $this->csrf->field(),
             'invoices' => $invoices,
+            'invoices_total' => $total,
+            'page' => $page,
+            'pages' => $pages,
             'to_invoice' => $toInvoice,
             'user_name' => $this->session->get('user_name'),
             'flash' => $this->session->pullFlash('inv_ok'),

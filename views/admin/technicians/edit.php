@@ -60,7 +60,7 @@ $weekdays = [1 => 'Lundi', 2 => 'Mardi', 3 => 'Mercredi', 4 => 'Jeudi', 5 => 'Ve
             <h3>Point de départ (calcul de trajet)</h3>
             <div class="kn-grid kn-grid-2">
                 <div class="kn-field"><label for="home_postal">Code postal</label><input type="text" id="home_postal" name="home_postal" value="<?= $e($tech['home_postal'] ?? '') ?>" inputmode="numeric"></div>
-                <div class="kn-field"><label for="max_jobs_per_day">Jobs max / jour</label><input type="number" id="max_jobs_per_day" name="max_jobs_per_day" min="1" value="<?= (int) ($tech['max_jobs_per_day'] ?? 6) ?>"></div>
+                <div class="kn-field"><label for="max_jobs_per_day">Rendez-vous maximum par jour</label><input type="number" id="max_jobs_per_day" name="max_jobs_per_day" min="1" value="<?= (int) ($tech['max_jobs_per_day'] ?? 6) ?>"></div>
             </div>
             <div class="kn-grid kn-grid-2">
                 <div class="kn-field"><label for="home_lat">Latitude (optionnel)</label><input type="text" id="home_lat" name="home_lat" value="<?= $e($tech['home_lat'] ?? '') ?>" inputmode="decimal"></div>
@@ -159,12 +159,12 @@ $weekdays = [1 => 'Lundi', 2 => 'Mardi', 3 => 'Mercredi', 4 => 'Jeudi', 5 => 'Ve
                     <summary>Ajouter une plage</summary>
                     <form method="post" action="/admin/techniciens/<?= $techId ?>/disponibilite" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin-top:12px;">
                         <?= $data['csrf'] ?>
-                        <div class="kn-field" style="margin:0;"><label>Jour</label><select name="weekday">
+                        <div class="kn-field" style="margin:0;"><label>Jour</label><select name="weekday" aria-label="Jour">
                             <?php foreach ($weekdays as $num => $label): ?><option value="<?= $num ?>"><?= $e($label) ?></option><?php endforeach; ?>
                         </select></div>
-                        <div class="kn-field" style="margin:0;"><label>Début</label><input type="time" name="start_time" required style="max-width:120px;"></div>
-                        <div class="kn-field" style="margin:0;"><label>Fin</label><input type="time" name="end_time" required style="max-width:120px;"></div>
-                        <div class="kn-field" style="margin:0;"><label>Atelier</label><select name="location_id">
+                        <div class="kn-field" style="margin:0;"><label>Début</label><input type="time" name="start_time" required style="max-width:120px;" aria-label="Heure de début"></div>
+                        <div class="kn-field" style="margin:0;"><label>Fin</label><input type="time" name="end_time" required style="max-width:120px;" aria-label="Heure de fin"></div>
+                        <div class="kn-field" style="margin:0;"><label>Atelier</label><select name="location_id" aria-label="Atelier de rattachement">
                             <option value="0">Terrain (aucun)</option>
                             <?php foreach ($data['locations'] as $loc): ?><option value="<?= (int) $loc['id'] ?>"><?= $e($loc['name']) ?></option><?php endforeach; ?>
                         </select></div>
@@ -203,9 +203,9 @@ $weekdays = [1 => 'Lundi', 2 => 'Mardi', 3 => 'Mercredi', 4 => 'Jeudi', 5 => 'Ve
                     <summary>Ajouter une absence</summary>
                     <form method="post" action="/admin/techniciens/<?= $techId ?>/absence" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin-top:12px;">
                         <?= $data['csrf'] ?>
-                        <div class="kn-field" style="margin:0;"><label>Début</label><input type="datetime-local" name="starts_at" required></div>
-                        <div class="kn-field" style="margin:0;"><label>Fin</label><input type="datetime-local" name="ends_at" required></div>
-                        <div class="kn-field" style="margin:0;flex:1;"><label>Motif</label><input type="text" name="reason" placeholder="Congé, formation…"></div>
+                        <div class="kn-field" style="margin:0;"><label>Début</label><input type="datetime-local" name="starts_at" required aria-label="Début de l'absence"></div>
+                        <div class="kn-field" style="margin:0;"><label>Fin</label><input type="datetime-local" name="ends_at" required aria-label="Fin de l'absence"></div>
+                        <div class="kn-field" style="margin:0;flex:1;"><label>Motif</label><input type="text" name="reason" placeholder="Congé, formation…" aria-label="Motif"></div>
                         <button type="submit" class="kn-btn kn-btn-ghost">Ajouter</button>
                     </form>
                 </details>

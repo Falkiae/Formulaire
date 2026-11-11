@@ -88,8 +88,8 @@ foreach ($data['fields'] as $f) { $fieldsById[(int) $f['id']] = $f; }
                                         <details><summary class="kn-muted">+ option</summary>
                                             <form method="post" action="/admin/formulaire/<?= (int) $version['id'] ?>/champ/<?= (int) $f['id'] ?>/option" style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px;">
                                                 <?= $data['csrf'] ?>
-                                                <input type="text" name="label" placeholder="Libellé" style="max-width:120px;">
-                                                <input type="number" name="duration_modifier_value" placeholder="+dur %" title="Modif. durée (points de base)" style="max-width:80px;">
+                                                <input type="text" name="label" placeholder="Libellé" style="max-width:120px;" aria-label="Libellé">
+                                                <input type="number" name="duration_modifier_value" placeholder="+dur %" title="Modif. durée (points de base)" style="max-width:80px;" aria-label="Modification de durée en pour cent">
                                                 <input type="hidden" name="duration_modifier_type" value="percent">
                                                 <button class="kn-btn kn-btn-ghost kn-btn-sm">+</button>
                                             </form>
@@ -114,12 +114,12 @@ foreach ($data['fields'] as $f) { $fieldsById[(int) $f['id']] = $f; }
                 <summary>Ajouter un champ</summary>
                 <form method="post" action="/admin/formulaire/<?= (int) $version['id'] ?>/champ" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin-top:12px;">
                     <?= $data['csrf'] ?>
-                    <div class="kn-field" style="margin:0;"><label>Libellé</label><input type="text" name="label" required style="max-width:200px;"></div>
-                    <div class="kn-field" style="margin:0;"><label>Clé (optionnel)</label><input type="text" name="field_key" style="max-width:140px;"></div>
-                    <div class="kn-field" style="margin:0;"><label>Type</label><select name="field_type">
+                    <div class="kn-field" style="margin:0;"><label>Libellé</label><input type="text" name="label" required style="max-width:200px;" aria-label="Libellé"></div>
+                    <div class="kn-field" style="margin:0;"><label>Clé (optionnel)</label><input type="text" name="field_key" style="max-width:140px;" aria-label="Clé du champ"></div>
+                    <div class="kn-field" style="margin:0;"><label>Type</label><select name="field_type" aria-label="Type de champ">
                         <?php foreach ($data['field_types'] as $t): ?><option value="<?= $e($t) ?>"><?= $e($t) ?></option><?php endforeach; ?>
                     </select></div>
-                    <div class="kn-field" style="margin:0;"><label>Étape</label><input type="number" name="step" value="5" min="1" style="max-width:70px;"></div>
+                    <div class="kn-field" style="margin:0;"><label>Étape</label><input type="number" name="step" value="5" min="1" style="max-width:70px;" aria-label="Pas"></div>
                     <label class="kn-check" style="margin-bottom:12px;"><input type="checkbox" name="is_required" value="1"> requis</label>
                     <button type="submit" class="kn-btn kn-btn-ghost">Ajouter</button>
                 </form>
@@ -147,17 +147,17 @@ foreach ($data['fields'] as $f) { $fieldsById[(int) $f['id']] = $f; }
                 <summary>Ajouter une condition</summary>
                 <form method="post" action="/admin/formulaire/<?= (int) $version['id'] ?>/condition" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin-top:12px;">
                     <?= $data['csrf'] ?>
-                    <div class="kn-field" style="margin:0;"><label>SI champ</label><select name="source_field_id">
+                    <div class="kn-field" style="margin:0;"><label>SI champ</label><select name="source_field_id" aria-label="Champ observé">
                         <?php foreach ($data['fields'] as $f): ?><option value="<?= (int) $f['id'] ?>"><?= $e($f['field_key']) ?></option><?php endforeach; ?>
                     </select></div>
-                    <div class="kn-field" style="margin:0;"><label>opérateur</label><select name="operator">
+                    <div class="kn-field" style="margin:0;"><label>opérateur</label><select name="operator" aria-label="Opérateur de comparaison">
                         <?php foreach (['eq','neq','in','gt','lt','filled','empty'] as $op): ?><option value="<?= $op ?>"><?= $op ?></option><?php endforeach; ?>
                     </select></div>
-                    <div class="kn-field" style="margin:0;"><label>valeur</label><input type="text" name="compare_value" style="max-width:100px;"></div>
-                    <div class="kn-field" style="margin:0;"><label>ALORS</label><select name="action">
+                    <div class="kn-field" style="margin:0;"><label>valeur</label><input type="text" name="compare_value" style="max-width:100px;" aria-label="Valeur comparée"></div>
+                    <div class="kn-field" style="margin:0;"><label>ALORS</label><select name="action" aria-label="Action déclenchée">
                         <?php foreach (['show','hide','require','optional'] as $a): ?><option value="<?= $a ?>"><?= $a ?></option><?php endforeach; ?>
                     </select></div>
-                    <div class="kn-field" style="margin:0;"><label>champ cible</label><select name="target_field_id">
+                    <div class="kn-field" style="margin:0;"><label>champ cible</label><select name="target_field_id" aria-label="Champ ciblé">
                         <?php foreach ($data['fields'] as $f): ?><option value="<?= (int) $f['id'] ?>"><?= $e($f['field_key']) ?></option><?php endforeach; ?>
                     </select></div>
                     <button type="submit" class="kn-btn kn-btn-ghost">Ajouter</button>

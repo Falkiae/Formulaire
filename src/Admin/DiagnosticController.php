@@ -25,23 +25,6 @@ use Keepnew\Core\View;
  */
 final class DiagnosticController
 {
-    /**
-     * Fichiers du correctif « app technicien » et marqueur prouvant que la
-     * version déployée est bien la nouvelle.
-     */
-    private const EXPECTED = [
-        'views/tech/no-profile.php' => "n'est pas encore activée",
-        'src/Tech/TechController.php' => 'technicianOrNull',
-        'src/Admin/AuthController.php' => 'existsForUser',
-        'src/Admin/UserController.php' => 'syncTechnicianProfile',
-        'src/Technician/TechnicianRepository.php' => 'releaseAccountFromOtherProfiles',
-        'src/Auth/UserRepository.php' => 'technician_id',
-        'views/admin/users/index.php' => 'sans fiche technicien',
-        'views/admin/users/edit.php' => 'technician_profile',
-        'config/routes.php' => 'DiagnosticController',
-        'config/bootstrap.php' => 'instance(Router::class',
-    ];
-
     public function __construct(
         private readonly View $view,
         private readonly Session $session,
@@ -55,37 +38,12 @@ final class DiagnosticController
         $root = dirname(__DIR__, 2);
 
         return $this->view->render('admin/diagnostic', [
-            'files' => $this->files($root),
             'routes' => $this->routes(),
             'server' => $this->server($root),
             'rewrite' => $this->rewrite($root),
             'technicians' => $this->technicians(),
             'user_name' => $this->session->get('user_name'),
         ]);
-    }
-
-    /**
-     * Présence + fraîcheur des fichiers du correctif.
-     *
-     * @return list<array{path:string, state:string, detail:string}>
-     */
-    private function files(string $root): array
-    {
-        $rows = [];
-        foreach (self::EXPECTED as $path => $marker) {
-            $full = $root . '/' . $path;
-            if (!is_file($full)) {
-                $rows[] = ['path' => $path, 'state' => 'absent', 'detail' => 'Fichier introuvable sur le serveur.'];
-                continue;
-            }
-            $contents = (string) file_get_contents($full);
-            $date = date('d/m/Y H:i', (int) filemtime($full));
-            $rows[] = str_contains($contents, $marker)
-                ? ['path' => $path, 'state' => 'ok', 'detail' => 'Version à jour — envoyé le ' . $date . '.']
-                : ['path' => $path, 'state' => 'ancien', 'detail' => 'ANCIENNE version encore en place (fichier du ' . $date . ').'];
-        }
-
-        return $rows;
     }
 
     /**

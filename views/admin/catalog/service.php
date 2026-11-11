@@ -83,7 +83,7 @@ foreach ($data['modes'] as $m) {
                         <img src="/uploads/<?= $e($service['image_path']) ?>" alt="" style="max-width:140px;border-radius:4px;display:block;margin-bottom:8px;">
                         <label class="kn-check"><input type="checkbox" name="remove_image" value="1"> Retirer l'image</label>
                     <?php endif; ?>
-                    <input type="file" name="image" accept="image/jpeg,image/png,image/webp">
+                    <input type="file" name="image" accept="image/jpeg,image/png,image/webp" aria-label="Image de la prestation">
                     <p class="kn-muted" style="font-size:.8rem;margin-top:4px;">JPEG, PNG ou WebP — recadrée et ré-encodée automatiquement.</p>
                 </div>
             </section>
@@ -162,9 +162,9 @@ foreach ($data['modes'] as $m) {
                     <form method="post" action="/admin/catalogue/service/<?= (int) $service['id'] ?>/variante/<?= (int) $v['id'] ?>"
                           style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;">
                         <?= $data['csrf'] ?>
-                        <div class="kn-field" style="margin:0;"><label>Libellé <?= ((int) $v['is_default'] === 1) ? '<span class="kn-badge">★ Par défaut</span>' : '' ?></label><input type="text" name="label" value="<?= $e($v['label']) ?>" style="max-width:180px;"></div>
-                        <div class="kn-field" style="margin:0;"><label>Δ prix (€ TVAC)</label><input type="text" name="price_delta" value="<?= $e($tvacEuros((int) $v['price_delta_cents'])) ?>" inputmode="decimal" style="max-width:100px;"></div>
-                        <div class="kn-field" style="margin:0;"><label>Δ durée (min)</label><input type="number" name="duration_delta" value="<?= (int) $v['duration_delta_min'] ?>" style="max-width:90px;"></div>
+                        <div class="kn-field" style="margin:0;"><label>Libellé <?= ((int) $v['is_default'] === 1) ? '<span class="kn-badge">★ Par défaut</span>' : '' ?></label><input type="text" name="label" value="<?= $e($v['label']) ?>" style="max-width:180px;" aria-label="Libellé"></div>
+                        <div class="kn-field" style="margin:0;"><label>Δ prix (€ TVAC)</label><input type="text" name="price_delta" value="<?= $e($tvacEuros((int) $v['price_delta_cents'])) ?>" inputmode="decimal" style="max-width:100px;" aria-label="Écart de prix en euros TVAC"></div>
+                        <div class="kn-field" style="margin:0;"><label>Δ durée (min)</label><input type="number" name="duration_delta" value="<?= (int) $v['duration_delta_min'] ?>" style="max-width:90px;" aria-label="Écart de durée en minutes"></div>
                         <label class="kn-check" style="margin-bottom:12px;">
                             <input type="checkbox" name="is_active" value="1" <?= ((int) $v['is_active'] === 1) ? 'checked' : '' ?>> active
                         </label>
@@ -186,9 +186,9 @@ foreach ($data['modes'] as $m) {
                 <form method="post" action="/admin/catalogue/service/<?= (int) $service['id'] ?>/variante"
                       style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin-top:12px;">
                     <?= $data['csrf'] ?>
-                    <div class="kn-field" style="margin:0;"><label>Libellé</label><input type="text" name="label" required style="max-width:200px;"></div>
-                    <div class="kn-field" style="margin:0;"><label>Δ prix (€ TVAC)</label><input type="text" name="price_delta" inputmode="decimal" value="0" style="max-width:100px;"></div>
-                    <div class="kn-field" style="margin:0;"><label>Δ durée (min)</label><input type="number" name="duration_delta" value="0" style="max-width:90px;"></div>
+                    <div class="kn-field" style="margin:0;"><label>Libellé</label><input type="text" name="label" required style="max-width:200px;" aria-label="Libellé"></div>
+                    <div class="kn-field" style="margin:0;"><label>Δ prix (€ TVAC)</label><input type="text" name="price_delta" inputmode="decimal" value="0" style="max-width:100px;" aria-label="Écart de prix en euros TVAC"></div>
+                    <div class="kn-field" style="margin:0;"><label>Δ durée (min)</label><input type="number" name="duration_delta" value="0" style="max-width:90px;" aria-label="Écart de durée en minutes"></div>
                     <button type="submit" class="kn-btn kn-btn-ghost">Ajouter</button>
                 </form>
             </details>
@@ -229,7 +229,7 @@ foreach ($data['modes'] as $m) {
                         <?= $data['csrf'] ?>
                         <div class="kn-field" style="margin:0;">
                             <label>Extra</label>
-                            <select name="extra_id">
+                            <select name="extra_id" aria-label="Extra à ajouter">
                                 <?php foreach ($data['available_extras'] as $ax): ?>
                                     <option value="<?= (int) $ax['id'] ?>"><?= $e($ax['label']) ?></option>
                                 <?php endforeach; ?>
@@ -237,18 +237,18 @@ foreach ($data['modes'] as $m) {
                         </div>
                         <div class="kn-field" style="margin:0;">
                             <label>Prix surchargé (€ TVAC, vide = défaut)</label>
-                            <input type="text" name="price" inputmode="decimal" style="max-width:120px;">
+                            <input type="text" name="price" inputmode="decimal" style="max-width:120px;" aria-label="Prix en euros TVAC">
                         </div>
                         <div class="kn-field" style="margin:0;">
                             <label>Sélection</label>
-                            <select name="selection_type">
+                            <select name="selection_type" aria-label="Type de sélection">
                                 <option value="checkbox">Cumulable</option>
                                 <option value="radio">Exclusif</option>
                             </select>
                         </div>
                         <div class="kn-field" style="margin:0;">
                             <label>Groupe exclusif (optionnel)</label>
-                            <input type="text" name="exclusive_group" style="max-width:120px;">
+                            <input type="text" name="exclusive_group" style="max-width:120px;" aria-label="Groupe d'exclusivité">
                         </div>
                         <button type="submit" class="kn-btn kn-btn-ghost">Rattacher</button>
                     </form>

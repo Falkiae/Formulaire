@@ -2,6 +2,43 @@
 
 Accès : `/admin/connexion`.
 
+## Réglages
+
+`Réglages → Général` expose vingt et un paramètres groupés en sept sections :
+société (raison sociale et numéro de TVA, qui figurent sur les factures),
+liens publics, signature e-mail, finances (taux de TVA, seuil de facture
+simplifiée, délai avant facturation automatique), tarification (remise
+groupée), réservation, disponibilité et clé API de cartographie.
+
+La page n'en exposait que six : changer un taux de TVA ou un pourcentage de
+remise imposait d'ouvrir phpMyAdmin.
+
+Deux règles tiennent cette page :
+
+- **On n'affiche que ce qui agit.** Dix clés de la table `settings` ne sont
+  lues par aucun code (`display.timezone`, les `geo.*` autres que la clé ORS,
+  `booking.default_mode`, `booking.auto_advance`,
+  `badge.most_requested_min_volume`). Les afficher ferait croire qu'on les
+  règle. Elles restent en base, invisibles, jusqu'à ce qu'un code les lise.
+- **On parle la langue du métier.** Un taux de TVA se saisit en pour cent, pas
+  en points de base ; un seuil de facture en euros, pas en centimes.
+
+`availability.horizon_days` mérite une mention : il commande à la fois le
+moteur de disponibilité **et** jusqu'où le calendrier du tunnel laisse le
+client avancer. Les deux sont alignés — un client ne peut plus tourner les
+pages du calendrier sur des mois que le moteur ne desservira jamais.
+
+## Ordre d'affichage du catalogue
+
+Les catégories comme les prestations se réordonnent avec les flèches ▲ ▼ de
+chaque ligne ; l'ordre obtenu est celui que verra le client. Le glisser-déposer
+reste possible à la souris. Chaque déplacement est enregistré immédiatement, et
+un message le confirme — ou avertit en rouge si l'enregistrement a échoué, au
+lieu de laisser croire que c'est fait.
+
+L'ordre des catégories n'était pas modifiable du tout : la route et le
+contrôleur existaient, aucune interface ne les appelait.
+
 ## Navigation
 
 Le menu compte **six entrées**, chacune ouvrant ses propres onglets juste sous

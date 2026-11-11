@@ -28,9 +28,9 @@
 
         <section class="kn-card">
             <div class="kn-table-wrap">
-                <table class="kn-table">
+                <table class="kn-table kn-table-sticky">
                     <thead>
-                        <tr><th>Nom</th><th>Téléphone</th><th>Compte terrain</th><th class="kn-num">Jobs/jour</th><th>État</th></tr>
+                        <tr><th>Nom</th><th>Téléphone</th><th>Compte terrain</th><th class="kn-num">RDV / jour</th><th>État</th></tr>
                     </thead>
                     <tbody>
                         <?php foreach ($data['technicians'] as $t): ?>

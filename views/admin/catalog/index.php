@@ -12,10 +12,12 @@ $renderTree = static function (array $nodes, callable $e) use (&$renderTree): st
     if ($nodes === []) {
         return '';
     }
-    $html = '<ul class="kn-cat-list">';
+    // data-reorder : chaque niveau de l'arborescence se réordonne chez lui.
+    $html = '<ul class="kn-cat-list" data-reorder="/admin/catalogue/categories/ordre"'
+        . ' data-reorder-item="li" data-reorder-label="catégorie">';
     foreach ($nodes as $node) {
         $vis = ((int) $node['is_visible'] === 1) ? '' : ' <span class="kn-badge kn-badge-off">masquée</span>';
-        $html .= '<li data-id="' . (int) $node['id'] . '">'
+        $html .= '<li data-id="' . (int) $node['id'] . '" data-reorder-name="' . $e($node['name']) . '">'
             . '<a href="/admin/catalogue/categorie/' . (int) $node['id'] . '">' . $e($node['name']) . '</a>' . $vis
             . $renderTree($node['children'] ?? [], $e)
             . '</li>';
@@ -55,7 +57,7 @@ $tvacEuros = static fn (int $htCents): string =>
                 <h2>Catégories</h2>
                 <?= $renderTree($data['tree'], $e) ?>
 
-                <details style="margin-top:16px;">
+                <details style="margin-top:16px;"<?= $data['tree'] === [] ? ' open' : '' ?>>
                     <summary>Ajouter une catégorie</summary>
                     <form method="post" action="/admin/catalogue/categorie" style="margin-top:12px;" enctype="multipart/form-data">
                         <?= $data['csrf'] ?>
@@ -87,11 +89,13 @@ $tvacEuros = static fn (int $htCents): string =>
 
             <section class="kn-card">
                 <h2>Prestations</h2>
-                <p class="kn-muted">Glissez-déposez les lignes pour réordonner.</p>
+                <p class="kn-muted">Les flèches réordonnent la liste — l'ordre est celui que verra le client. Le glisser-déposer fonctionne aussi à la souris.</p>
                 <div class="kn-table-wrap">
                     <table class="kn-table" id="services-table">
+                        <caption class="kn-visually-hidden">Prestations du catalogue, dans l'ordre d'affichage côté client</caption>
                         <thead>
                             <tr>
+                                <th><span class="kn-visually-hidden">Ordre</span></th>
                                 <th>Prestation</th>
                                 <th>Catégorie</th>
                                 <th class="kn-num">Prix base (TVAC)</th>
@@ -100,9 +104,10 @@ $tvacEuros = static fn (int $htCents): string =>
                                 <th></th>
                             </tr>
                         </thead>
-                        <tbody id="services-body">
+                        <tbody id="services-body" data-reorder="/admin/catalogue/services/ordre"
+                               data-reorder-item="tr" data-reorder-label="prestation">
                             <?php foreach ($data['services'] as $s): ?>
-                                <tr draggable="true" data-id="<?= (int) $s['id'] ?>">
+                                <tr draggable="true" data-id="<?= (int) $s['id'] ?>" data-reorder-name="<?= $e($s['name']) ?>">
                                     <td><a href="/admin/catalogue/service/<?= (int) $s['id'] ?>"><?= $e($s['name']) ?></a></td>
                                     <td class="kn-muted"><?= $e($s['category_name']) ?></td>
                                     <td class="kn-num"><?= $e($tvacEuros((int) $s['base_price_cents'])) ?> €</td>
@@ -122,11 +127,14 @@ $tvacEuros = static fn (int $htCents): string =>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
+                            <?php if ($data['services'] === []): ?>
+                                <tr><td colspan="7" class="kn-muted">Aucune prestation. Créez-en une ci-dessous : elle apparaîtra aussitôt dans le tunnel client.</td></tr>
+                            <?php endif; ?>
                         </tbody>
                     </table>
                 </div>
 
-                <details style="margin-top:16px;">
+                <details style="margin-top:16px;"<?= $data['services'] === [] ? ' open' : '' ?>>
                     <summary>Ajouter une prestation</summary>
                     <form method="post" action="/admin/catalogue/service" style="margin-top:12px;">
                         <?= $data['csrf'] ?>
@@ -159,32 +167,6 @@ $tvacEuros = static fn (int $htCents): string =>
         </div>
     </main>
 
-    <script>
-    (function () {
-        "use strict";
-        const CSRF = <?= json_encode(preg_match('/value="([^"]+)"/', $data['csrf'], $m) ? $m[1] : '', JSON_UNESCAPED_SLASHES) ?>;
-        const body = document.getElementById("services-body");
-        let dragged = null;
-
-        body.addEventListener("dragstart", (e) => { dragged = e.target.closest("tr"); e.dataTransfer.effectAllowed = "move"; });
-        body.addEventListener("dragover", (e) => {
-            e.preventDefault();
-            const row = e.target.closest("tr");
-            if (!row || row === dragged) return;
-            const rect = row.getBoundingClientRect();
-            const after = (e.clientY - rect.top) > rect.height / 2;
-            body.insertBefore(dragged, after ? row.nextSibling : row);
-        });
-        body.addEventListener("drop", (e) => {
-            e.preventDefault();
-            const order = Array.from(body.querySelectorAll("tr")).map((r) => parseInt(r.dataset.id, 10));
-            fetch("/admin/catalogue/services/ordre", {
-                method: "POST",
-                headers: { "Content-Type": "application/json", "X-CSRF-Token": CSRF, "Accept": "application/json" },
-                body: JSON.stringify({ order }),
-            });
-        });
-    })();
-    </script>
+    <script src="/assets/admin-reorder.js" defer></script>
 </body>
 </html>

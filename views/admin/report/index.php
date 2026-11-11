@@ -51,7 +51,7 @@ $t = $data['totals'];
                 <h2>CA par technicien</h2>
                 <div class="kn-table-wrap">
                     <table class="kn-table">
-                        <thead><tr><th>Technicien</th><th class="kn-num">Jobs</th><th class="kn-num">CA</th></tr></thead>
+                        <thead><tr><th>Technicien</th><th class="kn-num">Rendez-vous</th><th class="kn-num">CA</th></tr></thead>
                         <tbody>
                             <?php foreach ($data['by_technician'] as $r): ?>
                                 <tr><td><?= $e($r['first_name'] . ' ' . $r['last_name']) ?></td><td class="kn-num"><?= (int) $r['jobs_count'] ?></td><td class="kn-num"><?= $e($eur((int) $r['revenue_cents'])) ?> €</td></tr>

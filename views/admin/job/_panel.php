@@ -29,7 +29,7 @@ $title = $data['items'] !== []
     <div class="kn-job-panel-head">
         <div>
             <h2 class="kn-job-panel-title"><?= $e($title) ?> <span class="kn-muted">pour <?= $e($j['first_name'] . ' ' . $j['last_name']) ?></span></h2>
-            <p class="kn-muted" style="margin:2px 0 0;">Job #<?= $e($j['reference']) ?></p>
+            <p class="kn-muted" style="margin:2px 0 0;">Commande <?= $e($j['reference']) ?></p>
         </div>
         <button type="button" class="kn-job-panel-close" aria-label="Fermer">✕</button>
     </div>
@@ -140,7 +140,7 @@ $title = $data['items'] !== []
                     Atelier
                 </label>
                 <?php if (count($data['customer_addresses']) > 1): ?>
-                    <select id="kn-resched-address-select" class="kn-field" style="display:<?= $j['mode'] === 'onsite' ? '' : 'none' ?>;">
+                    <select id="kn-resched-address-select" class="kn-field" aria-label="Adresse d'intervention" style="display:<?= $j['mode'] === 'onsite' ? '' : 'none' ?>;">
                         <?php foreach ($data['customer_addresses'] as $a): ?>
                             <option value="<?= (int) $a['id'] ?>" <?= (int) ($j['address_id'] ?? 0) === (int) $a['id'] ? 'selected' : '' ?>>
                                 <?= $e(trim((($a['label'] ?? '') !== '' ? $a['label'] . ' · ' : '') . ($a['street'] ?? '') . ' ' . ($a['number'] ?? '') . ', ' . ($a['postal_code'] ?? '') . ' ' . ($a['city'] ?? ''))) ?>
@@ -223,12 +223,12 @@ $title = $data['items'] !== []
                                 <?php endif; ?>
                             </td>
                             <td>
-                                <input form="kn-line-<?= (int) $it['id'] ?>" type="number" name="quantity" min="1"
+                                <input form="kn-line-<?= (int) $it['id'] ?>" type="number" name="quantity" min="1" aria-label="Quantité"
                                        value="<?= (int) $it['quantity'] ?>" style="width:64px;">
                             </td>
                             <td>
                                 <input form="kn-line-<?= (int) $it['id'] ?>" type="text" name="price" inputmode="decimal"
-                                       value="<?= $e($euroInput($tvac((int) $it['unit_price_cents']))) ?>" style="width:104px;">
+                                       value="<?= $e($euroInput($tvac((int) $it['unit_price_cents']))) ?>" style="width:104px;" aria-label="Prix en euros TVAC">
                             </td>
                         <?php endif; ?>
                         <td class="kn-num"><?= $e($eur($tvac((int) $it['line_total_cents']))) ?> €</td>
@@ -332,7 +332,7 @@ $title = $data['items'] !== []
                     </div>
                     <div class="kn-field" style="flex:0 0 80px;">
                         <label for="kn-add-qty">Qté</label>
-                        <input id="kn-add-qty" type="number" name="quantity" min="1" value="1">
+                        <input id="kn-add-qty" type="number" name="quantity" min="1" aria-label="Quantité" value="1">
                     </div>
                     <button type="submit" class="kn-btn kn-btn-primary kn-btn-sm">Ajouter</button>
                 </form>
@@ -350,7 +350,7 @@ $title = $data['items'] !== []
                     </div>
                     <div class="kn-field" style="flex:0 0 80px;">
                         <label for="kn-custom-qty">Qté</label>
-                        <input id="kn-custom-qty" type="number" name="quantity" min="1" value="1">
+                        <input id="kn-custom-qty" type="number" name="quantity" min="1" aria-label="Quantité" value="1">
                     </div>
                     <div class="kn-field" style="flex:0 0 110px;">
                         <label for="kn-custom-duration">Durée (min)</label>
@@ -403,7 +403,7 @@ $title = $data['items'] !== []
             <?= $data['csrf'] ?>
             <input type="hidden" name="customer_id" value="<?= (int) $j['customer_id'] ?>">
             <div class="kn-field">
-                <textarea name="body" rows="3" style="width:100%;padding:8px;border:1px solid var(--kn-line);border-radius:4px;resize:vertical;"></textarea>
+                <textarea name="body" rows="3" aria-label="Note interne" style="width:100%;padding:8px;border:1px solid var(--kn-line);border-radius:4px;resize:vertical;"></textarea>
             </div>
             <button type="submit" class="kn-btn kn-btn-ghost">Ajouter la note</button>
         </form>

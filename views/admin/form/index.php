@@ -45,7 +45,7 @@
             <h2>Nouveau brouillon</h2>
             <form method="post" action="/admin/formulaire">
                 <?= $data['csrf'] ?>
-                <div class="kn-field"><label>Libellé</label><input type="text" name="label" placeholder="Ex. Formulaire v2"></div>
+                <div class="kn-field"><label>Libellé</label><input type="text" name="label" placeholder="Ex. Formulaire v2" aria-label="Libellé"></div>
                 <button type="submit" class="kn-btn kn-btn-primary">Créer</button>
             </form>
         </section>

@@ -670,19 +670,31 @@
     }
     var cards = el('<div class="kn-cards"></div>');
     if (!state.categoryId) {
-      catalog.categories
-        .filter(function (cat) {
-          return categoryHasCompatibleService(cat);
-        })
-        .forEach(function (cat) {
-          cards.appendChild(
-            choiceCard("📦", cat.name, cat.description || "", function () {
-              state.categoryId = cat.id;
-              // Descend d'un niveau si sous-catégories, sinon services.
-              renderStepInto(clear(body), body.dataset.step);
-            }, false, imgUrl(cat.image_path))
-          );
-        });
+      var dispo = catalog.categories.filter(function (cat) {
+        return categoryHasCompatibleService(cat);
+      });
+
+      // Une seule catégorie proposée : un écran entier pour une carte unique
+      // est une étape qui ne pose aucune question. On passe directement aux
+      // prestations, sans la faire cliquer.
+      if (dispo.length === 1) {
+        state.categoryId = dispo[0].id;
+        renderStepInto(clear(body), body.dataset.step);
+        return;
+      }
+
+      dispo.forEach(function (cat) {
+        cards.appendChild(
+          // L'icône vient de la fiche catégorie (/admin/catalogue) : le
+          // widget affichait le même 📦 pour toutes, ce qui ne distinguait
+          // rien, alors que le champ existait en base sans jamais être lu.
+          choiceCard(cat.icon || "📦", cat.name, cat.description || "", function () {
+            state.categoryId = cat.id;
+            // Descend d'un niveau si sous-catégories, sinon services.
+            renderStepInto(clear(body), body.dataset.step);
+          }, false, imgUrl(cat.image_path))
+        );
+      });
     } else {
       var cat = findCategory(state.categoryId);
       (cat && cat.children && cat.children.length ? cat.children : [cat]).forEach(function (c) {

@@ -59,16 +59,16 @@ $channelLabels = ['email' => 'Email', 'sms' => 'SMS'];
                             <?php if ($tpl['channel'] === 'email'): ?>
                                 <div class="kn-field">
                                     <label>Sujet</label>
-                                    <input type="text" name="<?= $prefix ?>subject" value="<?= $e($tpl['subject'] ?? '') ?>">
+                                    <input type="text" name="<?= $prefix ?>subject" aria-label="Objet du message" value="<?= $e($tpl['subject'] ?? '') ?>">
                                 </div>
                             <?php endif; ?>
                             <div class="kn-field">
                                 <label>Corps du message</label>
-                                <textarea name="<?= $prefix ?>body" rows="4" style="width:100%;padding:8px;border:1px solid var(--kn-line);border-radius:4px;font:inherit;"><?= $e($tpl['body']) ?></textarea>
+                                <textarea name="<?= $prefix ?>body" aria-label="Corps du message" rows="4" style="width:100%;padding:8px;border:1px solid var(--kn-line);border-radius:4px;font:inherit;"><?= $e($tpl['body']) ?></textarea>
                             </div>
                             <div class="kn-field" style="max-width:220px;">
                                 <label>Délai (minutes, négatif = avant le RDV)</label>
-                                <input type="number" name="<?= $prefix ?>offset" value="<?= (int) $tpl['offset_minutes'] ?>">
+                                <input type="number" name="<?= $prefix ?>offset" aria-label="Décalage en minutes par rapport au rendez-vous" value="<?= (int) $tpl['offset_minutes'] ?>">
                             </div>
                         </fieldset>
                     <?php endforeach; ?>

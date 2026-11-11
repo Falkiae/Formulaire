@@ -30,7 +30,7 @@ $jobCard = static function (array $j) use ($e, $durationLabel): string {
         : 'Non planifié';
     return '<a class="kn-schedule-card" href="/admin/job/' . (int) $j['id'] . '">'
         . '<div class="kn-schedule-card-head">'
-        . '<span class="kn-schedule-ref">Job #' . (int) $j['id'] . '</span>'
+        . '<span class="kn-schedule-ref">RDV n° ' . (int) $j['id'] . '</span>'
         . '<span class="kn-badge kn-badge-' . $e($j['status_variant']) . '">' . $e($j['status_label']) . '</span>'
         . '</div>'
         . '<div class="kn-schedule-time">' . $time . '</div>'
